@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
+from deployment import replace_code
 from install_app import mac_shortcut
 from launch import running_instance, stop_instance
 
@@ -43,3 +44,33 @@ class RuntimeTests(unittest.TestCase):
             launcher = app / 'Contents/MacOS' / info['CFBundleExecutable']
             line = launcher.read_text(encoding='utf-8').splitlines()[1]
             self.assertEqual(shlex.split(line.split(' >> ', 1)[0]), ['exec', *command])
+
+    def test_failed_start_restores_prior_installation(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / 'source'
+            installed = root / 'install' / 'talking-head-studio'
+            backups = root / 'backups'
+            source.mkdir()
+            installed.mkdir(parents=True)
+            (source / 'entry').write_text('new')
+            (installed / 'entry').write_text('old')
+            transitions = []
+
+            def cannot_start():
+                self.assertEqual((installed / 'entry').read_text(), 'new')
+                raise RuntimeError('simulated start failure')
+
+            def recover():
+                transitions.append((installed / 'entry').read_text())
+
+            with (
+                patch('deployment.ROOT', source),
+                patch('deployment.PACKAGE_DIRS', ()),
+                patch('deployment.PACKAGE_FILES', ('entry',)),
+            ):
+                with self.assertRaisesRegex(RuntimeError, 'simulated start failure'):
+                    replace_code(installed, backups, lambda stage: None,
+                                 lambda: transitions.append('stop'), cannot_start, recover)
+            self.assertEqual(transitions, ['stop', 'old'])
+            self.assertEqual((installed / 'entry').read_text(), 'old')

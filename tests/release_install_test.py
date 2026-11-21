@@ -18,8 +18,8 @@ from core import ROOT, VERSION
 from package_release import verify
 
 
-def run(*args, env=None):
-    subprocess.run([str(arg) for arg in args], check=True, env=env)
+def run(*args, env=None, cwd=None):
+    subprocess.run([str(arg) for arg in args], check=True, env=env, cwd=cwd)
 
 
 def control(data):
@@ -60,11 +60,12 @@ class Fixture:
 
     def deploy(self, source, reuse_settings=False):
         if os.name == 'nt':
-            entry = ['cmd.exe', '/d', '/c', source / '安装工作台.cmd']
+            entry = ['cmd.exe', '/d', '/c', '安装工作台.cmd']
         else:
             entry = [source / 'install_macos.command']
         args = [] if reuse_settings else ['--data', self.data, '--port', '0']
-        run(*entry, '--target', self.app, '--shortcut-dir', self.menu, '--no-browser', *args, env=self.env)
+        run(*entry, '--target', self.app, '--shortcut-dir', self.menu, '--no-browser', *args,
+            env=self.env, cwd=source)
         return control(self.data)
 
     def stop(self):

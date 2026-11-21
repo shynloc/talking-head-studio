@@ -1,4 +1,10 @@
 @echo off
+setlocal
+chcp 65001 >nul
 cd /d "%~dp0"
-python scripts\install.py
+python -X utf8 scripts\install.py %*
+if errorlevel 1 (
+  pause
+  exit /b 1
+)
 pause

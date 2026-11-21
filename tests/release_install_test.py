@@ -59,12 +59,14 @@ class Fixture:
         self.python = runtime / ('Scripts/python.exe' if os.name == 'nt' else 'bin/python')
         self.env = dict(os.environ, PYTHONUTF8='1', PLAYWRIGHT_BROWSERS_PATH=str(root.parent / '浏览器'))
 
-    def deploy(self, source, reuse_settings=False):
+    def deploy(self, source, reuse_settings=False, install_shortcut=True):
         if os.name == 'nt':
             entry = ['cmd.exe', '/d', '/c', '安装工作台.cmd']
         else:
             entry = [source / 'install_macos.command']
         args = [] if reuse_settings else ['--data', self.data, '--port', '0']
+        if not install_shortcut:
+            args.append('--no-shortcut')
         run(*entry, '--target', self.app, '--shortcut-dir', self.menu, '--no-browser', *args,
             env=self.env, cwd=source)
         return control(self.data)
@@ -150,6 +152,25 @@ def old_checkout(folder):
     return folder
 
 
+def seed_previous(fixture, source):
+    if os.name == 'nt':
+        url, before = fixture.deploy(source, install_shortcut=False)
+        project = before('/api/new', {'title': '升级后还在的口播'})
+        complete(before, project['id'], 'script', {'text': '请保留这段稿件。'})
+        return url, before('/api/project?id=' + project['id'])
+    shutil.copytree(source, fixture.app)
+    (fixture.app / '.studio-install').write_text('2.0.2\n', encoding='utf-8')
+    seed = (
+        'import json,sys; sys.path.insert(0,sys.argv[1]); '
+        'from core import Store,default_project,script_pages; '
+        'project=default_project("升级后还在的口播"); project["pages"]=script_pages("请保留这段稿件。"); '
+        'print(json.dumps(Store(sys.argv[2]).save(project),ensure_ascii=False))'
+    )
+    result = subprocess.check_output(
+        [sys.executable, '-X', 'utf8', '-c', seed, str(fixture.app / 'scripts'), str(fixture.data)], encoding='utf-8')
+    return None, json.loads(result)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--bundle', required=True, type=Path)
@@ -193,18 +214,22 @@ def main():
             report.update(stage_run(args, fresh, api))
         if args.upgrade:
             old_source = old_checkout(args.out / '旧版本源码')
-            url, before = old.deploy(old_source)
-            fixture = before('/api/new', {'title': '升级后还在的口播'})
-            complete(before, fixture['id'], 'script', {'text': '请保留这段稿件。'})
-            pages = before('/api/project?id=' + fixture['id'])['pages']
+            old_url, fixture = seed_previous(old, old_source)
+            pages = fixture['pages']
             (old.app / 'scripts/v34-only.txt').write_text('old', encoding='utf-8')
             new_url, after = old.deploy(source)
-            assert new_url == url and after('/api/project?id=' + fixture['id'])['pages'] == pages
+            assert old_url is None or new_url == old_url
+            assert after('/api/project?id=' + fixture['id'])['pages'] == pages
             assert (old.app / '.studio-install').read_text(encoding='utf-8').strip() == VERSION
             assert not (old.app / 'scripts/v34-only.txt').exists()
             assert list((old.app.parent / 'backups').glob('*/scripts/v34-only.txt'))
             old.assert_shortcut()
             report['upgrade_from_v34'] = True
+            if sys.platform == 'darwin':
+                live_url = control(old.data)[0]
+                reinstalled, _ = old.deploy(source, reuse_settings=True)
+                assert reinstalled == live_url
+                report['reinstall_with_active_service'] = True
         (args.out / 'results.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
     finally:
         fresh.stop()

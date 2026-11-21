@@ -31,18 +31,10 @@ def shortcut_folder():
 
 
 def windows_shortcut(folder, command, root):
+    from windows_link import make_link
+
     shortcut = folder / (APP_NAME + '.lnk')
-    env = dict(os.environ, STUDIO_LINK=str(shortcut), STUDIO_EXECUTABLE=str(command[0]),
-               STUDIO_ARGUMENTS=subprocess.list2cmdline(command[1:]), STUDIO_DIRECTORY=str(root))
-    script = (
-        '$ErrorActionPreference="Stop";'
-        '$link=(New-Object -ComObject WScript.Shell).CreateShortcut($env:STUDIO_LINK);'
-        '$link.TargetPath=$env:STUDIO_EXECUTABLE;'
-        '$link.Arguments=$env:STUDIO_ARGUMENTS;'
-        '$link.WorkingDirectory=$env:STUDIO_DIRECTORY;'
-        '$link.Save()'
-    )
-    subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', script], env=env, check=True)
+    make_link(shortcut, command[0], subprocess.list2cmdline(command[1:]), root)
     return shortcut
 
 

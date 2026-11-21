@@ -6,6 +6,7 @@ from pathlib import Path
 from core import *
 from jobs import Jobs,doctor
 from ai_service import Manuscripts
+from runtime import configure_tool_path, data_lock, default_data_dir
 from speech_live import LiveSpeech
 import v2_api
 
@@ -33,6 +34,7 @@ class Handler(BaseHTTPRequestHandler):
                 body=(ROOT/'assets/workbench/prompter.html').read_text(encoding='utf-8').replace('__PROJECT__',json.dumps(p,ensure_ascii=False).replace('</','<\\/')).encode('utf-8')
                 self.send_response(200);self.send_header('Content-Type','text/html; charset=utf-8');self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body);return
             if path=='/api/bootstrap':return self.respond(200,{'token':self.server.token,'projects':self.server.store.listing(),'doctor':doctor()})
+            if path=='/api/instance':return self.respond(200,{'id':self.server.instance_id})
             if path=='/api/project':return self.respond(200,self.server.store.load(query['id'][0]))
             if path=='/api/jobs':
                 with self.server.jobs.lock:result=[dict(j) for j in self.server.jobs.jobs.values() if j['project_id']==query.get('id',[''])[0]]
@@ -60,11 +62,24 @@ class Handler(BaseHTTPRequestHandler):
         origin=self.headers.get('Origin')
         if origin and origin not in (f'http://127.0.0.1:{self.server.server_port}',f'http://localhost:{self.server.server_port}'):
             return self.respond(403,{'error':'跨站请求已拒绝'})
+        with self.server.lifecycle:
+            if self.server.stopping:
+                return self.respond(409, {'error': '工作台正在停止。'})
+            self.server.active_posts += 1
+        try:
+            return self.handle_post()
+        finally:
+            with self.server.lifecycle:
+                self.server.active_posts -= 1
+
+    def handle_post(self):
         try:
             if self.path.startswith('/api/upload?'):return self.upload()
             length=int(self.headers.get('Content-Length',0))
             if length>16*1024*1024:raise ValueError('请求过大')
             data=json.loads(self.rfile.read(length) or b'{}');store=self.server.store
+            if self.path == '/api/shutdown':
+                return self.shutdown_instance(data)
             if self.path.startswith('/api/v2/'):return self.respond(200,v2_api.post(self.server,self.path,data))
             if self.path=='/api/new':
                 p=default_project(data.get('title','新的口播项目'));return self.respond(200,store.save(p,label='新建工程'))
@@ -78,6 +93,22 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond(404,{'error':'未知接口'})
         except Conflict as e:self.respond(409,{'error':str(e)})
         except Exception as e:self.respond(400,{'error':str(e)})
+
+    def shutdown_instance(self, data):
+        server = self.server
+        if data.get('id') != server.instance_id:
+            return self.respond(409, {'error': '工作台实例已变化，请重试。'})
+        with server.lifecycle, server.jobs.lock, server.manuscripts.lock:
+            jobs = server.jobs.jobs.values()
+            drafts = v2_api.get(server, '/api/v2/drafts', {})
+            if (server.active_posts != 1 or any(j['status'] in ('running', 'queued') for j in jobs)
+                    or any(d['status'] == 'running' for d in drafts)):
+                return self.respond(409, {'error': '工作台还有文件或任务正在处理，请完成后重试。'})
+            server.stopping = True
+        try:
+            return self.respond(200, {'stopping': True})
+        finally:
+            threading.Thread(target=server.shutdown, daemon=True).start()
 
     def upload(self):
         params=urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query);pid=params.get('project',[''])[0]
@@ -124,22 +155,55 @@ class Handler(BaseHTTPRequestHandler):
                     self.wfile.write(block);remaining-=len(block)
         except (BrokenPipeError,ConnectionResetError,ConnectionAbortedError):pass
 
+def serve(data, port, open_page):
+    store = Store(data)
+    with data_lock(store.root), ThreadingHTTPServer(('127.0.0.1', port), Handler) as server:
+        demo = ROOT / 'assets/demo-project.json'
+        if not store.listing() and demo.is_file():
+            template = json.loads(demo.read_text(encoding='utf-8'))
+            initial = default_project(template['title'])
+            initial['pages'] = template['pages']
+            store.save(initial, label='创建可编辑示例工程')
+        server.store = store
+        server.jobs = Jobs(store)
+        server.token = secrets.token_urlsafe(32)
+        server.instance_id = secrets.token_urlsafe(16)
+        server.manuscripts = Manuscripts(store)
+        server.speech = LiveSpeech(store.root)
+        server.lifecycle = threading.Lock()
+        server.stopping = False
+        server.active_posts = 0
+        url = f'http://127.0.0.1:{server.server_port}'
+        record = store.root / 'server.json'
+        write_json(record, {'url': url, 'pid': os.getpid(), 'started': now(),
+                            'id': server.instance_id, 'code_root': str(ROOT)})
+        print('Talking Head Studio ' + url, flush=True)
+        try:
+            if open_page:
+                webbrowser.open(url)
+            server.serve_forever()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            server.jobs.pool.shutdown(wait=True)
+            server.manuscripts.pool.shutdown(wait=True)
+            record.unlink(missing_ok=True)
+
+
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('--data',default=str(Path.home()/'Documents'/'TalkingHeadStudio'))
-    parser.add_argument('--port',type=int,default=8765);parser.add_argument('--open',action='store_true');parser.add_argument('--doctor',action='store_true')
-    args=parser.parse_args()
-    if args.doctor:print(json.dumps(doctor(),ensure_ascii=False,indent=2));return
-    store=Store(args.data)
-    demo=ROOT/'assets/demo-project.json'
-    if not store.listing() and demo.is_file():
-        template=json.loads(demo.read_text(encoding='utf-8'));initial=default_project(template['title']);initial['pages']=template['pages'];store.save(initial,label='创建可编辑示例工程')
-    server=ThreadingHTTPServer(('127.0.0.1',args.port),Handler);server.store=store;server.jobs=Jobs(store);server.token=secrets.token_urlsafe(32);server.manuscripts=Manuscripts(store);server.speech=LiveSpeech(store.root)
-    url=f'http://127.0.0.1:{server.server_port}'
-    write_json(store.root/'server.json',{'url':url,'pid':os.getpid(),'started':now()})
-    print('Talking Head Studio '+url,flush=True)
-    if args.open:webbrowser.open(url)
-    try:server.serve_forever()
-    except KeyboardInterrupt:pass
-    finally:server.server_close()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data', type=Path, default=default_data_dir())
+    parser.add_argument('--port', type=int, default=8765)
+    parser.add_argument('--open', action='store_true')
+    parser.add_argument('--doctor', action='store_true')
+    args = parser.parse_args()
+    configure_tool_path()
+    if args.doctor:
+        print(json.dumps(doctor(), ensure_ascii=False, indent=2))
+        return
+    try:
+        serve(args.data.expanduser(), args.port, args.open)
+    except (OSError, RuntimeError) as exc:
+        parser.exit(1, f'{exc}\n')
 
 if __name__=='__main__':main()

@@ -4,6 +4,7 @@ import copy, difflib, html, importlib.util, json, math, os, re, shutil, subproce
 from fractions import Fraction
 from pathlib import Path
 from core import *
+import fonts
 
 HCS_DIR = ROOT / 'vendor/html-creator-studio-core'
 
@@ -181,7 +182,7 @@ def render_rough(store,pid,report,skip=False):
     filters.append(''.join(labels)+f'concat=n={len(mapping)}:v=1:a=1[v][a]')
     script=work/'filter.txt';script.write_text(';'.join(filters),encoding='utf-8')
     report(.2,f'合成 {len(mapping)} 个保留片段')
-    run(['ffmpeg','-v','warning','-i',src['path'],'-filter_complex_script',script,'-map','[v]','-map','[a]',
+    run(['ffmpeg','-v','warning','-i',src['path'],'-/filter_complex',script,'-map','[v]','-map','[a]',
         '-c:v','libx264','-preset','fast','-crf','20','-pix_fmt','yuv420p','-r',src['fps'],'-c:a','aac','-b:a','192k','-movflags','+faststart','-y',out],work/'render.log')
     meta=probe(out)
     if digest(store.load(pid)['edl'])!=digest(p['edl']): raise Conflict('剪辑清单在渲染期间已更改，请重新生成粗剪')
@@ -198,7 +199,7 @@ def srt_time(t):
 def subtitles(p,work,w,h):
     font=max(16,round(h*float(p['settings']['caption_size'])))
     bottom=round(h*(1-float(p['settings']['caption_y'])))
-    header=f'''[Script Info]\nScriptType: v4.00+\nPlayResX: {w}\nPlayResY: {h}\nWrapStyle: 0\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default,Microsoft YaHei,{font},&H00FFFFFF,&H00FFFFFF,&H00101A20,&H70000000,-1,0,0,0,100,100,0,0,1,{max(1,font*.06):.1f},1,2,{round(w*.05)},{round(w*.05)},{bottom},1\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n'''
+    header=f'''[Script Info]\nScriptType: v4.00+\nPlayResX: {w}\nPlayResY: {h}\nWrapStyle: 0\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default,{fonts.FONT_FAMILY},{font},&H00FFFFFF,&H00FFFFFF,&H00101A20,&H70000000,0,0,0,0,100,100,0,0,1,{max(1,font*.06):.1f},1,2,{round(w*.05)},{round(w*.05)},{bottom},1\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n'''
     lines=[];srt=[]
     for i,c in enumerate(p['captions']):
         text=c['text'].replace('\\','＼').replace('{','｛').replace('}','｝').replace('\n','\\N')
@@ -213,6 +214,7 @@ def asset_paths(p):
 def create_overlay(p,work,w,h,fps):
     """Build a frame-addressable overlay, using HCS when available."""
     from PIL import Image,ImageSequence
+    fonts.stage_font(work)
     cfg=p['settings'];region=max(40,round(h*cfg['overlay_height']));full=p.get('v2_overlay') or any(s.get('fullscreen') and s.get('enabled') for s in p['scenes'])
     oh=h if full else region;assets=asset_paths(p);scenes=copy.deepcopy(p['scenes'])
     for s in scenes:
@@ -261,6 +263,7 @@ def render_overlay(work,w,oh,fps,start,duration,report):
         browser=browser_api.chromium.launch(headless=True,args=['--allow-file-access-from-files'])
         tab=browser.new_page(viewport={'width':w,'height':oh},device_scale_factor=1)
         tab.goto((work/'overlay.html').as_uri());tab.evaluate('window.ready')
+        fonts.load_browser_font(tab)
         with (work/'overlay.log').open('wb') as log:
             proc=subprocess.Popen(['ffmpeg','-v','error','-f','image2pipe','-framerate',str(fps),'-vcodec','png','-i','pipe:0','-an','-c:v','qtrle','-pix_fmt','argb','-y',str(out)],stdin=subprocess.PIPE,stderr=log)
             blank=None
@@ -303,7 +306,7 @@ def render_final(store,pid,report,sample=True,start=0,duration=10):
     oh=create_overlay(p,work,w,h,fps);overlay=render_overlay(work,w,oh,fps,start,duration,report)
     synth_sfx(p,work,duration,start);report(.78,'合成口播、字幕、透明动画和音效')
     overlay_y=0 if any(s.get('fullscreen') and s.get('enabled') for s in p['scenes']) else round(h*p['settings']['overlay_y'])
-    video_filter=f'[0:v][1:v]overlay=0:{overlay_y}:format=auto,setpts=PTS+{start}/TB,ass=captions.ass,setpts=PTS-STARTPTS,format=yuv420p[v]'
+    video_filter=f'[0:v][1:v]overlay=0:{overlay_y}:format=auto,setpts=PTS+{start}/TB,{fonts.ASS_FILTER},setpts=PTS-STARTPTS,format=yuv420p[v]'
     audio_filter=('[0:a]aresample=48000[voice]' if meta['audio'] else f'anullsrc=r=48000:cl=stereo,atrim=duration={duration}[voice]')
     audio_filter+=';[voice][2:a]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.89:level=false:latency=true,apad[a]'
     out=work/('sample.mp4' if sample else 'final.mp4')
@@ -328,8 +331,7 @@ def render_final(store,pid,report,sample=True,start=0,duration=10):
 def gif_factory(store,pid,asset_id,text,motion,report):
     p=store.load(pid);asset=next(a for a in p['assets'] if a['id']==asset_id)
     if Path(asset['path']).suffix.lower()!='.png': raise ValueError('GIF 工厂需输入 PNG 素材，透明 PNG 效果最佳')
-    font=next((x for x in [Path('C:/Windows/Fonts/msyhbd.ttc'),Path('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf')] if x.exists()),None)
-    if not font: raise ValueError('请安装字体，或通过 GIF 工厂命令指定字体')
+    font=fonts.render_font()
     work=store.folder(pid)/'renders'/uid('gif');work.mkdir(parents=True)
     manifest={'title':'口播动态素材','count':1,'groups':[{'name':'贴纸','atlas':asset['path'],'grid':[1,1],
         'ink':'#153c42','tint':'#64f1cc','entries':[{'text':text or '重点','cell':[0,0],'motion':motion,'icon':'none'}]}]}
@@ -342,6 +344,7 @@ def gif_factory(store,pid,asset_id,text,motion,report):
 
 def export_prompt(p,work):
     template=(ROOT/'assets/workbench/prompter.html').read_text(encoding='utf-8')
+    fonts.stage_font(work)
     for script in ('microphone.js','prompter-fit.js','prompter-v2.js'):
         template=template.replace(f'<script src="/{script}"></script>','<script>'+(ROOT/'assets/workbench'/script).read_text(encoding='utf-8')+'</script>')
     portable={k:copy.deepcopy(p[k]) for k in ('id','title','pages','settings')};portable['assets']=[];portable['asset_urls']={};portable['timeline']=copy.deepcopy(p.get('timeline',{}))

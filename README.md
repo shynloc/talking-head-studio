@@ -2,7 +2,7 @@
 
 从稿件、提词和录制计划开始，把一条口播做成可发布的视频。你可以使用完整的三阶段流程，也可以从已有定稿或已经粗剪好的视频开始。
 
-**当前版本为 2.0.2。Windows 11 x64 / Python 3.12 已完成运行验证。** 当前提供源码部署。macOS 的安装包、中文渲染和实机语音跟随待验证。
+**Windows 11 x64 / Python 3.12 已完成运行验证。** Windows 提供从源码安装的独立工作台入口。macOS 提供源码安装脚本与 Finder 启动入口的实现，原生运行和正式签名安装包待验收。
 
 [功能](#功能) · [实现原理](#实现原理) · [安装部署](#安装部署) · [使用步骤](#使用步骤) · [与-agent-协作](#与-agent-协作) · [faq](#faq)
 
@@ -33,9 +33,24 @@ flowchart LR
 
 ## 安装部署
 
-### Windows 快速开始
+### Windows
 
-准备 Git、Python 3.12、FFmpeg 和 Edge 或 Chrome。确保 PowerShell 能找到 `ffmpeg` 和 `ffprobe`。选用包含 `libass` 和 `libx264` 的 FFmpeg 构建。 [FFmpeg 官方下载](https://ffmpeg.org/download.html)
+准备 Python 3.12、完整 FFmpeg 和 Edge 或 Chrome。确认终端能找到 `python`、`ffmpeg` 和 `ffprobe`。FFmpeg 需要提供 `libass` 和 `libx264`，可用 `winget install --exact --id Gyan.FFmpeg` 安装。 [FFmpeg 官方下载](https://ffmpeg.org/download.html)
+
+下载并解压本仓库，双击 `安装工作台.cmd`。脚本创建独立的 Python 环境、安装核心依赖、实际验证中文渲染和编码，然后添加开始菜单「口播导演工作台」。应用默认安装在当前用户的 `%LOCALAPPDATA%\TalkingHeadStudio` 下。项目保存在独立的数据目录。
+
+### macOS
+
+以下是待实机验收的 Apple 芯片 Mac 源码部署步骤。终端进入本仓库，使用 Homebrew 安装 Python 和带 `libass` 的完整 FFmpeg。启动器会查找 Homebrew 的 FFmpeg 路径。 [Python 3.12](https://formulae.brew.sh/formula/python@3.12) · [FFmpeg Full](https://formulae.brew.sh/formula/ffmpeg-full)
+
+```bash
+brew install python@3.12 ffmpeg-full
+/bin/bash ./install_macos.command
+```
+
+脚本把应用部署到 `~/Library/Application Support/TalkingHeadStudio`，生成 `~/Applications/口播导演工作台.app`，可在 Finder 中打开。需要语音跟读时，先在系统设置和浏览器中允许麦克风访问，再试读一句。正式签名并公证的 DMG 属于后续发布产物。
+
+### 项目数据与源码直接运行
 
 ```powershell
 git clone https://github.com/shynloc/talking-head-studio.git
@@ -48,15 +63,15 @@ python -m venv .venv
 .\.venv\Scripts\python.exe scripts/launch.py
 ```
 
-安装命令会装入 Python 依赖和 Playwright Chromium，并实际编码一段 MP4 检查渲染环境。首次安装需要联网。启动后打开 [本机工作台](http://127.0.0.1:8765)，默认数据目录是用户的 `Documents/TalkingHeadStudio`。
+这组 PowerShell 命令适用于从源码目录直接运行。macOS 可用 `python3.12 -m venv .venv` 和 `.venv/bin/python` 执行相同 Python 脚本，也可在准备好依赖后用 `/bin/bash ./launch_macos.command` 打开源码版。初次安装需要联网。启动后打开 [本机工作台](http://127.0.0.1:8765)，两个平台默认项目目录都是 `Documents/TalkingHeadStudio`。
 
-项目目录和端口可自定义。已有实例运行时，可用独立目录和端口试用新版本。
+安装和启动都支持指定 `--data` 与 `--port`。同一数据目录会复用已运行的实例；端口被其他服务使用时会提示换端口。关闭浏览器后服务仍在运行，可用 `scripts/launch.py --data <项目目录> --stop` 结束。存在未完成的任务时，先等任务结束。
 
 ```powershell
 .\.venv\Scripts\python.exe scripts/launch.py --data "D:\TalkingHeadStudio" --port 8767
 ```
 
-从 GitHub 下载源码 ZIP 也可以。Windows 快捷方式包括 `安装依赖.cmd`、`启动工作台.cmd` 和 `安装语音模型.cmd`，它们使用当前 PATH 中的 Python。已有 Codex 安装需要升级时，先完成正在跑的任务。使用同一 Python 环境运行 `scripts/install.py` 可更新默认 Skill 目录并保留一份旧代码备份。
+安装后首次启用可选模型时，使用安装器输出的「应用 Python」路径运行表中的命令。已有 Codex 安装可以用 `scripts/install.py` 更新 Skill，并保留旧代码备份。安装独立工作台时可指定原项目目录，先停止正在使用它的旧实例。
 
 ### 按需启用
 
@@ -125,9 +140,9 @@ Whisper 用于录制后的转写。提词器的实时跟读使用另一套本地
 
 可以带走原片、字幕和工程所用素材。剪映目前提供实验性草稿导出。ChatCut 接入和自动继续其他 Agent 对话属于后续集成方向。
 
-### 为什么只有 Windows 部署步骤？
+### macOS 已经通过实机验收了吗？
 
-当前发布的是已在 Windows 验证的源代码版本。macOS 是后续部署目标，需完成依赖安装、中文字体、实机麦克风和完整导出验收。
+当前已提供安装与启动实现。Apple 芯片 Mac 上的实际依赖安装、麦克风跟读、三阶段导出和工程互迁仍待现场测试。
 
 ### 重装后找不到项目怎么办？
 
@@ -138,6 +153,7 @@ Whisper 用于录制后的转写。提词器的实时跟读使用另一套本地
 - [GIF 工厂](https://github.com/WoYun520/gif-factory) 的轻动效导出器，保留 [MIT 许可](vendor/gif-factory/LICENSE)。
 - [Vditor](https://github.com/Vanessa219/vditor) 的本地静态资源，保留 [MIT 许可](assets/workbench/vendor/vditor/LICENSE) 及其分发文件中的第三方声明。
 - HTML Creator Studio 核心模块经维护者授权嵌入，来源和版本见 [NOTICE](vendor/html-creator-studio-core/NOTICE)。
+- 字幕、GIF、流程卡片和提词器使用随工程分发的 Noto Sans CJK SC。字体来源见 [NOTICE](assets/workbench/fonts/NOTICE)，许可见 [OFL 1.1](assets/workbench/fonts/OFL.txt)。分享离线提词时请使用完整 ZIP。
 - Whisper 模型、sherpa-onnx 模型、FFmpeg 和 Chromium 按需从各自渠道安装。
 
 第三方组件的许可适用于对应文件。主项目的源码公开可查看，主项目许可由维护者另行声明。

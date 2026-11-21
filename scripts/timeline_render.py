@@ -2,7 +2,7 @@
 import copy, hashlib, json, math, shutil
 from pathlib import Path
 from core import ROOT, LOCK, uid, now, digest, write_json, source, file_digest
-import media, timeline
+import fonts, media, timeline
 
 def signature(p):
     assets={a['id']:a for a in p['assets']};used={c.get('asset_id') for c in p['timeline']['clips'] if c.get('enabled',True)}
@@ -99,7 +99,7 @@ def render(store,pid,report,start=0,duration=10,final=False):
             if final or tl['mode']=='actual':raise ValueError(c['name']+' 尚未绑定主画面素材')
             from PIL import Image, ImageDraw, ImageFont
             import textwrap
-            im=Image.new('RGB',(w,h),'#f4ecdf');draw=ImageDraw.Draw(im);font=ImageFont.truetype('C:/Windows/Fonts/msyh.ttc',max(18,h//20));pg=next((pg for pg in p['pages'] if pg['id']==c.get('page_id')),{});text=c['name']+'\n\n'+'\n'.join(textwrap.wrap(pg.get('text','待录制 / 待制作'),max(12,w//(h//20)-6)))
+            im=Image.new('RGB',(w,h),'#f4ecdf');draw=ImageDraw.Draw(im);font=ImageFont.truetype(fonts.render_font(),max(18,h//20));pg=next((pg for pg in p['pages'] if pg['id']==c.get('page_id')),{});text=c['name']+'\n\n'+'\n'.join(textwrap.wrap(pg.get('text','待录制 / 待制作'),max(12,w//(h//20)-6)))
             draw.multiline_text((w*.08,h*.14),text,font=font,fill='#002fa7',spacing=12);imagefile=work/(c['id']+'.png');im.save(imagefile)
             inputs=['-loop','1','-i',imagefile,'-f','lavfi','-i','anullsrc=r=48000:cl=stereo','-map','0:v','-map','1:a']
         media.run(['ffmpeg','-v','error',*inputs,'-t',length,'-r',fps,'-c:v','libx264','-pix_fmt','yuv420p','-preset','fast','-crf','19','-c:a','aac','-ac','2','-ar','48000','-y',out],work/(c['id']+'.log'));parts.append(out)
@@ -123,7 +123,7 @@ def render(store,pid,report,start=0,duration=10,final=False):
         scenes.append({**c,'title':c['name'],'kind':kind,'start':c['start'],'end':c['start']+c['duration'],'enabled':True,'x':x,'y':y,'width':cw,'height':ch,'layer':dict((k,i) for i,(k,_) in enumerate(reversed(timeline.TRACKS))).get(c['track'],0)})
     q=copy.deepcopy(p);q['scenes']=scenes;q['v2_overlay']=True;q['captions']=caption_map(p) if tl['mode']=='actual' and not tl['tracks'].get('caption',{}).get('muted') else []
     media.subtitles(q,work,w,h);media.create_overlay(q,work,w,h,fps);overlay=media.render_overlay(work,w,h,fps,start,duration,report)
-    inputs=['-i',base,'-i',overlay];filters=[f'[0:v][1:v]overlay=0:0:format=auto,setpts=PTS+{start}/TB,ass=captions.ass,setpts=PTS-STARTPTS,format=yuv420p[v]','[0:a]aresample=48000[voice]'];mix=['[voice]']
+    inputs=['-i',base,'-i',overlay];filters=[f'[0:v][1:v]overlay=0:0:format=auto,setpts=PTS+{start}/TB,{fonts.ASS_FILTER},setpts=PTS-STARTPTS,format=yuv420p[v]','[0:a]aresample=48000[voice]'];mix=['[voice]']
     music_count=sum(c['track']=='music' for c in audio)
     if music_count:filters[1]='[0:a]aresample=48000,asplit='+str(music_count+1)+'[voice]'+''.join(f'[duck{k}]' for k in range(music_count))
     duck_index=0

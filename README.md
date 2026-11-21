@@ -2,7 +2,9 @@
 
 从稿件、提词和录制计划开始，把一条口播做成可发布的视频。你可以使用完整的三阶段流程，也可以从已有定稿或已经粗剪好的视频开始。
 
-**Windows 11 x64 / Python 3.12 已完成运行验证。** Windows 提供从源码安装的独立工作台入口。macOS 提供源码安装脚本与 Finder 启动入口的实现，原生运行和正式签名安装包待验收。
+最新版本为 **V3.5.0**。安装时下载 GitHub Release 的工作台与 Skill 通用 ZIP。工程、成片和模型均存放在本机指定的数据目录。
+
+[下载 V3.5.0](https://github.com/shynloc/talking-head-studio/releases/tag/v3.5.0)
 
 [功能](#功能) · [实现原理](#实现原理) · [安装部署](#安装部署) · [使用步骤](#使用步骤) · [与-agent-协作](#与-agent-协作) · [faq](#faq)
 
@@ -33,45 +35,49 @@ flowchart LR
 
 ## 安装部署
 
+先到 [GitHub Releases](https://github.com/shynloc/talking-head-studio/releases) 下载 `talking-head-studio-v3.5.0.zip` 并完整解压。Release 同时提供 SHA-256 校验文件。工作台会为当前用户创建独立的 Python 环境，首次安装需要联网下载依赖和 Chromium。
+
 ### Windows
 
-准备 Python 3.12、完整 FFmpeg 和 Edge 或 Chrome。确认终端能找到 `python`、`ffmpeg` 和 `ffprobe`。FFmpeg 需要提供 `libass` 和 `libx264`，可用 `winget install --exact --id Gyan.FFmpeg` 安装。 [FFmpeg 官方下载](https://ffmpeg.org/download.html)
-
-下载并解压本仓库，双击 `安装工作台.cmd`。脚本创建独立的 Python 环境、安装核心依赖、实际验证中文渲染和编码，然后添加开始菜单「口播导演工作台」。应用默认安装在当前用户的 `%LOCALAPPDATA%\TalkingHeadStudio` 下。项目保存在独立的数据目录。
+1. 安装 [Python 3.12](https://www.python.org/downloads/) 并勾选添加到 PATH。安装完整 FFmpeg，可在终端运行 `winget install --exact --id Gyan.FFmpeg`。安装后重新打开终端确认 `python --version` 和 `ffmpeg -version` 可用。
+2. 双击解压目录里的「安装工作台.cmd」。第一次需要等待安装器下载依赖、检测中文字体和实际渲染一段视频。
+3. 安装完成会打开浏览器。以后从开始菜单搜索「口播导演工作台」即可启动。
 
 ### macOS
 
-以下是待实机验收的 Apple 芯片 Mac 源码部署步骤。终端进入本仓库，使用 Homebrew 安装 Python 和带 `libass` 的完整 FFmpeg。启动器会查找 Homebrew 的 FFmpeg 路径。 [Python 3.12](https://formulae.brew.sh/formula/python@3.12) · [FFmpeg Full](https://formulae.brew.sh/formula/ffmpeg-full)
+在已经安装 Homebrew 的 Mac 上，先安装 Python 和完整 FFmpeg。
 
 ```bash
 brew install python@3.12 ffmpeg-full
+```
+
+进入解压出的 `talking-head-studio` 目录，然后在终端运行安装脚本。
+
+```bash
 /bin/bash ./install_macos.command
 ```
 
-脚本把应用部署到 `~/Library/Application Support/TalkingHeadStudio`，生成 `~/Applications/口播导演工作台.app`，可在 Finder 中打开。需要语音跟读时，先在系统设置和浏览器中允许麦克风访问，再试读一句。正式签名并公证的 DMG 属于后续发布产物。
+安装后可从 Finder 中的 `~/Applications` 打开「口播导演工作台.app」。应用代码默认在 `~/Library/Application Support/TalkingHeadStudio`。需要从终端启动时可运行解压目录的 `launch_macos.command`。
 
-### 项目数据与源码直接运行
+### 更新旧版
 
-```powershell
-git clone https://github.com/shynloc/talking-head-studio.git
-cd talking-head-studio
-python --version
-ffmpeg -version
-ffprobe -version
-python -m venv .venv
-.\.venv\Scripts\python.exe scripts/setup.py --install --smoke
-.\.venv\Scripts\python.exe scripts/launch.py
-```
-
-这组 PowerShell 命令适用于从源码目录直接运行。macOS 可用 `python3.12 -m venv .venv` 和 `.venv/bin/python` 执行相同 Python 脚本，也可在准备好依赖后用 `/bin/bash ./launch_macos.command` 打开源码版。初次安装需要联网。启动后打开 [本机工作台](http://127.0.0.1:8765)，两个平台默认项目目录都是 `Documents/TalkingHeadStudio`。
-
-安装和启动都支持指定 `--data` 与 `--port`。同一数据目录会复用已运行的实例；端口被其他服务使用时会提示换端口。关闭浏览器后服务仍在运行，可用 `scripts/launch.py --data <项目目录> --stop` 结束。存在未完成的任务时，先等任务结束。
+下载并完整解压新 ZIP，从新目录运行和首次安装一样的入口。默认应用安装位置和项目数据目录与原来相同。若旧版本使用了自定义项目目录，请在首次升级时传入原来的 `--data` 和 `--port`，后续安装会记住它们。旧应用代码会备份到应用目录旁的 `backups`。若有文件或任务正在处理，请等它结束后再运行安装器。
 
 ```powershell
-.\.venv\Scripts\python.exe scripts/launch.py --data "D:\TalkingHeadStudio" --port 8767
+.\安装工作台.cmd --data "D:\TalkingHeadStudio" --port 8767
 ```
 
-安装后首次启用可选模型时，使用安装器输出的「应用 Python」路径运行表中的命令。已有 Codex 安装可以用 `scripts/install.py` 更新 Skill，并保留旧代码备份。安装独立工作台时可指定原项目目录，先停止正在使用它的旧实例。
+默认项目目录都是 `Documents/TalkingHeadStudio`。独立应用代码和项目数据可分别指定。端口冲突时可传入 `--port 0` 自动选空闲端口。同一数据目录由一个工作台服务使用。要停止独立工作台，用安装后提供的应用 Python 运行安装目录的 `scripts/launch.py --data <项目目录> --stop`。
+
+### 安装或更新 Codex Skill
+
+独立工作台的用户可以另外安装 Skill。Windows 双击「安装更新Skill.cmd」，macOS 在解压目录运行 `python3.12 -X utf8 scripts/install.py`。已启动的独立工作台可以直接继续用。只登记 Skill 时，可给脚本加 `--no-launch`。Skill 安装到 Codex 的 `skills/talking-head-studio` 目录，并将旧版备份到项目目录里的 `install-backups`。安装后重新打开 Codex，使用 `$talking-head-studio` 调用。
+
+从旧版 Skill 转到独立工作台时，先停止旧工作台，再把同一项目目录传给独立安装入口。Windows 的 V2.0.2 如果在运行，可先用新版的「安装更新Skill.cmd」更新旧服务。
+
+### 源码运行
+
+开发或试用时也可在解压后的目录自行创建 Python 环境，运行 `scripts/setup.py --install --smoke` 和 `scripts/launch.py`。可选组件应安装到运行工作台的同一个 Python 环境。安装器会显示「应用 Python」的完整路径。
 
 ### 按需启用
 
@@ -111,8 +117,8 @@ Whisper 用于录制后的转写。提词器的实时跟读使用另一套本地
 | --- | --- |
 | **直接导出完整视频** | 生成可发布的 MP4。要继续改字幕、音乐或动画内部，在工作台编辑后重新导出。 |
 | **下载剪辑素材包** | 解压后按「打开素材包.md」导入。原素材、主画面、SRT、透明 MOV、独立音频和摆放时间表分开放。可在支持这些格式的编辑器里组装。 |
-| **用 ChatCut 继续剪** | 点「存为剪辑待办」，把任务卡交给已连接 ChatCut 的 AI 助手。Windows ChatCut 0.10.2 实测通过本地工具组装并保存，可继续剪主画面、改字幕、移动透明动画和调整音量。 |
-| **生成剪映草稿** | 下载并解压，按包内「打开草稿.md」放到剪映专业版的草稿位置，再在剪映里继续剪。Windows 11.8 实测确认字幕和声音可分开改，两个透明动画是独立片段。 |
+| **用 ChatCut 继续剪** | 点「存为剪辑待办」，把任务卡交给已连接 ChatCut 的 AI 助手。Windows 的 Codex 和 WorkBuddy 都已在 ChatCut 0.10.2 用本机工具实测组装、保存和导出，可继续剪主画面、改字幕、移动透明动画和调整音量。 |
+| **生成剪映草稿** | 下载并解压，按包内「打开草稿.md」放到剪映专业版的草稿位置，再在剪映里继续剪。Windows 版剪映 11.8 实测确认字幕和声音可分开改，两个透明动画是独立片段。 |
 
 外部编辑器里的透明动画可以移动、缩放和裁短，内部文字和关键帧在工作台改。更换编辑器时可参照预览，调整字幕外观和背景乐自动避让。ChatCut 和剪映由各自的导出设置决定分辨率。
 
@@ -171,13 +177,27 @@ Codex 用户还可点「连接 Codex 原对话」，把连接指令粘贴到项�
 
 可以下载「剪辑素材包」，在你的软件里按时间表摆放字幕、动效和声音。已配置 ChatCut 的用户可以交给助手搭建可编辑项目。剪映专业版用户可以选择草稿。
 
-### macOS 已经通过实机验收了吗？
+### 换一台 Windows 或 Mac，怎样带走整个项目？
 
-当前已提供安装与启动实现。Apple 芯片 Mac 上的实际依赖安装、麦克风跟读、三阶段导出和工程互迁仍待现场测试。
+点项目顶部的「打包工程」，勾选「同时打包当前原片和已有粗剪文件」。在另一台电脑打开工作台首页，从导入工程入口选择 ZIP。字幕、稿件、时间线与带进包里的素材会一起恢复。迁移后生成一段新样片，检查后再导出。较早的轻量工程包要在新电脑重新关联原片。
 
-### 重装后找不到项目怎么办？
+### 装完后找不到项目，或者提示端口被占用？
 
-确认启动使用原来的数据目录。默认是 `Documents/TalkingHeadStudio`。如果以前使用了 `--data`，继续传入同一目录。工程包中的外部原片可通过设置中的「重新定位原片」恢复关联。
+确认打开的是原来的项目目录。以前用过 `--data` 的，请继续传入同一个路径。如果两个工作台入口都在运行，先从原入口停止使用该目录的实例。其他程序占用端口时可用 `--port 0`。服务日志保存在项目目录的 `server.stderr.log`。macOS 启动入口另写入 `launcher.log`。
+
+### WorkBuddy 怎么把任务交给 ChatCut？
+
+先在同一台电脑打开 ChatCut 桌面版，并连接 WorkBuddy 的本机 ChatCut 工具。在工作台的预览后选「用 ChatCut 继续剪」，选择 WorkBuddy，把任务卡粘贴回原对话。WorkBuddy 领取后读取本机素材与时间线，完成后可把 ChatCut 项目名和 ID 写回待办。如果缺少本机 ChatCut 工具，可保留待办和素材包，连接后再试。 [ChatCut 官方 WorkBuddy 指南](https://chatcut.io/workbuddy)
+
+### 这次实测了哪些电脑和功能？
+
+| 环境 | 已实测 | 待实测 |
+| --- | --- | --- |
+| Windows x64 | Windows 11 本机和 GitHub 全新 Windows 虚拟机验证了 ZIP 安装、升级、中文渲染、三阶段及工程导入后出样片。本机还用 Whisper medium 转写中文录音、完成粗剪与成片，并验证 V2.0.2 Skill 升级后保留工程。 | Windows ARM64。 |
+| macOS 15 ARM64 | GitHub Apple Silicon 虚拟机验证了 ZIP 安装、`.app` 启动脚本、旧工程升级、同目录应用重装、中文渲染和三阶段。三阶段使用已知时间戳，运行了实际静音分析、粗剪和视频编码。 | 实体 Mac 上通过 Finder 打开、物理麦克风、Whisper 转写、Mac Intel、剪映和 ChatCut 桌面联测。 |
+| Windows 上的 WorkBuddy 与 ChatCut | WorkBuddy 在原测试对话领取待办。在 ChatCut 本机组装主画面、字幕、两条透明动画和独立音效，改字后保存并导出 MP4，再将项目 ID 写回工作台。 | Mac 上的相同组合、其他客户端版本。 |
+
+Windows 与 macOS 的完整工程 ZIP 跨平台往返后，均已从随包的原片重新渲染样片。Mac 当前通过 ZIP 安装。签名公证的 DMG 待提供。 [V3.5 自动验收记录](https://github.com/shynloc/talking-head-studio/actions/runs/44946232710)
 
 ## 第三方组件
 

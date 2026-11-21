@@ -116,6 +116,13 @@ def start_instance(data, port):
         if process.poll() is not None:
             break
         time.sleep(.15)
+    if process.poll() is None:
+        process.terminate()
+        try:
+            process.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
     raise RuntimeError(f'工作台启动失败，请检查 {data / "server.stderr.log"}')
 
 

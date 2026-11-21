@@ -57,7 +57,7 @@ class Fixture:
         self.menu = root / '应用入口'
         runtime = self.app.parent / 'runtime'
         self.python = runtime / ('Scripts/python.exe' if os.name == 'nt' else 'bin/python')
-        self.env = dict(os.environ, PLAYWRIGHT_BROWSERS_PATH=str(root.parent / '浏览器'))
+        self.env = dict(os.environ, PYTHONUTF8='1', PLAYWRIGHT_BROWSERS_PATH=str(root.parent / '浏览器'))
 
     def deploy(self, source, reuse_settings=False):
         if os.name == 'nt':

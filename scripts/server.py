@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse, json, mimetypes, os, re, secrets, shutil, sys, threading, urllib.parse, webbrowser
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from pathlib import Path
+from socketserver import TCPServer
 from core import *
 from jobs import Jobs,doctor
 from ai_service import Manuscripts
@@ -12,6 +13,14 @@ from runtime import configure_tool_path, data_lock, default_data_dir
 from speech_live import LiveSpeech
 import v2_api
 import agent_api
+
+
+class WorkbenchServer(ThreadingHTTPServer):
+    def server_bind(self):
+        # The address is already a numeric loopback. HTTPServer's default
+        # reverse hostname lookup can delay startup on a new network.
+        TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address
 
 class Handler(BaseHTTPRequestHandler):
     server_version='TalkingHeadStudio/'+VERSION
@@ -166,7 +175,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def serve(data, port, open_page):
     store = Store(data)
-    with data_lock(store.root), ThreadingHTTPServer(('127.0.0.1', port), Handler) as server:
+    with data_lock(store.root), WorkbenchServer(('127.0.0.1', port), Handler) as server:
         demo = ROOT / 'assets/demo-project.json'
         if not store.listing() and demo.is_file():
             template = json.loads(demo.read_text(encoding='utf-8'))

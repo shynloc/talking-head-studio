@@ -83,7 +83,7 @@ def deploy(app, data, port, no_browser, skip_shortcut, entries):
         raise ValueError(f'端口 {port} 已被占用，可用 --port 0 自动选择。')
 
     python = runtime_python(app)
-    env = dict(os.environ, PLAYWRIGHT_SKIP_BROWSER_GC='1')
+    env = dict(os.environ, PYTHONUTF8='1', PLAYWRIGHT_SKIP_BROWSER_GC='1')
 
     def prepare(staged):
         if not python.is_file():

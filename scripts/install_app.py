@@ -4,21 +4,17 @@ import argparse
 import os
 import plistlib
 import shlex
-import shutil
 import subprocess
 import sys
-import tempfile
-import time
 from pathlib import Path
 
-from core import ROOT, VERSION, uid
-from launch import instance_record, port_in_use, running_instance, stop_instance
+from core import ROOT, VERSION, write_json
+from deployment import check_paths, replace_code, saved_settings
+from launch import instance_record, open_browser, port_in_use, running_instance, stop_instance
 from runtime import configure_tool_path, default_app_dir, default_data_dir
 
 
 APP_NAME = '口播导演工作台'
-APP_FILES = ('agents', 'assets', 'scripts', 'vendor', 'README.md', 'SKILL.md', 'requirements.txt')
-IGNORE = shutil.ignore_patterns('__pycache__', '*.pyc', '.venv', '.git', '.env', '.env.*')
 
 
 def runtime_python(app):
@@ -71,98 +67,85 @@ def mac_shortcut(folder, command, data):
     return app
 
 
-def move_app(source, target):
-    deadline = time.monotonic() + 4
-    while True:
-        try:
-            source.replace(target)
-            return
-        except OSError as exc:
-            if getattr(exc, 'winerror', None) not in (5, 32) or time.monotonic() >= deadline:
-                raise
-            time.sleep(.15)
-
-
 def deploy(app, data, port, no_browser, skip_shortcut, entries):
-    if app == ROOT or app in ROOT.parents or ROOT in app.parents:
-        raise ValueError('请把应用安装到源码目录之外。')
-    if app == data or app in data.parents or data in app.parents:
-        raise ValueError('应用目录与项目数据目录需要分别指定。')
+    check_paths(app, data)
     marker = app / '.studio-install'
     if app.exists() and not marker.is_file():
-        raise ValueError('目标目录中已有其他文件，请选择新的安装目录。')
-    active = running_instance(data)
+        raise ValueError('目标目录已有其他文件，请选择新的安装目录。')
+    previous = running_instance(data)
     legacy = instance_record(data)
-    if active and Path(active['code_root']).resolve() != app:
-        raise ValueError('还有其他工作台正在使用此数据目录，请先停止它或指定不同的 --data。')
+    if previous and Path(previous['code_root']).resolve() != app:
+        raise ValueError('这个项目目录正在被另一处工作台使用。请先从原入口停止它。')
     if legacy and not legacy.get('id') and port_in_use(int(legacy['url'].rsplit(':', 1)[1])):
-        raise ValueError('此数据目录正在运行旧版工作台，请先停止旧版或指定不同的 --data。')
-    if (not active or int(active['url'].rsplit(':', 1)[1]) != port) and port and port_in_use(port):
-        raise ValueError(f'端口 {port} 已被占用，请指定不同的 --port。')
+        raise ValueError('请先从旧版 Skill 安装目录更新或停止旧服务。')
+    old_port = int(previous['url'].rsplit(':', 1)[1]) if previous else None
+    if port and port != old_port and port_in_use(port):
+        raise ValueError(f'端口 {port} 已被占用，可用 --port 0 自动选择。')
 
-    app.parent.mkdir(parents=True, exist_ok=True)
-    data.mkdir(parents=True, exist_ok=True)
     python = runtime_python(app)
-    if not python.is_file():
-        subprocess.run([sys.executable, '-m', 'venv', str(python.parent.parent)], check=True)
     env = dict(os.environ, PLAYWRIGHT_SKIP_BROWSER_GC='1')
-    subprocess.run([str(python), '-X', 'utf8', str(ROOT / 'scripts/setup.py'), '--install', '--smoke'],
-                   env=env, check=True)
-    command = [str(python), '-X', 'utf8', str(app / 'scripts/launch.py'), '--data', str(data), '--port', str(port)]
-    with tempfile.TemporaryDirectory(prefix='.studio-install-', dir=app.parent) as tmp:
-        staged = Path(tmp) / 'app'
-        staged.mkdir()
-        for entry in APP_FILES:
-            source = ROOT / entry
-            if source.is_dir():
-                shutil.copytree(source, staged / entry, ignore=IGNORE)
-            else:
-                shutil.copy2(source, staged / entry)
-        for entry in (*ROOT.glob('*.cmd'), *ROOT.glob('*.command')):
-            shutil.copy2(entry, staged / entry.name)
+
+    def prepare(staged):
+        if not python.is_file():
+            subprocess.run([sys.executable, '-m', 'venv', str(python.parent.parent)], check=True)
+        subprocess.run([str(python), '-X', 'utf8', str(staged / 'scripts/setup.py'), '--install', '--smoke'],
+                       env=env, check=True)
         (staged / marker.name).write_text(VERSION + '\n', encoding='utf-8')
-        stop_instance(data, app)
-        active_backup = None
-        if app.exists():
-            backups = app.parent / 'backups'
-            backups.mkdir(exist_ok=True)
-            active_backup = backups / uid('studio')
-            move_app(app, active_backup)
-        try:
-            move_app(staged, app)
-        except OSError:
-            if active_backup:
-                move_app(active_backup, app)
-            raise
-        if active_backup:
-            print(f'旧版应用备份：{active_backup}')
+        write_json(staged / '.studio-deployment.json', {'data': str(data), 'port': port})
+
+    def launch(which_port):
+        command = [str(python), '-X', 'utf8', str(app / 'scripts/launch.py'),
+                   '--data', str(data), '--port', str(which_port), '--no-browser']
+        result = subprocess.run(command, check=False, capture_output=True, text=True, encoding='utf-8')
+        if result.returncode:
+            raise RuntimeError(result.stderr.strip() or '工作台启动失败。')
+        return result.stdout.strip()
+
+    def start():
+        nonlocal url
+        url = launch(port or old_port or 0)
+
+    def recover():
+        if old_port and marker.is_file():
+            launch(old_port)
+
+    url = ''
+    backup = replace_code(app, app.parent / 'backups', prepare,
+                          lambda: stop_instance(data, app), start, recover)
+    if backup:
+        print(f'旧版应用备份：{backup}')
 
     if not skip_shortcut:
         entries.mkdir(parents=True, exist_ok=True)
-        shortcut = windows_shortcut(entries, command, app) if os.name == 'nt' else mac_shortcut(entries, command, data)
+        args = [str(python), '-X', 'utf8', str(app / 'scripts/launch.py'), '--data', str(data), '--port', str(port)]
+        shortcut = windows_shortcut(entries, args, app) if os.name == 'nt' else mac_shortcut(entries, args, data)
         print(f'启动入口：{shortcut}')
-    subprocess.run(command + (['--no-browser'] if no_browser else []), check=True)
-    print(f'已安装：{app}\n项目数据：{data}\n应用 Python：{python}')
+    if not no_browser:
+        open_browser(url)
+    print(f'已安装：{app}\n项目数据：{data}\n应用 Python：{python}\n工作台地址：{url}')
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--target', type=Path, default=default_app_dir())
-    parser.add_argument('--data', type=Path, default=default_data_dir())
-    parser.add_argument('--port', type=int, default=8765)
+    parser.add_argument('--data', type=Path)
+    parser.add_argument('--port', type=int)
     parser.add_argument('--shortcut-dir', type=Path)
     parser.add_argument('--no-shortcut', action='store_true')
     parser.add_argument('--no-browser', action='store_true')
     args = parser.parse_args()
     if os.name != 'nt' and sys.platform != 'darwin':
         parser.error('独立安装入口适用于 Windows 和 macOS。')
-    if sys.version_info < (3, 10) or not 0 <= args.port <= 65535:
+    if sys.version_info < (3, 10) or args.port is not None and not 0 <= args.port <= 65535:
         parser.error('请使用 Python 3.10 或更新版本，并指定有效端口。')
     configure_tool_path()
     try:
         entries = (args.shortcut_dir or shortcut_folder()).expanduser().resolve()
-        deploy(args.target.expanduser().resolve(), args.data.expanduser().resolve(),
-               args.port, args.no_browser, args.no_shortcut, entries)
+        app = args.target.expanduser().resolve()
+        installed = saved_settings(app)
+        data = args.data or (Path(installed['data']) if installed else default_data_dir())
+        port = args.port if args.port is not None else installed.get('port', 8765)
+        deploy(app, data.expanduser().resolve(), port, args.no_browser, args.no_shortcut, entries)
     except (ValueError, OSError, RuntimeError, subprocess.CalledProcessError) as exc:
         parser.exit(1, f'安装未完成：{exc}\n')
 

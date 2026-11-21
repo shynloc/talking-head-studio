@@ -3,7 +3,7 @@ from __future__ import annotations
 import copy, difflib, hashlib, json, math, os, re, threading, time, uuid
 from pathlib import Path
 
-VERSION = '2.0.2'
+VERSION = '3.5.0'
 ROOT = Path(__file__).resolve().parents[1]
 LOCK = threading.RLock()
 

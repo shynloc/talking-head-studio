@@ -7,7 +7,7 @@ from core import normalized
 from PIL import Image
 
 def main():
- ap=argparse.ArgumentParser();ap.add_argument('--url',required=True);ap.add_argument('--out',required=True);ap.add_argument('--speech-one',required=True);ap.add_argument('--speech-two',required=True);a=ap.parse_args()
+ ap=argparse.ArgumentParser();ap.add_argument('--url',required=True);ap.add_argument('--out',required=True);ap.add_argument('--speech-one',required=True);ap.add_argument('--speech-two',required=True);ap.add_argument('--timed-fixture',action='store_true');ap.add_argument('--portable-out',type=Path);ap.add_argument('--skip-jianying',action='store_true');a=ap.parse_args()
  out=Path(a.out).resolve();out.mkdir(parents=True,exist_ok=True)
  boot=json.load(urllib.request.urlopen(a.url+'/api/bootstrap'));token=boot['token'];checks=[]
  def api(path,data=None):
@@ -43,10 +43,19 @@ def main():
  p['timeline']['clips'].append({'id':'showcase','track':'main','name':'成品展示','duration':2,'start':0,'before_page_id':p['pages'][0]['id'],'asset_id':asset['id'],'enabled':True});save(p)
  job(pid,'prompt_export');record('stage 1: independent draft, host rewrite, adoption, semantic pages, 2s showcase, portable prompter')
  # Actual Whisper, actual silence analysis and an actual rough-cut render.
- job(pid,'import_media',{'path':str(video)});asr=job(pid,'transcribe',{'model':'medium','allow_download':False});assert asr['segments']>0
+ job(pid,'import_media',{'path':str(video)})
+ if a.timed_fixture:
+  boundary=media.probe(a.speech_one)['duration']
+  lines=[{'start':0,'end':boundary,'text':'先把设备连接到电脑。'},
+         {'start':boundary+2,'end':duration,'text':'然后检查声音，再开始录制。'}]
+  fixture=out/'known-timestamps.json';fixture.write_text(json.dumps(lines,ensure_ascii=False),encoding='utf-8')
+  job(pid,'import_transcript',{'path':str(fixture)})
+  asr={'text':''.join(line['text'] for line in lines),'segments':len(lines),'engine':'timed fixture'}
+ else:
+  asr=job(pid,'transcribe',{'model':'medium','allow_download':False});assert asr['segments']>0
  job(pid,'analyze_cuts');p=get(pid);assert any(not c['keep'] for c in p['edl']),p['edl']
  job(pid,'render_rough');job(pid,'approve_rough');p=get(pid);rough_duration=p['rough']['duration'];assert rough_duration<duration
- record('stage 2: real local Whisper, pause candidates, rough render, isolated-fixture approval')
+ record('stage 2: '+('import timed captions' if a.timed_fixture else 'real local Whisper')+', pause candidates, rough render, isolated-fixture approval')
  job(pid,'plan');p=get(pid);ids=[c['id'] for c in p['timeline']['clips']];job(pid,'plan');p=get(pid)
  assert normalized(''.join(c['text'] for c in p['captions']))==normalized(asr['text']),p['captions']
  assert ids==[c['id'] for c in p['timeline']['clips']]
@@ -68,7 +77,10 @@ def main():
  # Multiple visual layers, GIF factory and music remain covered by v2_media_test.
  job(pid,'timeline_sample',{'start':0,'duration':p['timeline']['duration']});job(pid,'approve_timeline');final=job(pid,'timeline_final')
  info=media.probe(final['path']);assert (info['width'],info['height'])==(360,640);assert abs(info['duration']-(rough_duration+2))<.12
- package=job(pid,'package');job(pid,'import_project',{'path':package['path']})
+ package=job(pid,'package',{'include_source':True});job(pid,'import_project',{'path':package['path']})
+ if a.portable_out:
+  import shutil
+  shutil.copy2(package['path'],a.portable_out)
  record('stage 3: full sample, fixture approval, full final, ratio preservation, project package roundtrip')
  # Replacement source cannot reuse old footage, even before manual recalibration.
  blue=out/'replacement-blue.mp4';media.run(['ffmpeg','-v','error','-f','lavfi','-i',f'color=c=blue:s=360x640:r=12:d={duration}','-i',audio,'-c:v','libx264','-pix_fmt','yuv420p','-c:a','aac','-shortest','-y',blue])
@@ -82,7 +94,8 @@ def main():
  rgb=Image.open(out/'replacement.png').convert('RGB').getpixel((180,320));assert rgb[2]>200 and rgb[0]<30 and rgb[1]<30,rgb
  record('A3 + already-cut branch: replacement blocked, skip rough, recalibrate, export new blue footage with showcase retained')
  # Render JY draft; application compatibility stays explicitly unverified.
- jy=job(pid,'jianying_export');assert Path(jy['path']).is_file();record('experimental Jianying draft generated; native editor not verified')
+ if not a.skip_jianying:
+  jy=job(pid,'jianying_export');assert Path(jy['path']).is_file();record('experimental Jianying draft generated; native editor not verified')
  (out/'results.json').write_text(json.dumps({'status':'PASS','checks':checks,'project_id':pid,'transcription':asr,'raw_duration':duration,'rough_duration':rough_duration,'final':final['path'],'final_duration':info['duration'],'ratio':[info['width'],info['height']],'approvals':'isolated synthetic fixtures only','native_editor_verified':False},ensure_ascii=False,indent=2),encoding='utf-8')
  print(json.dumps({'status':'PASS','checks':len(checks),'final':final['path']},ensure_ascii=False),flush=True)
 if __name__=='__main__':main()

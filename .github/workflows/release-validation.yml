@@ -1,0 +1,107 @@
+name: Release validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'v3/**'
+    paths-ignore:
+      - README.md
+      - SKILL.md
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    name: Clean install and three stages (${{ matrix.label }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2025
+            label: windows
+          - os: macos-15
+            label: macos-arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install Windows FFmpeg
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg --no-progress -y
+      - name: Install macOS FFmpeg with libass
+        if: runner.os == 'macOS'
+        run: |
+          brew install ffmpeg-full
+          echo "$(brew --prefix ffmpeg-full)/bin" >> "$GITHUB_PATH"
+      - name: Build the committed release ZIP
+        run: python -X utf8 scripts/package_release.py --output dist
+      - name: Run release ZIP and update a previous installation
+        run: python -X utf8 tests/release_install_test.py --bundle dist/talking-head-studio-v3.5.0.zip --out qa --upgrade
+      - uses: actions/upload-artifact@v4
+        with:
+          name: clip-${{ matrix.label }}
+          path: qa/portable-project.zip
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: install-evidence-${{ matrix.label }}
+          path: |
+            qa/results.json
+            qa/三阶段/results.json
+            qa/**/server.stderr.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+  migrate:
+    name: Render project from the other platform (${{ matrix.label }})
+    needs: install
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            label: macos-arm64
+            from: windows
+          - os: windows-2025
+            label: windows
+            from: macos-arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install Windows FFmpeg
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg --no-progress -y
+      - name: Install macOS FFmpeg with libass
+        if: runner.os == 'macOS'
+        run: |
+          brew install ffmpeg-full
+          echo "$(brew --prefix ffmpeg-full)/bin" >> "$GITHUB_PATH"
+      - uses: actions/download-artifact@v4
+        with:
+          name: clip-${{ matrix.from }}
+          path: inbound
+      - name: Build the committed release ZIP
+        run: python -X utf8 scripts/package_release.py --output dist
+      - name: Open the transferred project and render again
+        run: python -X utf8 tests/release_install_test.py --bundle dist/talking-head-studio-v3.5.0.zip --out qa --migrate inbound/portable-project.zip
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: migration-evidence-${{ matrix.label }}
+          path: |
+            qa/results.json
+            qa/**/server.stderr.log
+          retention-days: 7
+          if-no-files-found: ignore

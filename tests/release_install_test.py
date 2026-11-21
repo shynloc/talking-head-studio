@@ -57,7 +57,8 @@ class Fixture:
         self.menu = root / '应用入口'
         runtime = self.app.parent / 'runtime'
         self.python = runtime / ('Scripts/python.exe' if os.name == 'nt' else 'bin/python')
-        self.env = dict(os.environ, PYTHONUTF8='1', PLAYWRIGHT_BROWSERS_PATH=str(root.parent / '浏览器'))
+        self.env = dict(os.environ, PYTHONUTF8='1')
+        self.env.setdefault('PLAYWRIGHT_BROWSERS_PATH', str(root.parent / '浏览器'))
 
     def deploy(self, source, reuse_settings=False, install_shortcut=True):
         if os.name == 'nt':
@@ -85,13 +86,10 @@ class Fixture:
             run(contents / 'MacOS' / info['CFBundleExecutable'], env={**self.env, 'BROWSER': '/usr/bin/true'})
             assert Path(running_instance(self.data)['code_root']) == self.app
         else:
-            script = ("[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false);"
-                      "$s=(New-Object -ComObject WScript.Shell).CreateShortcut($env:STUDIO_VERIFY_LNK);"
-                      "@{python=$s.TargetPath;arguments=$s.Arguments}|ConvertTo-Json -Compress")
-            env = dict(os.environ, STUDIO_VERIFY_LNK=str(self.menu / '口播导演工作台.lnk'))
-            result = json.loads(subprocess.check_output(
-                ['powershell.exe', '-NoProfile', '-Command', script], env=env, encoding='utf-8'))
-            assert Path(result['python']) == self.python and str(self.data) in result['arguments']
+            from windows_link import read_link
+            python, arguments = read_link(self.menu / '口播导演工作台.lnk')
+            assert Path(python).resolve() == self.python.resolve(), (python, str(self.python))
+            assert str(self.data) in arguments, arguments
 
 
 def expand(bundle, folder):

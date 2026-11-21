@@ -1,8 +1,9 @@
 from __future__ import annotations
-import concurrent.futures, copy, importlib.util, json, os, re, shutil, threading, urllib.request, zipfile
+import concurrent.futures, importlib.util, json, os, re, shutil, threading, urllib.request, zipfile
 from pathlib import Path
 from core import *
 import media
+import project_bundle
 
 def doctor():
     tools={x:shutil.which(x) for x in ('ffmpeg','ffprobe','node')}
@@ -11,7 +12,7 @@ def doctor():
     return {'version':VERSION,'tools':tools,'modules':modules,'models':[p.stem for p in cache.glob('*.pt')],
         'llm_configured':bool(os.environ.get('STUDIO_LLM_URL') and os.environ.get('STUDIO_LLM_MODEL')),
         'vendors': {
-            'html-creator-studio': all((ROOT / 'vendor/html-creator-studio' / file).is_file()
+            'html-creator-studio': all(media.hcs_file(file).is_file()
                                        for file in ('scripts/extract_resume.py', 'shared/frame-styles.mjs')),
             'gif-factory': (ROOT / 'vendor/gif-factory/scripts/export_pack.py').is_file(),
         },
@@ -202,56 +203,13 @@ class Jobs:
                 for file in work.rglob('*'):
                     if file.is_file() and file!=archive:z.write(file,file.relative_to(work).as_posix())
             return store.register(pid,archive,'deliverable')
-        if action=='package':return self.package(p,report)
+        if action=='package':
+            return project_bundle.export_bundle(store, p, report, include_source=args.get('include_source') is True)
         if action=='restore':
             version=int(args['version']);rev=folder/'revisions'/f'{version:06}.json'
             if not rev.is_file():raise ValueError('没有这个历史版本')
             old=json.loads(rev.read_text(encoding='utf-8'));old['approvals']={};old['version']=p['version']
             store.save(old,p['version'],label=f'恢复版本 {version}');return {'ok':True}
         if action=='import_project':
-            return self.import_package(args['path'])
+            return project_bundle.import_bundle(store, args['path'])
         raise ValueError('未知任务：'+action)
-
-    def package(self,p,report):
-        report(.1,'打包可编辑工程、素材和最近输出')
-        folder=self.store.folder(p['id']);out=folder/'exports'/f"studio-project-{p['version']}.zip";out.parent.mkdir(exist_ok=True)
-        snapshot=copy.deepcopy(p);snapshot['approvals']={};copied={}
-        with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED) as z:
-            for asset in snapshot['assets']:
-                path=Path(asset['path']);target='assets/'+asset['id']+path.suffix
-                z.write(path,target);copied[str(path)]=target;asset['path']=target
-            # Original videos stay external; generated previews are optional and excluded to keep projects portable.
-            for m in snapshot['media']:
-                if m['kind']=='source':m['external']=True
-                elif m['path'] in copied:m['path']=copied[m['path']]
-                else:m['external']=True
-            if snapshot.get('rough'):snapshot['rough']['external']=True
-            z.writestr('project.json',json.dumps(snapshot,ensure_ascii=False,indent=2))
-            z.writestr('说明.txt','工程包含稿件、页面、字幕、时间映射和素材。原视频及大型渲染文件采用外部引用，换电脑后需重新指定源视频。')
-            latest=next((m for m in reversed(p['media']) if m['kind']=='final'),None)
-            if latest:
-                parent=Path(latest['path']).parent
-                for item in parent.rglob('*'):
-                    if item.is_file() and item.suffix.lower() not in ('.mp4','.mov','.wav','.log'):
-                        z.write(item,'render-source/'+str(item.relative_to(parent)).replace('\\','/'))
-        return self.store.register(p['id'],out,'deliverable')
-
-    def import_package(self,path):
-        with zipfile.ZipFile(path) as z:
-            raw=json.loads(z.read('project.json'))
-            if raw.get('schema_version') not in (1,2):raise ValueError('不支持的工程版本')
-            old_id=raw['id'];raw['id']=uid('project');raw['version']=0;raw['approvals']={};raw['history']=[]
-            folder=self.store.folder(raw['id']);folder.mkdir()
-            for info in z.infolist():
-                dest=(folder/info.filename).resolve()
-                if not dest.is_relative_to(folder.resolve()):raise ValueError('压缩包含非法路径')
-                if info.file_size>2*1024**3:raise ValueError('单文件过大')
-                if info.filename.startswith('assets/') and not info.is_dir():
-                    dest.parent.mkdir(parents=True,exist_ok=True);dest.write_bytes(z.read(info))
-            for a in raw['assets']:
-                target=(folder/a['path']).resolve()
-                if not target.is_relative_to(folder.resolve()) or not target.is_file():raise ValueError('工程素材路径不合法或缺失')
-                a['path']=str(target)
-            for m in raw['media']:
-                if not m.get('external'):m['path']=str((folder/m['path']).resolve())
-            self.store.save(raw,label='导入工程');return {'project_id':raw['id'],'original_id':old_id}

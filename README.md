@@ -28,7 +28,7 @@ flowchart LR
 
 - **稿件、实际转写和字幕分开保存。** 提词页用页面和句子 ID 关联制作标记。前期用预计时间做编排，后期以实际转写和剪点映射为准，把标记校准到成片时间线。
 - **粗剪记录保留和删除区间。** 渲染粗剪时根据记录读取原片，用户可以恢复被剪掉的片段。精剪则从当前主轨和辅助轨道重新合成。变更字幕、素材或剪辑后，旧样片的确认会失效。
-- **从 HTML 渲染透明叠加层。** Playwright 按帧截取流程、文字和素材画面，FFmpeg 合成视频、字幕和音轨。GIF 工厂轻动效把用户提供的 PNG 转为 GIF。普通文档提取和流程动画由内置实现提供，也可接入经授权的 HTML Creator Studio。
+- **从 HTML 渲染透明叠加层。** 内嵌 HTML Creator Studio 的帧函数驱动流程动画，Playwright 按帧截取画面，FFmpeg 合成视频、字幕和音轨。GIF 工厂轻动效把用户提供的 PNG 转为 GIF。
 - **工作台在本机运行。** 服务默认监听 `127.0.0.1:8765`。项目、原片引用、导出和模型配置由本机管理。AI 润稿可以由用户选择的 Agent 领取待办，也可配置兼容的 Chat Completions 服务，将稿件发往指定模型。
 
 ## 安装部署
@@ -66,7 +66,7 @@ python -m venv .venv
 | 麦克风跟读 | 运行 `.\.venv\Scripts\python.exe scripts/setup_speech.py`，约下载 190 MiB 中文/英文流式模型。自定义了项目目录时，给这条命令传入相同的 `--data`。安装好后可本地识别。 |
 | AI 润稿与语义分页 | 默认提交 Codex 待办，由 Agent 领取。也可在首页配置自己的 Chat Completions 地址、模型和密钥。手动编辑和基础规则排页可以直接使用。 |
 | GIF 工厂轻动效 | 随仓库提供所需导出器。第三阶段导入透明 PNG，再生成 GIF。 |
-| HTML Creator Studio | 将你有权使用的兼容组件放到 `vendor/html-creator-studio/`。工作台识别 `scripts/extract_resume.py` 和 `shared/frame-styles.mjs`。重新启动后可用 `scripts/setup.py` 查看检测结果；PDF 的该适配路径还需要 `pdftotext`。 |
+| HTML Creator Studio | 授权嵌入文档提取与逐帧动画模块，无需另行安装。安装了 `pdftotext` 时使用 HTML Creator Studio 的 PDF 路径，否则使用内置 pypdf 提取。 |
 | 剪映草稿 · 实验 | 运行 `.\.venv\Scripts\python.exe -m pip install pyJianYingDraft==0.3.1`。可生成草稿及素材 ZIP，目标剪映版本的打开、轨道与效果兼容性仍需验证。 |
 
 Whisper 用于录制后的转写。提词器的实时跟读使用另一套本地模型，可以分别安装。
@@ -87,7 +87,7 @@ Whisper 用于录制后的转写。提词器的实时跟读使用另一套本地
 
 按实际口播校准时间线，检查字幕断句、时序与构图。把演示、贴纸和音效放到对应句子附近，试听原声与配乐。点击「成片检查与导出」，选择一段代表性区间生成样片。在同一窗口观看后，点击「确认样片并导出成片」。成片也可在第三阶段的输出列表下载。
 
-继续修改时，重新生成与当前时间线对应的样片。需要备份或换软件时，可以导出项目和字幕，并保留原片及素材。工程 ZIP 可能保留原片外部引用，迁移前备份原片，导入后按界面提示重新关联。
+继续修改时，重新生成与当前时间线对应的样片。点击顶部「打包工程」可导出稿件、字幕、轨道和素材。跨电脑继续剪辑时，勾选「同时打包当前原片和已有粗剪文件」。使用轻量包时，请在目标工作台重新关联原片。
 
 ## 与 Agent 协作
 
@@ -137,6 +137,7 @@ Whisper 用于录制后的转写。提词器的实时跟读使用另一套本地
 
 - [GIF 工厂](https://github.com/WoYun520/gif-factory) 的轻动效导出器，保留 [MIT 许可](vendor/gif-factory/LICENSE)。
 - [Vditor](https://github.com/Vanessa219/vditor) 的本地静态资源，保留 [MIT 许可](assets/workbench/vendor/vditor/LICENSE) 及其分发文件中的第三方声明。
-- HTML Creator Studio 通过可选本地目录接入。Whisper 模型、sherpa-onnx 模型、FFmpeg 和 Chromium 按需从各自渠道安装。
+- HTML Creator Studio 核心模块经维护者授权嵌入，来源和版本见 [NOTICE](vendor/html-creator-studio-core/NOTICE)。
+- Whisper 模型、sherpa-onnx 模型、FFmpeg 和 Chromium 按需从各自渠道安装。
 
 第三方组件的许可适用于对应文件。主项目的源码公开可查看，主项目许可由维护者另行声明。

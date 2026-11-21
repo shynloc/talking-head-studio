@@ -5,6 +5,7 @@ import subprocess
 import time
 from pathlib import Path
 from urllib.request import Request, urlopen
+from zipfile import ZipFile
 
 from playwright.sync_api import sync_playwright
 
@@ -104,6 +105,23 @@ def main():
         assert workbench.locator('#finish-confirm').count() == 0
         assert '旧版' in workbench.locator('#finish-panel').inner_text()
         checks.append('changed timeline hides old confirmation and stale API confirmation is rejected')
+
+        workbench.locator('#close-dialog').click()
+        workbench.locator('#package').click()
+        assert not workbench.locator('#package-source').is_checked()
+        workbench.locator('#package-source').check()
+        workbench.locator('#package-go').click()
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline:
+            pack = next((job for job in api('/api/jobs?id=' + pid) if job['action'] == 'package'), None)
+            if pack and pack['status'] not in ('running', 'queued'):
+                break
+            time.sleep(.2)
+        assert pack and pack['status'] == 'done', pack
+        with ZipFile(pack['result']['path']) as archive:
+            assert json.loads(archive.read('bundle.json'))['source_included']
+            assert 'media/source.mp4' in archive.namelist()
+        checks.append('workbench can request a ZIP with the original video')
 
         state = api(project_path)
         paragraph = '先把设备连接到电脑，再检查音量和画面。然后打开工作台，确认提词可以完整显示。'

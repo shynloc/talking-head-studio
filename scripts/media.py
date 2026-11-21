@@ -5,7 +5,11 @@ from fractions import Fraction
 from pathlib import Path
 from core import *
 
-HCS_DIR = ROOT / 'vendor/html-creator-studio'
+HCS_DIR = ROOT / 'vendor/html-creator-studio-core'
+
+def hcs_file(relative_path):
+    override = ROOT / 'vendor/html-creator-studio' / relative_path
+    return override if override.is_file() else HCS_DIR / relative_path
 
 def run(cmd, log=None, cwd=None):
     if Path(str(cmd[0])).stem.lower() == 'ffmpeg' and '-nostdin' not in cmd:
@@ -51,7 +55,7 @@ def extract_document(path):
     path = Path(path); suffix = path.suffix.lower()
     if suffix in ('.txt','.md','.srt','.vtt'):
         return path.read_text(encoding='utf-8-sig', errors='replace')
-    extractor = HCS_DIR / 'scripts/extract_resume.py'
+    extractor = hcs_file('scripts/extract_resume.py')
     if extractor.is_file() and (suffix == '.docx' or (suffix == '.pdf' and shutil.which('pdftotext'))):
         spec = importlib.util.spec_from_file_location('hcs_extract', extractor)
         mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
@@ -234,7 +238,7 @@ def create_overlay(p,work,w,h,fps):
             if not frames:raise ValueError('演示视频没有可解码画面')
             s['frames']=frames;s['loop_duration']=frames[-1]['end'];s['hold_last']=True
         else: raise ValueError('不支持的叠加素材格式')
-    hcs_engine = HCS_DIR / 'shared/frame-styles.mjs'
+    hcs_engine = hcs_file('shared/frame-styles.mjs')
     if hcs_engine.is_file():
         shared = re.sub(r'\bexport\s+', '', hcs_engine.read_text(encoding='utf-8'))
         engine_name = 'HCS frame-styles'

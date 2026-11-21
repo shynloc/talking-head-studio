@@ -2,7 +2,7 @@ import sys,json,copy,argparse
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'scripts'))
 from core import *
-import media,timeline,timeline_render,jianying_export
+import media,timeline,timeline_render,jianying_export,project_bundle
 from PIL import Image,ImageDraw
 
 def main():
@@ -27,5 +27,15 @@ def main():
  gift=media.gif_factory(store,p['id'],'sticker','重点','pulse',report);assert Path(gift['path']).suffix=='.gif';checks.append('GIF Factory actual export')
  p=store.load(p['id']);p['timeline']['clips'].append({'id':'extra-main','track':'main','name':'插入展示','duration':1,'start':4,'asset_id':'sticker','anchor':'absolute'});store.save(p);extra=timeline_render.render(store,p['id'],report,3,2);assert abs(media.probe(extra['path'])['duration']-2)<.13;checks.append('main-track extra image insert renders without blank gap')
  item=jianying_export.export(store,p['id'],report);assert Path(item['path']).is_file();checks.append('Jianying native draft generated, editor compatibility separate')
+ document=json.loads((Path(sample['path']).parent/'timeline.json').read_text(encoding='utf-8'));assert document['engine'].startswith('HCS frame-styles');checks.append('embedded HCS drives transparent animation')
+ original=store.load(p['id']);archive=project_bundle.export_bundle(store,original,report,include_source=True)
+ destination=Store(out/'另一台电脑')
+ for local_media in (src,png,wav):local_media.replace(out/('旧位置-'+local_media.name))
+ migrated=destination.load(project_bundle.import_bundle(destination,archive['path'])['project_id'])
+ assert migrated['timeline']==original['timeline'] and migrated['captions']==original['captions'] and not migrated['approvals']
+ assert Path(source(migrated)['path']).is_relative_to(destination.folder(migrated['id']))
+ sample_moved=timeline_render.render(destination,migrated['id'],report,0,3)
+ props=media.probe(sample_moved['path']);assert (props['width'],props['height'])==(360,640) and abs(props['duration']-3)<.12 and props['audio']
+ checks.append('portable ZIP opens and renders from a separate directory after the original files move')
  (out/'results.json').write_text(json.dumps({'status':'PASS','checks':checks,'project_id':p['id'],'final':final['path'],'sample':sample['path'],'jianying':item['path']},ensure_ascii=False,indent=2),encoding='utf-8');print(json.dumps({'status':'PASS','checks':len(checks),'project':p['id']}))
 if __name__=='__main__':main()

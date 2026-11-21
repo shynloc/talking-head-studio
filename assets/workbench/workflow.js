@@ -71,6 +71,9 @@ function refreshWorkflow() {
   const guide = $('#workflow-guide');
   if (!guide || !P) return;
   const [title, hint, label, action, alternatives = []] = workflowStep();
+  if (stage === 3 && P.timeline.mode === 'actual' && previewableMaterials().length) {
+    alternatives.push(['试看动画与音效', 'material-preview']);
+  }
   const html = `<div class="workflow-copy">
     <span class="workflow-label">第 ${stage} 步 · ${workSteps[stage - 1]}</span>
     <h1>${esc(title)}</h1><p>${esc(hint)}</p></div>
@@ -159,6 +162,9 @@ document.addEventListener('click', async event => {
         break;
       case 'finish':
         await openFinishReview();
+        break;
+      case 'material-preview':
+        openMaterialPreview();
         break;
     }
   } catch (error) {

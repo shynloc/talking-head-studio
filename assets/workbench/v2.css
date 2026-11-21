@@ -9,6 +9,14 @@ body:not(.dashboard-mode) #main{padding-bottom:390px}body:not(.dashboard-mode) #
 .finish-range { display:flex; flex-wrap:wrap; gap:14px; }
 .finish-range label { display:grid; gap:6px; font-size:13px; }
 .finish-range input { width:110px; }
-.finish-video { display:block; width:100%; max-height:min(54vh,540px); background:#191510; border-radius:12px; }
+.finish-video { display:block; width:100%; max-height:min(39vh,420px); background:#191510; border-radius:12px; }
 .finish-panel progress { width:100%; accent-color:#002fa7; }
+.finish-choices { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.finish-choices > div { padding:12px; border-radius:12px; border:1px solid #ddcdb7; background:#fff8ec; }
+.finish-choices button { width:100%; margin-bottom:8px; }
+.finish-choices p { font-size:.88rem; }
+.finish-materials { display:grid; gap:9px; max-height:55vh; overflow:auto; }
+.finish-materials button { display:flex; justify-content:space-between; gap:12px; text-align:left; }
+.finish-materials small { color:var(--klein); flex-shrink:0; }
+@media(max-width:530px) { .finish-choices { grid-template-columns:1fr; } }
 .finish-error { padding:12px; border-left:3px solid #a94227; background:#fff1e8; color:#782b18; }

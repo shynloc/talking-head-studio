@@ -61,13 +61,17 @@ class Jobs:
             import timeline_render
             with LOCK:
                 p = store.load(pid)
-                state = timeline_render.review_state(p)
-                sample = state.get('sample') or {}
-                if state['state'] != 'ready' or not sample or sample['id'] != args.get('sample_id') or state['hash'] != args.get('hash'):
-                    raise ValueError('当前样片已变化，请重新试看并确认。')
-                p['approvals']['timeline'] = {'hash': state['hash'], 'sample_id': sample['id'], 'at': now(), 'actor': 'user'}
+                state = timeline_render.require_sample(p, args.get('sample_id'), args.get('hash'))
+                p['approvals']['timeline'] = {'hash': state['hash'], 'sample_id': state['sample']['id'], 'at': now(), 'actor': 'user'}
                 store.save(p, label='用户确认当前样片并导出成片')
             return timeline_render.render(store, pid, report, final=True)
+        if action in ('editor_package', 'chatcut_package'):
+            import editor_delivery
+            target = 'chatcut' if action == 'chatcut_package' else 'portable'
+            return editor_delivery.package(store, pid, args, report, target)
+        if action == 'jianying_reviewed_export':
+            import jianying_export
+            return jianying_export.export_reviewed(store, pid, args, report)
         if action=='approve_timeline':
             import timeline_render
             sig=timeline_render.signature(p)

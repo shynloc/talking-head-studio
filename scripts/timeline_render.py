@@ -65,19 +65,18 @@ def caption_map(p):
             if y>x+.02:result.append({**cap,'start':clip['start']+x-lo,'end':clip['start']+y-lo})
     return sorted(result,key=lambda c:c['start'])
 
-def render(store,pid,report,start=0,duration=10,final=False):
-    p=store.load(pid);tl=timeline.validate_output(p);sig=signature(p)
-    if final and tl['mode']!='actual':raise ValueError('当前是录制前编排，请先导入并校准实际视频')
-    if final and p.get('approvals',{}).get('timeline',{}).get('hash')!=sig:
-        raise ValueError('时间线已变化或尚未确认。请从「成片检查与导出」生成样片，试看后再确认。')
-    main=[c for c in tl['clips'] if c['track']=='main'];total=sum(c['duration'] for c in main)
-    if not main:raise ValueError('没有主画面')
-    if any(c.get('enabled',True) and c['start']+c['duration']>total+.05 for c in tl['clips'] if c['track']!='main'):raise ValueError('辅助素材超出主画面末尾，请调整长度，避免留空画面')
-    if tl['tracks'].get('main',{}).get('muted'):raise ValueError('主画面已隐藏，不能导出空白画面')
-    meta=source(p);w,h=int(meta.get('width') or 1280),int(meta.get('height') or 720);fps=float(meta.get('fps') or 25)
-    if not w or not h:w,h=1280,720
-    start=0 if final else max(0,min(float(start),total-.1));duration=total if final else min(max(.1,float(duration)),total-start)
-    work=store.folder(pid)/'renders'/uid('timeline');work.mkdir(parents=True);assets={a['id']:a for a in p['assets']};files={m['id']:m for m in p['media']}
+def require_sample(p, sample_id, fingerprint):
+    state = review_state(p)
+    sample = state.get('sample') or {}
+    if state.get('state') != 'ready' or sample.get('id') != sample_id or not sample_id or state['hash'] != fingerprint:
+        raise ValueError('当前样片已变化，请重新试看并选择导出方式。')
+    return state
+
+
+def render_base(p, tl, work, w, h, fps, start, duration, report):
+    assets = {a['id']: a for a in p['assets']}
+    files = {m['id']: m for m in p['media']}
+    main = [c for c in tl['clips'] if c['track'] == 'main']
     parts=[]
     report(.02,'构建主画面与原声，保持原始比例')
     for c in main:
@@ -96,7 +95,7 @@ def render(store,pid,report,start=0,duration=10,final=False):
                 inputs+=['-vf',vf,'-af',f'volume={volume},aresample=48000,apad','-map','0:v','-map','0:a']
             else:inputs+=['-f','lavfi','-i','anullsrc=r=48000:cl=stereo','-vf',vf,'-map','0:v','-map','1:a']
         else:
-            if final or tl['mode']=='actual':raise ValueError(c['name']+' 尚未绑定主画面素材')
+            if tl['mode']=='actual':raise ValueError(c['name']+' 尚未绑定主画面素材')
             from PIL import Image, ImageDraw, ImageFont
             import textwrap
             im=Image.new('RGB',(w,h),'#f4ecdf');draw=ImageDraw.Draw(im);font=ImageFont.truetype(fonts.render_font(),max(18,h//20));pg=next((pg for pg in p['pages'] if pg['id']==c.get('page_id')),{});text=c['name']+'\n\n'+'\n'.join(textwrap.wrap(pg.get('text','待录制 / 待制作'),max(12,w//(h//20)-6)))
@@ -105,6 +104,10 @@ def render(store,pid,report,start=0,duration=10,final=False):
         media.run(['ffmpeg','-v','error',*inputs,'-t',length,'-r',fps,'-c:v','libx264','-pix_fmt','yuv420p','-preset','fast','-crf','19','-c:a','aac','-ac','2','-ar','48000','-y',out],work/(c['id']+'.log'));parts.append(out)
     (work/'concat.txt').write_text('\n'.join("file '"+x.name+"'" for x in parts),encoding='utf-8')
     base=work/'base.mp4';media.run(['ffmpeg','-v','error','-f','concat','-safe','0','-i',work/'concat.txt','-c','copy','-y',base])
+    return base
+
+
+def layers(p, tl, start, duration):
     scenes=[];audio=[]
     for c in tl['clips']:
         if c['track'] in ('main','caption','voice') or not c.get('enabled',True) or tl['tracks'].get(c['track'],{}).get('muted'):continue
@@ -121,6 +124,24 @@ def render(store,pid,report,start=0,duration=10,final=False):
             if x<0 or y<0 or cw<=0 or ch<=0 or x+cw>1.001 or y+ch>1.001:raise ValueError(c['name']+' 的画面区域越界')
             if max(x,px)<min(x+cw,px+pw) and max(y,py)<min(y+ch,py+ph):raise ValueError(c['name']+' 与人物保护区重叠，请调整布局或明确允许全屏演示')
         scenes.append({**c,'title':c['name'],'kind':kind,'start':c['start'],'end':c['start']+c['duration'],'enabled':True,'x':x,'y':y,'width':cw,'height':ch,'layer':dict((k,i) for i,(k,_) in enumerate(reversed(timeline.TRACKS))).get(c['track'],0)})
+    return scenes, audio
+
+
+def render(store,pid,report,start=0,duration=10,final=False):
+    p=store.load(pid);tl=timeline.validate_output(p);sig=signature(p)
+    if final and tl['mode']!='actual':raise ValueError('当前是录制前编排，请先导入并校准实际视频')
+    if final and p.get('approvals',{}).get('timeline',{}).get('hash')!=sig:
+        raise ValueError('时间线已变化或尚未确认。请从「成片检查与导出」生成样片，试看后再确认。')
+    main=[c for c in tl['clips'] if c['track']=='main'];total=sum(c['duration'] for c in main)
+    if not main:raise ValueError('没有主画面')
+    if any(c.get('enabled',True) and c['start']+c['duration']>total+.05 for c in tl['clips'] if c['track']!='main'):raise ValueError('辅助素材超出主画面末尾，请调整长度，避免留空画面')
+    if tl['tracks'].get('main',{}).get('muted'):raise ValueError('主画面已隐藏，不能导出空白画面')
+    meta=source(p);w,h=int(meta.get('width') or 1280),int(meta.get('height') or 720);fps=float(meta.get('fps') or 25)
+    if not w or not h:w,h=1280,720
+    start=0 if final else max(0,min(float(start),total-.1));duration=total if final else min(max(.1,float(duration)),total-start)
+    work=store.folder(pid)/'renders'/uid('timeline');work.mkdir(parents=True);assets={a['id']:a for a in p['assets']}
+    base = render_base(p, tl, work, w, h, fps, start, duration, report)
+    scenes, audio = layers(p, tl, start, duration)
     q=copy.deepcopy(p);q['scenes']=scenes;q['v2_overlay']=True;q['captions']=caption_map(p) if tl['mode']=='actual' and not tl['tracks'].get('caption',{}).get('muted') else []
     media.subtitles(q,work,w,h);media.create_overlay(q,work,w,h,fps);overlay=media.render_overlay(work,w,h,fps,start,duration,report)
     inputs=['-i',base,'-i',overlay];filters=[f'[0:v][1:v]overlay=0:0:format=auto,setpts=PTS+{start}/TB,{fonts.ASS_FILTER},setpts=PTS-STARTPTS,format=yuv420p[v]','[0:a]aresample=48000[voice]'];mix=['[voice]']

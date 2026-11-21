@@ -15,6 +15,7 @@ from zipfile import ZipFile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from core import ROOT, VERSION
+from launch import running_instance
 from package_release import verify
 
 
@@ -80,7 +81,7 @@ class Fixture:
             assert info['CFBundleShortVersionString'] == VERSION
             self.stop()
             run(contents / 'MacOS' / info['CFBundleExecutable'], env={**self.env, 'BROWSER': '/usr/bin/true'})
-            assert control(self.data)[1]('/api/instance')['code_root'] == str(self.app)
+            assert Path(running_instance(self.data)['code_root']) == self.app
         else:
             script = ("[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false);"
                       "$s=(New-Object -ComObject WScript.Shell).CreateShortcut($env:STUDIO_VERIFY_LNK);"
@@ -174,7 +175,7 @@ def main():
         _, api = fresh.deploy(source)
         fresh.assert_shortcut()
         _, api = control(fresh.data)
-        assert api('/api/instance')['code_root'] == str(fresh.app)
+        assert Path(running_instance(fresh.data)['code_root']) == fresh.app
         assert (fresh.app / '.studio-install').read_text(encoding='utf-8').strip() == VERSION
         assert (fresh.app / 'PACKAGE-MANIFEST.json').is_file()
         skill = args.out / '独立 Codex' / 'skills' / 'talking-head-studio'
@@ -184,7 +185,7 @@ def main():
         assert (skill / 'SKILL.md').read_bytes() == (source / 'SKILL.md').read_bytes()
         run(*command, env=skill_env)
         assert list((fresh.data / 'install-backups').glob('*/SKILL.md'))
-        assert api('/api/instance')['code_root'] == str(fresh.app)
+        assert Path(running_instance(fresh.data)['code_root']) == fresh.app
         report.update(fresh_install=True, native_launcher=True, skill_registration_upgrade=True)
         if args.migrate:
             report['cross_platform_preview'] = prove_import(fresh, api, args.migrate.resolve(), 'cross-platform')

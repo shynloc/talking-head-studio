@@ -143,7 +143,11 @@ class Jobs:
             for s in rows:
                 if not 0<=float(s['start'])<float(s['end'])<=duration+.1:raise ValueError('字幕时间超出当前原片')
                 segments.append({'id':uid('seg'),'start':float(s['start']),'end':float(s['end']),'text':str(s['text']),'words':s.get('words',[])})
-            p['transcript']=segments;p['approvals'].pop('final',None);store.save(p,label='导入已有字幕时间轴');return {'segments':len(segments)}
+            p['transcript']=segments
+            for output in ('final','timeline'):
+                p['approvals'].pop(output,None)
+            store.save(p,label='导入已有字幕时间轴')
+            return {'segments':len(segments)}
         if action=='proxy':return media.make_proxy(store,pid,report)
         if action=='inspect_frames':return media.inspect_frames(store,pid,report)
         if action=='analyze_cuts':

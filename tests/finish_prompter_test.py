@@ -47,8 +47,15 @@ def main():
         viewport = {'width': 1200, 'height': 760}
         workbench = browser.new_page(viewport=viewport)
         workbench.on('pageerror', lambda error: errors.append(str(error)))
+        def open_advanced_export():
+            toggle = workbench.locator('[data-tl="collapse"]')
+            toggle.wait_for()
+            if toggle.get_attribute('aria-expanded') == 'false':
+                toggle.click()
+            workbench.locator('[data-tl="final"]').click()
+
         workbench.goto(args.url + '/#project=' + pid)
-        workbench.locator('[data-tl="final"]').click()
+        open_advanced_export()
         assert workbench.locator('#finish-prepare').inner_text() == '导入录制视频'
         workbench.locator('#finish-panel').screenshot(path=str(output/'01-guide.png'))
         workbench.locator('#finish-prepare').click()
@@ -62,15 +69,16 @@ def main():
                         '-c:a','aac','-shortest','-y',str(fixture)],check=True)
         job('import_media', {'path': str(fixture)})
         workbench.reload()
-        workbench.locator('[data-tl="final"]').click()
-        assert workbench.locator('#finish-prepare').inner_text() == '去整理录制'
+        open_advanced_export()
+        assert workbench.locator('#finish-prepare').inner_text() == '去整理视频'
         workbench.locator('#close-dialog').click()
         job('skip_rough')
         workbench.reload()
-        workbench.locator('[data-tl="final"]').click()
-        assert workbench.locator('#finish-prepare').inner_text() == '校准录制'
+        open_advanced_export()
+        assert workbench.locator('#finish-prepare').inner_text() == '按这版视频继续'
         workbench.locator('#finish-prepare').click()
         workbench.locator('#finish-generate').wait_for()
+        workbench.locator('#finish-range-options summary').click()
         workbench.locator('#finish-start').fill('0.5')
         workbench.locator('#finish-duration').fill('2')
         workbench.locator('#finish-generate').click()
@@ -98,9 +106,9 @@ def main():
         failure = job('confirm_timeline_final', {'sample_id':sample['sample']['id'], 'hash':sample['hash']},expect_error=True)
         assert '已变化' in failure['error']
         workbench.reload()
-        workbench.locator('[data-tl="final"]').wait_for()
+        workbench.locator('#workflow-guide').wait_for()
         workbench.locator('[data-stage="3"]').click()
-        workbench.locator('[data-cmd="finish"]').click()
+        workbench.locator('[data-workflow="finish"]').click()
         workbench.locator('#finish-generate').wait_for()
         assert workbench.locator('#finish-confirm').count() == 0
         assert '旧版' in workbench.locator('#finish-panel').inner_text()

@@ -27,8 +27,9 @@ function finishError(review, error) {
 
 function finishPreparation(review, state) {
   const labels = {
-    source: '导入录制视频', rough: '去整理录制', align: '校准录制',
-    material: '打开主轨片段', blocked: '返回时间线',
+    source: source()?.video ? '重新选择原视频' : '导入录制视频',
+    rough: '去整理视频', align: '按这版视频继续',
+    material: '补上缺少的素材', blocked: '查看时间线',
   };
   if (!finishPanel(review, `<h3>先准备好录制</h3><p>${esc(state.message)}</p>
     <div class="action-row"><button class="key" id="finish-prepare">${labels[state.state]}</button></div>`)) return;
@@ -37,7 +38,7 @@ function finishPreparation(review, state) {
       if (state.state === 'align') {
         $('#finish-prepare').disabled = true;
         await save();
-        if (!finishPanel(review, '<p role="status">正在校准录制…</p>')) return;
+        if (!finishPanel(review, '<p role="status">正在把字幕和素材对齐到这版视频…</p>')) return;
         const updated = await api('/api/v2/align', {id: P.id, version: P.version});
         if (P?.id !== review.projectId) return;
         P = updated;
@@ -50,9 +51,15 @@ function finishPreparation(review, state) {
         stage = 2;
         previewMode = 'auto';
         render();
-        if (state.state === 'source') await command('import-video');
+        if (state.state === 'source') {
+          if (source()?.video) relinkDialog();
+          else await command('import-video');
+        }
       } else if (state.state === 'material') {
         editClip(state.clip_id);
+      } else if (state.state === 'blocked') {
+        setTimelineExpanded(true);
+        $('#timeline')?.scrollIntoView({block:'nearest'});
       }
     } catch (error) { finishError(review,error); }
   };
@@ -63,13 +70,14 @@ function finishSampleForm(review, state, replace = false) {
   const start = review.start ?? state.sample?.start ?? firstRecording?.start ?? 0;
   const hint = replace ? '选一段更能代表成片的内容。' : state.has_previous_sample
     ? '已有样片对应的是旧版时间线，或样片文件已移走。请生成一段新的样片。'
-    : '样片是当前时间线的一小段预览，用来检查画面、字幕和声音。生成后可在这里直接播放。';
-  if (!finishPanel(review, `<h3>1 · 生成样片</h3><p>${hint}</p>
+    : '先看一小段，检查字幕、画面和声音。满意后再导出完整视频。';
+  if (!finishPanel(review, `<h3>先看一小段</h3><p>${hint}</p>
+    <details class="workflow-tools" id="finish-range-options" ${replace ? 'open' : ''}><summary>挑选要预览的片段</summary>
     <div class="finish-range">
       <label>起点（秒）<input id="finish-start" type="number" min="0" max="${Math.max(0,state.duration-.1).toFixed(2)}" step=".1" value="${Number(start).toFixed(2)}"></label>
       <label>长度（秒）<input id="finish-duration" type="number" min="1" max="30" step="1" value="10"></label>
-    </div>
-    <div class="action-row"><button class="key" id="finish-generate">生成样片</button>
+    </div></details>
+    <div class="action-row"><button class="key" id="finish-generate">生成预览</button>
     ${replace ? '<button class="ghost" id="finish-return-review">返回试看</button>' : ''}</div>`)) return;
   $('#finish-generate').onclick = () => {
     const startInput = $('#finish-start');
@@ -86,20 +94,20 @@ function finishSampleForm(review, state, replace = false) {
 function finishSampleReview(review, state) {
   const {sample, final, approved} = state;
   if (final && approved && review.showFinal) {
-    finishPanel(review, `<h3>成片已导出</h3><p>完整视频已保存到当前项目的「输出」。</p>
+    finishPanel(review, `<h3>成片已导出</h3><p>完整视频也可在当前项目的「下载」中找到。</p>
       <video class="finish-video" controls playsinline preload="metadata" src="${finishURL(review,final.id)}"></video>
       <div class="action-row"><a class="key" href="${finishURL(review,final.id,true)}">下载完整成片</a></div>`);
     return;
   }
   const range = sample.start != null && sample.duration != null
     ? `<p class="hint">起点 ${sec(sample.start)} 秒 · 样片约 ${sec(sample.duration)} 秒</p>` : '';
-  const confirmLabel = approved ? '导出完整成片' : '确认样片并导出成片';
-  if (!finishPanel(review, `<h3>2 · 试看并确认</h3>
-    <p>请播放下面这段样片，检查字幕、画面和声音。满意后点击确认，工作台会导出完整视频。</p>${range}
+  const confirmLabel = approved ? '导出完整视频' : '确认并导出完整视频';
+  if (!finishPanel(review, `<h3>试看预览并确认</h3>
+    <p>播放这段预览，检查字幕、画面和声音。满意后确认，工作台会导出完整视频。</p>${range}
     <video class="finish-video" controls playsinline preload="metadata" src="${finishURL(review,sample.id)}" aria-label="当前时间线样片"></video>
     <div class="action-row">
       <button class="key" id="finish-confirm">${confirmLabel}</button>
-      <button class="ghost" id="finish-another">换一段样片</button>
+      <button class="ghost" id="finish-another">换一段预览</button>
       <button class="ghost" id="finish-edit">返回修改</button>
       ${final && approved ? `<a class="ghost" href="${finishURL(review,final.id,true)}">下载已导出的成片</a>` : ''}
     </div>`)) return;
@@ -162,7 +170,7 @@ async function submitFinishJob(review, action, args) {
 async function openFinishReview(start) {
   const review = {projectId:P.id,start,showFinal:false,selectRange:start != null};
   finishReview = review;
-  openDialog('成片检查与导出','<div id="finish-panel" class="finish-panel"><p role="status">正在检查当前时间线…</p></div>');
+  openDialog('预览与导出','<div id="finish-panel" class="finish-panel"><p role="status">正在检查视频…</p></div>');
   try {
     await save();
     if (finishPanelActive(review)) await refreshFinishReview(review);

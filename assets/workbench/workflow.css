@@ -1,0 +1,47 @@
+.workflow-guide {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(210px, auto);
+  align-items: center;
+  gap: 24px;
+  margin: 6px 0 16px;
+  padding: clamp(18px, 3vw, 30px);
+  border: 1px solid #e4c5a1;
+  border-left: 5px solid #002fa7;
+  border-radius: 16px;
+  background: linear-gradient(112deg, #fffbf3 46%, #fbe7ca);
+  box-shadow: 0 5px 0 #d7c0a02b, 0 15px 26px #a4651810;
+}
+.workflow-label { color:#002fa7; font-size:12px; font-weight:750; }
+.workflow-copy h1 { margin:6px 0; color:#352d25; font-size:clamp(23px, 3.25vw, 34px); line-height:1.3; }
+.workflow-copy p { margin:0; color:#664f3b; max-width:46ch; font-size:14px; line-height:1.65; }
+.workflow-actions { display:flex; flex-direction:column; align-items:stretch; gap:9px; }
+.workflow-actions button { min-height:40px; text-align:center; }
+.workflow-primary { padding-inline:24px; }
+.workflow-metrics { justify-content:flex-start; gap:10px; flex-wrap:wrap; margin:0 0 14px; }
+.workflow-metrics .metric { display:flex; align-items:baseline; gap:7px; padding:4px 11px; }
+.workflow-metrics .metric strong { font-size:16px; }
+.workflow-metrics .metric small { font:inherit; font-size:12px; }
+.workflow-tools input[hidden], .checkline[hidden] { display:none; }
+.workflow-tools { margin:0 0 16px; padding:0 2px; }
+.workflow-tools summary { cursor:pointer; color:#65513d; font-size:13px; width:fit-content; padding:7px 0; }
+.workflow-tools .action-row { padding:7px 0; }
+.recorded-entry {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:15px;
+  border:1px solid #decab0;
+  border-radius:13px;
+  padding:13px 17px;
+  background:#fbf3e6;
+  margin:13px 0 23px;
+}
+.recorded-entry p { margin:4px 0 0; font-size:13px; color:#665340; }
+.timeline-collapsed .timeline-tools > :not([data-tl="collapse"]),
+.timeline-collapsed .timeline-help { display:none; }
+.workflow-guide button:focus-visible, .recorded-entry button:focus-visible,
+.workflow-tools summary:focus-visible { outline:2px solid #002fa7; outline-offset:3px; }
+@media (max-width:620px) {
+  .workflow-guide { grid-template-columns:1fr; gap:14px; }
+  .recorded-entry { align-items:stretch; flex-direction:column; }
+}

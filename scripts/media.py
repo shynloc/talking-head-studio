@@ -107,7 +107,10 @@ def transcribe(store, pid, report, model_name='medium', allow_download=False, me
     with LOCK:
         current = store.load(pid)
         if current['source_id'] != p['source_id']: raise Conflict('转写期间原片已变更，结果已保存但未覆盖新工程')
-        current['transcript'] = segments; current['approvals'] = {}; store.save(current, label='本地转写完成')
+        current['transcript'] = segments
+        for output in ('final', 'timeline'):
+            current['approvals'].pop(output, None)
+        store.save(current, label='本地转写完成')
     return {'segments': len(segments), 'text': result['text'], 'engine': model_name, 'device': device}
 
 def rough_candidates(p, work, report):

@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.env
+.env.*
+*.log
+*.pid
+.DS_Store
+Thumbs.db
+/vendor/html-creator-studio/
+/data/
+/outputs/
+/references/
+/QA-REPORT.md
+/PACKAGE-MANIFEST.json

@@ -1,0 +1,122 @@
+{
+  "title": "示例工程 · 你的下一条作品",
+  "pages": [
+    {
+      "id": "page_18441caee23f",
+      "type": "showcase",
+      "title": "01 / 成品展示",
+      "text": "",
+      "notes": "示例：播放成品，或拿起产品展示。准备好后手动进入下一页。",
+      "duration": 10,
+      "tags": [],
+      "media_id": "",
+      "sentences": []
+    },
+    {
+      "id": "page_a05409f9cb20",
+      "type": "speech",
+      "title": "把灵感，讲成一个好故事",
+      "text": "好的表达，从一个清楚的想法开始。把准备好的稿件放进工作台，拆成几张容易讲述的页面。我们先把故事讲清楚，再让画面为内容加分。",
+      "notes": "自然看向镜头。句子之间留一点呼吸，不用追赶文字。",
+      "duration": 0,
+      "tags": [
+        {
+          "id": "tag_d2ff75ed286c",
+          "kind": "title",
+          "label": "先讲清楚，再让画面加分",
+          "sentence_id": "sent_6a22cd134560",
+          "asset_id": "",
+          "steps": []
+        }
+      ],
+      "media_id": "",
+      "sentences": [
+        {
+          "id": "sent_f6eb75306a6e",
+          "text": "好的表达，从一个清楚的想法开始。"
+        },
+        {
+          "id": "sent_51f522b3b46f",
+          "text": "把准备好的稿件放进工作台，拆成几张容易讲述的页面。"
+        },
+        {
+          "id": "sent_6a22cd134560",
+          "text": "我们先把故事讲清楚，再让画面为内容加分。"
+        }
+      ]
+    },
+    {
+      "id": "page_63fb4dccdf21",
+      "type": "demo",
+      "title": "03 / 演示与操作",
+      "text": "",
+      "notes": "示例：切换到需要演示的软件。可以在这一页绑定图片或视频。",
+      "duration": 12,
+      "tags": [],
+      "media_id": "",
+      "sentences": []
+    },
+    {
+      "id": "page_fca0bc3e3163",
+      "type": "speech",
+      "title": "留住表达，整理节奏",
+      "text": "录制时，可以慢一点，也可以重新来一遍。工作台会保留每次重录的线索，帮助我们去掉多余等待，留下自然的节奏。",
+      "notes": "说错时点击“本段重录”，再从这一页开始。",
+      "duration": 0,
+      "tags": [
+        {
+          "id": "tag_69f0e8e89cba",
+          "kind": "flow",
+          "label": "整理录制的三个步骤",
+          "sentence_id": "",
+          "asset_id": "",
+          "steps": [
+            "识别停顿",
+            "选择重录",
+            "保留节奏"
+          ]
+        }
+      ],
+      "media_id": "",
+      "sentences": [
+        {
+          "id": "sent_fb264e8618c9",
+          "text": "录制时，可以慢一点，也可以重新来一遍。"
+        },
+        {
+          "id": "sent_434057ce20d1",
+          "text": "工作台会保留每次重录的线索，帮助我们去掉多余等待，留下自然的节奏。"
+        }
+      ]
+    },
+    {
+      "id": "page_3a83e0ae8f70",
+      "type": "speech",
+      "title": "让内容被听见，也被看见",
+      "text": "接下来，把重点做成字幕，把复杂的步骤画成动画。先看一段样片，确认喜欢的风格，再输出属于你的完整作品。",
+      "notes": "",
+      "duration": 0,
+      "tags": [
+        {
+          "id": "tag_a2c26d224924",
+          "kind": "sticker",
+          "label": "重点来了",
+          "sentence_id": "sent_611154cf9a94",
+          "asset_id": "",
+          "steps": []
+        }
+      ],
+      "media_id": "",
+      "sentences": [
+        {
+          "id": "sent_611154cf9a94",
+          "text": "接下来，把重点做成字幕，把复杂的步骤画成动画。"
+        },
+        {
+          "id": "sent_10b884a6332f",
+          "text": "先看一段样片，确认喜欢的风格，再输出属于你的完整作品。"
+        }
+      ]
+    }
+  ]
+}

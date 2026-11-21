@@ -1,0 +1,81 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>口播导演 · 提词器</title><style>
+*{box-sizing:border-box}body{margin:0;background:#0c1417;color:#f0f5ed;font-family:'Microsoft YaHei','PingFang SC',sans-serif;overflow:hidden}button,select,input{font:inherit;color:inherit}button{cursor:pointer;background:linear-gradient(#344a48,#203230);border:1px solid #8bbcab66;border-radius:9px;padding:9px 13px;box-shadow:inset 0 1px #ffffff25,0 4px #081310;transition:.15s}button:hover{transform:translateY(-1px);border-color:#75efc9}button:active{transform:translateY(3px);box-shadow:none}button.on{background:linear-gradient(#a1f1ce,#65cfa7);color:#12372b}header{height:78px;padding:18px 32px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ffffff15}header strong{font-weight:500;letter-spacing:2px}header small{font:10px Consolas,monospace;letter-spacing:2px;color:#83b4a3;margin-left:15px}.controls{display:flex;gap:9px;align-items:center;font-size:12px}.controls input[type=range]{width:80px;accent-color:#75efc9}#viewport{height:calc(100vh - 190px);overflow:auto;scroll-behavior:auto;position:relative}#page{max-width:880px;padding:40px 45px 160px;margin:auto}#kind{font:11px Consolas,monospace;letter-spacing:3px;color:#7ee6bd;margin-bottom:16px}#title{font-size:20px;font-weight:400;color:#9ab8ac;margin:0 0 20px}#text{font-size:52px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere}#text span{transition:color .15s}#text .said{color:#52675e}#text .current{color:#94ffd1;background:#264c3c;border-radius:4px}#visual{width:100%;max-height:50vh;object-fit:contain;display:none;border-radius:12px;margin:20px 0}#notes{font-size:15px;color:#ffce95;padding:14px 0;line-height:1.8}#duration{color:#f1d0a5;font:36px Georgia,serif}footer{position:fixed;bottom:0;left:0;right:0;min-height:112px;background:linear-gradient(transparent,#0c1417 20%);padding:25px 32px 18px;display:flex;align-items:end;justify-content:space-between;gap:20px}#status{font-size:11px;color:#8cb4a2;max-width:440px;line-height:1.7}#next{font-size:12px;color:#859d92;max-width:300px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}.right{text-align:right}.counter{font:26px Georgia,serif;color:#87efc3;margin-bottom:10px}.mirror #page{transform:scaleX(-1)}#countdown{display:none;position:fixed;inset:0;background:#0c1417e8;z-index:5;align-items:center;justify-content:center;font:140px Georgia,serif;color:#8df5c8}.guide{position:fixed;left:12px;top:42%;color:#7cebc2;font-size:22px;pointer-events:none}#progress{height:2px;position:fixed;top:77px;left:0;background:#8cf5c3;transition:width .2s}@media(max-width:760px){header{height:auto;padding:15px;flex-wrap:wrap;gap:14px}.controls{flex-wrap:wrap;font-size:10px}header small{display:none}#viewport{height:calc(100vh - 240px)}#page{padding:25px 22px 140px}#text{font-size:34px}footer{padding:20px 15px;flex-wrap:wrap}.right{display:none}#status{max-width:95vw;font-size:10px}}@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+body{background:#f4ecdf;color:#443a2e}header{border-bottom-color:#c7ad873c;background:#fbf4e8}header strong{color:#b56e2c}header small{color:#002fa7}button{background:linear-gradient(#ffc78c,#ed974e);color:#67401d;border-color:#ffe7bd;box-shadow:inset 0 1px #fff2d7,0 4px #c07b3f}button:hover{border-color:#002fa759}button.on{background:linear-gradient(#315bcb,#002fa7);color:#fff8ee}#kind{color:#002fa7}#title{color:#b27d40}#text .said{color:#b8aa96}#text .current{color:#002fa7;background:#002fa710}#notes{color:#b57936}#duration{color:#d4792e}footer{background:linear-gradient(transparent,#f4ecdf 20%)}#status{color:#9d825e}#next{color:#aa9270}.counter{color:#002fa7}#countdown{background:#f4ecdfed;color:#002fa7}.guide{color:#e48637}#progress{background:#e68634}.controls input[type=range]{accent-color:#002fa7}
+#viewport{height:calc(100vh - 340px)}footer{bottom:136px;min-height:96px}#prompt-timeline{position:fixed;bottom:0;left:0;right:0;height:136px;background:#e9d9c0;border-top:1px solid #c7a77f;padding:9px 20px;z-index:3}#prompt-timeline.compact{height:36px}#prompt-timeline.compact #prompt-tracks{display:none}.prompt-timeline-head{display:flex;justify-content:space-between;font-size:11px;color:#94734a;margin-bottom:7px}.prompt-timeline-head button{font-size:10px;padding:2px 6px;box-shadow:none}.prompt-track{display:flex;height:22px;gap:5px}.prompt-track small{width:90px;font-size:10px;color:#9c7b50;flex-shrink:0}.prompt-lane{flex:1;position:relative;background:#f5ead9}.prompt-lane button{position:absolute;height:18px;padding:1px 5px;border-radius:3px;font-size:9px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;box-shadow:none;border:1px solid #d1a577;background:#efb77a}.prompt-track:nth-child(2) button{background:#b0c1ee;color:#002fa7}#prompt-needle{position:absolute;top:32px;bottom:10px;width:2px;background:#002fa7;transition:left .2s;pointer-events:none}#prompt-device-panel{display:none;position:fixed;right:20px;top:80px;background:#fff8eb;border:1px solid #d4b88d;padding:20px;border-radius:15px;z-index:9;width:360px;box-shadow:0 10px 30px #87653830;font-size:12px}#prompt-device-panel.open{display:block}#prompt-device{width:100%;padding:8px;background:#f6ead6;color:#654a2d}#prompt-device-panel .meter{height:12px;background:#ddccb1;margin:15px 0;border-radius:10px;overflow:hidden}#prompt-meter{height:100%;width:0;background:#002fa7}#mic-status{line-height:1.7;color:#9b784d}.controls{flex-wrap:wrap}@media(max-width:760px){#viewport{height:calc(100vh - 390px)}#prompt-device-panel{max-width:92vw}footer{bottom:136px}}
+
+body {
+  height:100vh;
+  height:100dvh;
+  display:grid;
+  grid-template-rows:auto 3px minmax(0,1fr) auto auto;
+}
+header { height:auto; min-height:62px; padding:12px clamp(12px,2vw,32px); gap:12px; }
+header > div:first-child { flex-shrink:0; }
+#progress { position:static; height:3px; }
+#prompt-reading { position:relative; min-height:0; }
+#viewport { width:100%; height:100%; overflow:auto; }
+#page { width:min(100%, 1680px); max-width:none; padding:clamp(10px,2vh,24px) clamp(18px,3vw,54px) 12px; }
+#kind { margin-bottom:6px; }
+#title { margin:0 0 8px; font-size:clamp(15px,2vw,20px); }
+#notes { padding:0 0 8px; font-size:13px; line-height:1.4; }
+#notes:empty, #duration:empty { display:none; }
+#text { line-height:1.35; }
+footer {
+  position:static;
+  min-height:0;
+  padding:8px clamp(12px,2vw,32px) 6px;
+  background:#fbf4e8;
+  border-top:1px solid #c7ad873c;
+  gap:8px;
+}
+#status { margin:7px 0 0; }
+.counter { margin-bottom:2px; }
+.guide { display:none; }
+#prompt-timeline { position:relative; }
+#prompt-timeline.compact #prompt-needle { top:28px; bottom:0; }
+#read-more {
+  position:absolute;
+  right:clamp(12px,3vw,54px);
+  bottom:8px;
+  z-index:2;
+  font-size:13px;
+  padding:6px 12px;
+}
+@media(max-width:760px) {
+  header { align-items:flex-start; gap:6px; }
+  header .controls { gap:5px; }
+  header .controls input[type=range] { width:56px; }
+  .controls button { padding:6px 8px; }
+  footer .controls { gap:5px; }
+  #prompt-timeline { height:126px; padding:6px 10px; }
+  #prompt-timeline.compact { height:30px; }
+  .prompt-track { height:21px; }
+}
+</style></head><body><header><div><strong>口播导演 · 提词</strong><small>STAY IN YOUR FLOW</small></div><div class="controls"><label>字号 <input id="font" type="range" min="24" max="90" value="52"></label><label>速度 <input id="speed" type="range" min="5" max="80" value="24"></label><button id="fit-page" class="on" aria-pressed="true">整页适配</button><button id="mirror">镜像</button><button id="full">全屏</button><button id="device-toggle">麦克风</button><button id="voice">语音跟随</button></div></header><div id="progress"></div><div class="guide">›</div><div id="prompt-reading"><main id="viewport"><article id="page"><div id="kind"></div><h1 id="title"></h1><div id="notes"></div><div id="duration"></div><img id="visual" alt="演示素材"><video id="demo-video" controls style="display:none;width:100%;max-height:50vh"></video><div id="text"></div></article></main><button id="read-more" hidden>下方还有内容 · 下一屏 ↓</button></div><footer><div><div class="controls"><button id="prev">← 上一页</button><button id="scroll">开始滚动</button><button id="count">3 秒准备</button><button id="retake">本段重录</button><button id="next-btn">下一页 →</button></div><p id="status">方向键翻页 · 空格暂停滚动 · 点击文字重新定位</p></div><div class="right"><div class="counter" id="counter"></div><div id="next"></div></div></footer><div id="countdown"></div><aside id="prompt-device-panel"><strong>选择麦克风 · 本地识别</strong><select id="prompt-device"><option value="">系统默认麦克风</option></select><div class="meter"><div id="prompt-meter"></div></div><button id="prompt-mic-test">测试音量</button> <button id="prompt-mic-stop">停止</button><p id="mic-status">点击测试或语音跟随以授权麦克风。</p></aside><section id="prompt-timeline"><div class="prompt-timeline-head"><span id="prompt-time"></span><span id="prompt-session"></span><button id="prompt-timeline-toggle">折叠 / 展开</button></div><div id="prompt-tracks"></div><div id="prompt-needle"></div></section><script src="/microphone.js"></script><script src="/prompter-fit.js"></script><script>
+'use strict';const P=__PROJECT__,$=id=>document.getElementById(id);let index=Math.max(0,P.pages.findIndex(pg=>pg.id===P.start_page_id)),position=0,running=false,recognition=null,following=false,last=performance.now(),elapsed=0,take=1,scrollRemainder=0;const logs=[];
+function log(event){const entry={event,page_id:P.pages[index]?.id,sentence_id:P.pages[index]?.sentences?.[0]?.id||'',at:new Date().toISOString(),elapsed:performance.now()/1000,take};logs.push(entry);try{localStorage.setItem('studio-recording-'+P.id,JSON.stringify(logs))}catch(e){}if(window.opener)window.opener.postMessage({type:'studio-recording-log',entry},'*')}
+function draw(){const pg=P.pages[index];if(!pg)return;position=0;elapsed=0;running=false;scrollRemainder=0;$('scroll').textContent='开始滚动';$('scroll').classList.remove('on');$('kind').textContent={speech:'SPEAK / 口播',showcase:'SHOW / 成品展示',demo:'DEMO / 操作演示',pause:'PAUSE / 停顿准备'}[pg.type]||'SPEAK';$('title').textContent=pg.title;$('notes').textContent=pg.notes;$('counter').textContent=String(index+1).padStart(2,'0')+' / '+String(P.pages.length).padStart(2,'0');$('next').textContent=index<P.pages.length-1?'下一页：'+P.pages[index+1].title:'最后一页 · 录制完成后回到工作台';$('text').replaceChildren();[...pg.text].forEach((c,i)=>{let span=document.createElement('span');span.textContent=c;span.dataset.i=i;span.onclick=()=>{position=i;highlight();$('status').textContent='已重新定位，可继续讲述'};$('text').append(span)});$('duration').textContent=pg.duration?pg.duration+' s':'';$('viewport').scrollTop=0;
+const asset=P.assets?.find(a=>a.id===pg.media_id),url=P.asset_urls?.[pg.media_id];$('visual').style.display='none';$('demo-video').pause();$('demo-video').style.display='none';if(asset&&url){const el=['mp4','mov','webm'].includes(asset.type)?$('demo-video'):$('visual');el.src=url;el.style.display='block'}else if(pg.media_id){$('notes').textContent+='（便携版本未嵌入此素材，请使用主工作台演示。）'}$('progress').style.width=(index+1)/P.pages.length*100+'%';log('page_enter');highlight();fitPromptPage()}
+function highlight(){const spans=[...$('text').children];spans.forEach((s,i)=>{s.classList.toggle('said',i<position);s.classList.toggle('current',i===position)});if(following&&spans[position]){
+  const viewport=$('viewport');
+  const bounds=viewport.getBoundingClientRect(), current=spans[position].getBoundingClientRect();
+  if(current.bottom>bounds.bottom-28 || current.top<bounds.top){
+    viewport.scrollTop+=current.top-bounds.top-viewport.clientHeight*.24;
+  }
+}
+promptOverflow();}
+function next(delta){const n=Math.max(0,Math.min(P.pages.length-1,index+delta));if(n!==index){log('page_leave');index=n;draw()}}
+function toggleScroll(){running=!running;$('scroll').textContent=running?'暂停滚动':'开始滚动';$('scroll').classList.toggle('on',running);log(running?'scroll_start':'scroll_pause')}
+function tick(t){const dt=Math.min(.1,(t-last)/1000);last=t;if(running&&!following){
+  scrollRemainder+=Number($('speed').value)*dt;
+  const movement=Math.floor(scrollRemainder);
+  if(movement){$('viewport').scrollTop+=movement;scrollRemainder-=movement;}
+}if(running){elapsed+=dt;const duration=P.pages[index].duration;if(duration)$('duration').textContent=Math.max(0,duration-elapsed).toFixed(1)+' s';if(duration&&elapsed>=duration){running=false;$('scroll').textContent='开始滚动';$('scroll').classList.remove('on');$('status').textContent='计划时间已到，准备好后手动下一页。'}}requestAnimationFrame(tick)}
+function norm(s){return s.replace(/[^\p{L}\p{N}]/gu,'').toLowerCase()}
+function follow(spoken){const chars=[...P.pages[index].text],map=[],clean=[];chars.forEach((c,i)=>{const n=norm(c);if(n){clean.push(n);map.push(i)}});const text=clean.join(''),said=norm(spoken).slice(-28);if(said.length<2)return;const at=Math.max(0,map.findIndex(i=>i>=position)),lo=Math.max(0,at-16),hi=Math.min(text.length,at+90);let best=-1;
+for(let len=Math.min(said.length,16);len>=2;len--){const suffix=said.slice(-len),where=text.slice(lo,hi).indexOf(suffix);if(where>=0){best=lo+where+len;break}}if(best>=0){position=best<map.length?map[best]:chars.length;highlight();$('status').textContent=position>=chars.length?'本页已读完，请手动翻页。':'语音跟随中 · 可点击文字重新定位'}else $('status').textContent='暂未匹配到稿件，已保持当前位置。继续念稿或点击文字定位。'}
+$('voice').onclick=()=>{if(following){recognition?.stop();following=false;$('voice').classList.remove('on');return}const API=window.SpeechRecognition||window.webkitSpeechRecognition;if(!API){$('status').textContent='当前浏览器不支持语音跟随，可使用手动翻页或定速滚动。';return}if(!confirm('浏览器语音识别可能将声音发送给其识别服务。是否允许本次启用？不同浏览器的本地识别支持不同。'))return;recognition=new API();recognition.lang='zh-CN';recognition.continuous=true;recognition.interimResults=true;recognition.onresult=e=>{let text='';for(let i=Math.max(0,e.results.length-3);i<e.results.length;i++)text+=e.results[i][0].transcript;follow(text)};recognition.onerror=e=>{$('status').textContent='语音识别不可用：'+e.error+'。已保留手动控制。';following=false;$('voice').classList.remove('on')};recognition.onend=()=>{following=false;$('voice').classList.remove('on')};try{recognition.start();following=true;$('voice').classList.add('on');$('status').textContent='正在听取声音，准备好后开始念稿。'}catch(e){$('status').textContent=e.message}};
+$('prev').onclick=()=>next(-1);$('next-btn').onclick=()=>next(1);$('scroll').onclick=toggleScroll;$('speed').value=P.settings.scroll_speed||24;$('font').value=P.settings.font_size||52;initPromptFit();$('mirror').onclick=()=>document.body.classList.toggle('mirror');$('full').onclick=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(e=>$('status').textContent=e.message);$('retake').onclick=()=>{take++;log('retake');position=0;elapsed=0;$('viewport').scrollTop=0;highlight();$('status').textContent='已标记第 '+take+' 次录制，本页从头开始。'};
+$('count').onclick=async()=>{const el=$('countdown');el.style.display='flex';for(let i=3;i>=1;i--){el.textContent=i;await new Promise(r=>setTimeout(r,1000))}el.style.display='none';running=true;$('scroll').textContent='暂停滚动';$('scroll').classList.add('on');log('take_start')};document.addEventListener('keydown',e=>{if(e.target.matches('input,select'))return;if(e.key==='ArrowRight'||e.key==='PageDown'){e.preventDefault();next(1)}if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();next(-1)}if(e.key==='ArrowDown'&&!$('read-more').hidden){e.preventDefault();advancePromptScreen();}if(e.code==='Space'&&!e.target.matches('button')){e.preventDefault();toggleScroll()}});draw();requestAnimationFrame(tick);window.STUDIO_TEST={follow,getPosition:()=>position,getIndex:()=>index};
+</script><script src="/prompter-v2.js"></script></body></html>

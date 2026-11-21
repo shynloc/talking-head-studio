@@ -1,0 +1,6 @@
+interface:
+  display_name: "口播导演工作台"
+  short_description: "从口播稿、演示提词到可恢复粗剪和字幕动画精剪的三阶段制作工作台"
+  default_prompt: "使用 $talking-head-studio 创建口播工作台，按我的素材从合适阶段开始制作视频。"
+policy:
+  allow_implicit_invocation: true

@@ -20,11 +20,11 @@ from runtime import configure_tool_path, default_data_dir
 LOCAL_HTTP = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
-def request_json(url, payload=None, token=None):
+def request_json(url, payload=None, token=None, timeout=2):
     headers = {'X-Studio-Token': token, 'Content-Type': 'application/json'} if token else {}
     body = None if payload is None else json.dumps(payload).encode('utf-8')
     request = urllib.request.Request(url, data=body, headers=headers)
-    with LOCAL_HTTP.open(request, timeout=2) as response:
+    with LOCAL_HTTP.open(request, timeout=timeout) as response:
         return json.load(response)
 
 

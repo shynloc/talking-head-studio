@@ -5,7 +5,7 @@ let P=null,token='',stage=1,selected='',tab='plan',dirty=false,saving=null,timer
 const kindNames={speech:'口播页',showcase:'成品展示',demo:'演示页',pause:'停顿 / 转场'};
 const tagKinds={product:['▧','产品实物'],sticker:['✦','动态贴纸'],flow:['⇄','流程动画'],demo:['▶','演示画面'],title:['T','重点字幕'],sfx:['♫','提示音效']};
 function toast(text,error=false){const el=$('#toast');el.textContent=text;el.classList.toggle('error',error);el.hidden=false;clearTimeout(el._timer);el._timer=setTimeout(()=>el.hidden=true,error?9000:4500)}
-async function api(path,data){const r=await fetch(path,{method:data?'POST':'GET',headers:data?{'Content-Type':'application/json','X-Studio-Token':token}:{},body:data?JSON.stringify(data):undefined});const result=await r.json();if(!r.ok)throw Error(result.error||'请求失败');return result}
+async function api(path,data){const headers=token?{'X-Studio-Token':token}:{};if(data)headers['Content-Type']='application/json';const r=await fetch(path,{method:data?'POST':'GET',headers,body:data?JSON.stringify(data):undefined});const result=await r.json();if(!r.ok)throw Error(result.error||'请求失败');return result}
 function currentPage(){return P.pages.find(p=>p.id===selected)||P.pages[0]}
 function fileURL(id,download=false){return `/file/${P.id}/${id}${download?'?download=1':''}`}
 function assetURL(id){return `/asset/${P.id}/${id}`}

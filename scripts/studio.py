@@ -1,6 +1,18 @@
 """Host-agent bridge. Works with the running workbench API, never invents approvals."""
-import argparse,json,urllib.request,time,sys
+import argparse,json,os,urllib.request,time,sys
 from pathlib import Path
+from agent_client import AgentClient
+
+
+def handoff_command(args):
+    client = AgentClient(args.url, getattr(args, 'agent', 'codex'))
+    if args.command == 'agent-list':
+        return client.list()
+    if args.command == 'agent-claim':
+        return client.claim(args.id)
+    if args.command == 'agent-complete':
+        return client.complete(args.id, args.receipt, Path(args.file).read_text(encoding='utf-8-sig'))
+    return client.bind(args.project, os.environ.get('CODEX_THREAD_ID', ''), args.replace)
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--url',default='http://127.0.0.1:8765')
@@ -14,7 +26,21 @@ def main():
     patch=sub.add_parser('edit');patch.add_argument('id');patch.add_argument('--file',required=True)
     tasks=sub.add_parser('tasks');tasks.add_argument('id')
     finish=sub.add_parser('complete-task');finish.add_argument('id');finish.add_argument('task');finish.add_argument('--text-file',required=True)
+    sub.add_parser('agent-list').add_argument('--agent', choices=('codex', 'workbuddy'), required=True)
+    claim=sub.add_parser('agent-claim');claim.add_argument('id');claim.add_argument('--agent', choices=('codex', 'workbuddy'), required=True)
+    result=sub.add_parser('agent-complete');result.add_argument('id');result.add_argument('--agent', choices=('codex', 'workbuddy'), required=True)
+    result.add_argument('--receipt', required=True);result.add_argument('--file', required=True)
+    bind=sub.add_parser('agent-bind');bind.add_argument('project');bind.add_argument('--replace', action='store_true')
     args=p.parse_args()
+    if args.command.startswith('agent-'):
+        try:
+            result=handoff_command(args)
+        except urllib.error.HTTPError as exc:
+            raise SystemExit(json.loads(exc.read()).get('error', str(exc))) from None
+        except (OSError, ValueError) as exc:
+            raise SystemExit(str(exc)) from None
+        print(json.dumps(result,ensure_ascii=False,indent=2))
+        return
     token=''
     def req(path,data=None):
         request=urllib.request.Request(args.url+path,data=json.dumps(data,ensure_ascii=False).encode() if data is not None else None,

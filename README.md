@@ -112,10 +112,27 @@ Whisper 用于录制后的转写。提词器的实时跟读使用另一套本地
 
 本仓库根目录包含 [主 Skill](SKILL.md)。你可以直接使用浏览器工作台，也可以把整个仓库作为本地 Skill 安装到 Codex，并保持本机工作台运行。
 
-通过首页提交润稿或分页待办后，在 Codex 聊天里说「使用口播导演工作台，处理当前稿件待办」。Agent 用 CLI 查看待办，按要求回写建议。回到工作台后可比较、编辑并采用结果。控制终端的其他 Agent 也可以按同一 CLI 读取工程。当前的待办由用户在相应聊天中主动交接。
+### 把项目交给 Codex 或 WorkBuddy
+
+1. 在项目上方点「交给 AI」，选 Codex 或 WorkBuddy，写下要处理的事，存为待办。
+2. 点「复制任务卡」，粘贴到要继续的原对话。能访问本机工作台的 Agent 可以领取、读取任务当时的稿件和字幕，再把文字建议写回来。工具连不上时，可直接在原对话继续，回来点「粘贴 AI 的结果」保存。
+3. 回首页的「AI 待办」查看结果。建议供你校对并复制使用。项目在这期间有改动时会提示先对照当前版本。
+
+Codex 用户还可点「连接 Codex 原对话」，把连接指令粘贴到项目原来的 Codex 对话。核验成功后可点「继续原对话」，把任务排入该会话。排队后可打开原对话查看，等 Agent 实际领取才显示「AI 已领取」。WorkBuddy 可在原对话粘贴任务卡。只有工作台本机可访问的项目内容才会交给 Agent 工具。
+
+### 可选的本机工具连接
+
+任务卡包含可供 Agent 执行的终端命令。也可以将 `scripts/agent_mcp.py` 配置为 stdio MCP，命令使用工作台的 Python，参数如下。Codex 选 `codex`，WorkBuddy 选 `workbuddy`。使用自定义端口时替换地址。 [WorkBuddy MCP 配置](https://www.codebuddy.cn/docs/workbuddy/From-Beginner-to-Expert-Guide/Function-Description/MCP-Guide)
+
+```text
+/绝对路径/scripts/agent_mcp.py --agent workbuddy --url http://127.0.0.1:8765
+```
+
+稿件编辑器中原有的润稿和分页建议也可继续使用。提交这类待办后，可在 Codex 聊天内让它处理，再回到稿件编辑器确认采用。
 
 ```powershell
 .\.venv\Scripts\python.exe scripts/studio.py status
+.\.venv\Scripts\python.exe scripts/studio.py agent-list --agent codex
 .\.venv\Scripts\python.exe scripts/studio.py drafts
 .\.venv\Scripts\python.exe scripts/studio.py --help
 ```

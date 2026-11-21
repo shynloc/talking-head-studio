@@ -6,9 +6,12 @@ from pathlib import Path
 from core import *
 from jobs import Jobs,doctor
 from ai_service import Manuscripts
+from agent_tasks import AgentTasks
+from codex_handoff import CodexHandoff
 from runtime import configure_tool_path, data_lock, default_data_dir
 from speech_live import LiveSpeech
 import v2_api
+import agent_api
 
 class Handler(BaseHTTPRequestHandler):
     server_version='TalkingHeadStudio/'+VERSION
@@ -28,6 +31,10 @@ class Handler(BaseHTTPRequestHandler):
         if not self.valid_host():return self.respond(403,{'error':'仅允许本机访问'})
         url=urllib.parse.urlparse(self.path);path=url.path;query=urllib.parse.parse_qs(url.query)
         try:
+            if path.startswith('/api/agents/'):
+                if self.headers.get('X-Studio-Token') != self.server.token:
+                    return self.respond(403, {'error': '无效的本地会话'})
+                return self.respond(200, agent_api.get(self.server, path, query))
             if path.startswith('/api/v2/'):return self.respond(200,v2_api.get(self.server,path,query))
             if path=='/prompter':
                 p=self.server.store.load(query['id'][0]);p['start_page_id']=query.get('page',[''])[0];p['asset_urls']={a['id']:f"/asset/{p['id']}/{a['id']}" for a in p['assets']}
@@ -78,6 +85,8 @@ class Handler(BaseHTTPRequestHandler):
             length=int(self.headers.get('Content-Length',0))
             if length>16*1024*1024:raise ValueError('请求过大')
             data=json.loads(self.rfile.read(length) or b'{}');store=self.server.store
+            if self.path.startswith('/api/agents/'):
+                return self.respond(200, agent_api.post(self.server, self.path, data))
             if self.path == '/api/shutdown':
                 return self.shutdown_instance(data)
             if self.path.startswith('/api/v2/'):return self.respond(200,v2_api.post(self.server,self.path,data))
@@ -101,7 +110,7 @@ class Handler(BaseHTTPRequestHandler):
         with server.lifecycle, server.jobs.lock, server.manuscripts.lock:
             jobs = server.jobs.jobs.values()
             drafts = v2_api.get(server, '/api/v2/drafts', {})
-            if (server.active_posts != 1 or any(j['status'] in ('running', 'queued') for j in jobs)
+            if (server.active_posts != 1 or server.agent_tasks.has_dispatches() or any(j['status'] in ('running', 'queued') for j in jobs)
                     or any(d['status'] == 'running' for d in drafts)):
                 return self.respond(409, {'error': '工作台还有文件或任务正在处理，请完成后重试。'})
             server.stopping = True
@@ -169,6 +178,7 @@ def serve(data, port, open_page):
         server.token = secrets.token_urlsafe(32)
         server.instance_id = secrets.token_urlsafe(16)
         server.manuscripts = Manuscripts(store)
+        server.agent_tasks = AgentTasks(store, CodexHandoff())
         server.speech = LiveSpeech(store.root)
         server.lifecycle = threading.Lock()
         server.stopping = False
@@ -187,6 +197,7 @@ def serve(data, port, open_page):
         finally:
             server.jobs.pool.shutdown(wait=True)
             server.manuscripts.pool.shutdown(wait=True)
+            server.agent_tasks.pool.shutdown(wait=True)
             record.unlink(missing_ok=True)
 
 

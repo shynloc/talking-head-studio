@@ -41,6 +41,22 @@
 .timeline-collapsed .timeline-help { display:none; }
 .workflow-guide button:focus-visible, .recorded-entry button:focus-visible,
 .workflow-tools summary:focus-visible { outline:2px solid #002fa7; outline-offset:3px; }
+.agent-list-head, .agent-task-status {
+  display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+}
+.agent-list-head p { margin:0; }
+.agent-list { display:grid; gap:8px; margin-top:15px; }
+.agent-row {
+  display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:5px 15px; padding:12px;
+  border:1px solid #decab0; border-radius:12px; background:#fcf5e9; text-align:left;
+}
+.agent-row strong { grid-column:1/-1; overflow-wrap:anywhere; }
+.agent-row span, .agent-task-status span { font-size:12px; color:#665340; }
+.agent-status, .agent-task-status strong { color:#002fa7; }
+.agent-instruction, .agent-result { white-space:pre-wrap; overflow-wrap:anywhere; }
+.agent-result { max-height:45vh; overflow:auto; background:#fff9ef; padding:14px; margin:10px 0 14px; border:1px solid #e5cfb4; border-radius:10px; }
+#agent-copy-area { margin-top:12px; }
+#agent-copy-area textarea { width:100%; }
 @media (max-width:620px) {
   .workflow-guide { grid-template-columns:1fr; gap:14px; }
   .recorded-entry { align-items:stretch; flex-direction:column; }

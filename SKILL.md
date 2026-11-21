@@ -9,6 +9,8 @@ description: 使用本地口播导演工作台，从文章、语音或定稿制�
 
 ## 连接与领取待办
 
+- 在工作台收到 `handoff_` 待办编号时，用 `studio_claim_task` 领取，读取用户要求及提交时的项目内容。用 `studio_complete_task` 携带领取凭证回写文字建议。终端可用 `agent-claim 编号 --agent codex` 或 `--agent workbuddy`，再运行 `agent-complete 编号 --agent 所选Agent --receipt 领取凭证 --file 结果.txt`。同一待办只由选定的 Agent 领取，处理结果留给用户检查。
+- 用户要连接当前 Codex 对话时，在该对话运行任务卡指定的 `agent-bind 项目ID`。工作台会验证当前会话编号。首次连接和更换关联以用户要求为准。WorkBuddy 使用原对话中的任务卡。
 - 先用 `python scripts/studio.py status` 获取工程列表。服务未启动时按 README 检查依赖并运行 `python scripts/launch.py`。自定义端口时在子命令前加 `--url http://127.0.0.1:端口`。使用已装依赖的 Python 环境。
 - 稿件待办可能尚无工程编号。用 `drafts` 获取列表，`draft ID` 读取原稿和待办类型。润稿保留事实和专名，改成自然口语，将结果写入 UTF-8 文本文件。语义分页返回 JSON，形如 `{"pages":[{"title":"主题","sentences":[0,1]}]}`，句子编号从 0 开始，按原顺序恰好覆盖所有句子。用 `complete-draft ID --file 文件` 回传，等用户在工作台采用。
 - 对已有项目使用 `project 项目ID` 和 `tasks 项目ID`。工程内润稿可用 `complete-task 项目ID 任务ID --text-file 文件` 回传。使用 `edit 项目ID --file JSON文件` 更新项目可编辑字段前，读取当前版本，保留未修改字段和现有对象 ID。

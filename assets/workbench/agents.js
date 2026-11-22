@@ -1,6 +1,10 @@
 'use strict';
 
-const agentNames = {codex:'Codex',workbuddy:'WorkBuddy'};
+const hostName = key => doctorInfo.agent_hosts?.[key]?.name || key;
+function hostOptions(localOnly=false){
+  return Object.entries(doctorInfo.agent_hosts || {}).filter(([,host])=>!localOnly || !host.cloud)
+    .map(([key,host])=>`<option value="${esc(key)}">${esc(host.name)}</option>`).join('');
+}
 const taskLabels = {waiting:'等 AI 领取',claimed:'AI 已领取',ready:'结果已回来'};
 let agentView = null;
 
@@ -30,7 +34,7 @@ async function openAgentInbox() {
     <div class="agent-list">${tasks.map(task => `
       <button class="agent-row" data-agent="task" data-task="${task.id}">
         <strong>${esc(task.instruction)}</strong>
-        <span>${esc(task.project_title)} · ${agentNames[task.agent]}</span>
+        <span>${esc(task.project_title)} · ${esc(hostName(task.agent))}</span>
         <span class="agent-status">${taskLabels[task.status]}</span>
       </button>`).join('') || '<p class="hint">还没有交给 AI 的任务。</p>'}</div>`);
   agentView = view;
@@ -43,10 +47,10 @@ function composeAgentTask() {
   agentDialog('交给 AI',`
     <form id="agent-compose">
       <div class="field"><label for="agent-choice">交给谁</label><select id="agent-choice">
-        <option value="codex">Codex</option><option value="workbuddy">WorkBuddy</option></select></div>
+        ${hostOptions()}</select></div>
       <div class="field"><label for="agent-instruction">想请 AI 做什么</label>
         <textarea id="agent-instruction" required maxlength="4000" rows="4" placeholder="例如：${examples[stage - 1]}"></textarea></div>
-      <p class="hint">待办会带上这个项目的稿件和字幕，方便 AI 理解你的要求。</p>
+      <details class="workflow-tools"><summary>随任务带上的内容</summary><label><input type="checkbox" name="included" value="pages" checked> 稿件和页面备注</label> <label><input type="checkbox" name="included" value="captions" checked> 字幕</label><p>视频文件保存在本机。</p></details>
       <div class="action-row"><button class="key" type="submit">存为待办</button>
         <button class="ghost" type="button" data-agent="list">返回待办</button></div>
     </form>`);
@@ -60,7 +64,7 @@ function composeAgentTask() {
       const instruction = $('#agent-instruction').value;
       const agent = $('#agent-choice').value;
       await save();
-      const task = await api('/api/agents/create',{project_id:project.id, agent, instruction, request_id:requestId});
+      const task = await api('/api/agents/create',{project_id:project.id, agent, instruction, included:[...document.querySelectorAll('#agent-compose [name="included"]:checked')].map(el=>el.value), request_id:requestId});
       await openAgentTask(task.id);
     } catch (error) {
       toast(error.message,true);
@@ -83,7 +87,8 @@ async function renderAgentTask(view, task) {
   const connection = task.agent === 'codex'
     ? await api('/api/agents/connection?project='+encodeURIComponent(task.project_id)) : {};
   if (agentView !== (view.following ? view : view.owner)) return;
-  const key = JSON.stringify([task,connection.codex_bound,connection.codex_available]);
+  const host=doctorInfo.agent_hosts?.[task.agent]||{};
+  const key=JSON.stringify([task,connection.codex_bound,connection.codex_available,view.destination]);
   if (view.key === key) return;
   view.key = key;
   const canResume = task.agent === 'codex' && connection.codex_bound && connection.codex_available &&
@@ -95,14 +100,14 @@ async function renderAgentTask(view, task) {
     unconfirmed:'暂时无法确认是否投递成功。待办还在，可复制任务卡到原对话继续。',
     manual:task.agent === 'workbuddy'
       ? '打开原来的 WorkBuddy 对话，把任务卡粘贴进去。'
-      : canResume ? '已连接该项目的原 Codex 对话。' : '可以把任务卡粘贴到原来的 Codex 对话。',
+      : canResume ? '已连接该项目的原 Codex 对话。' : '复制任务卡，粘贴到你选定的对话。',
   }[task.delivery];
   const waiting = task.status === 'waiting';
   const ready = task.status === 'ready';
   agentDialog('AI 待办',`
     <div class="agent-detail">
       <div class="agent-task-status"><strong>${taskLabels[task.status]}</strong>
-        <span>${agentNames[task.agent]} · ${esc(task.project_title)}</span></div>
+        <span>${esc(hostName(task.agent))} · ${esc(task.project_title)}</span></div>
       <p class="agent-instruction">${esc(task.instruction)}</p>
       ${waiting ? `<p class="hint">${deliveryText}</p>` : ''}
       ${task.status === 'claimed' ? '<p class="hint">处理结果回来后会显示在这里。</p>' : ''}
@@ -118,10 +123,22 @@ async function renderAgentTask(view, task) {
         ${ready ? '<button class="key" data-agent="copy-result">复制结果</button>' : ''}
         <button class="ghost" data-agent="list">返回待办</button>
       </div>
+      ${waiting?`<details class="workflow-tools"><summary>选择原对话或新对话</summary>
+        <p>原项目和待办会保留。打开对话后，粘贴任务卡即可继续。</p>
+        ${host.host || task.agent==='claude-code' ? `<label for="host-destination">${host.host?'原对话网址':'Claude Code 原会话 ID'}</label>
+          <input id="host-destination" autocomplete="off"><button class="ghost" data-agent="save-target">记住原对话</button>` : ''}
+        <div class="action-row"><button class="ghost" data-agent="original-chat">回原对话</button>
+        <button class="ghost" data-agent="new-chat">从新对话开始</button></div>
+        <p id="host-guide" role="status"></p></details>`:''}
       <div id="agent-copy-area" hidden></div>
     </div>`);
   Object.assign(view,{task,connection,following:true});
-  agentView = view;
+  agentView=view;
+  const field=$('#host-destination');
+  if(field){
+    const saved=await api('/api/agents/destination?project='+encodeURIComponent(task.project_id)+'&agent='+encodeURIComponent(task.agent));
+    if(field.isConnected&&!field.value)field.value=saved.value;
+  }
 }
 
 async function agentCopy(text, message) {
@@ -172,7 +189,33 @@ document.addEventListener('click',async event=>{
       case 'task': await openAgentTask(button.dataset.task); break;
       case 'card': {
         const card = await api('/api/agents/card',{id:view.id});
-        await agentCopy(card.text,`粘贴到你原来的 ${agentNames[view.task.agent]} 对话，处理完再回来看。`);
+        await agentCopy(card.text,`粘贴到你原来的 ${hostName(view.task.agent)} 对话，处理完再回来看。`);
+        break;
+      }
+      case 'save-target': {
+        const saved=await api('/api/agents/destination',{project_id:view.task.project_id,agent:view.task.agent,value:$('#host-destination').value});
+        $('#host-destination').value=saved.value;$('#host-guide').textContent=saved.value?'已记住此项目的原对话。':'已清除原对话。';break;
+      }
+      case 'original-chat':
+      case 'new-chat': {
+        const agent=view.task.agent,host=doctorInfo.agent_hosts[agent],fresh=button.dataset.agent==='new-chat';
+        const field=$('#host-destination');
+        if(!fresh && field && !field.value.trim()){
+          $('#host-guide').textContent=host.host?'先粘贴原对话网址，也可以直接复制任务卡。':'先填写原会话 ID，也可以直接复制任务卡。';
+          field.focus();break;
+        }
+        const card=await api('/api/agents/card',{id:view.id});
+        let target='';
+        if(!fresh && field)target=(await api('/api/agents/destination',{project_id:view.task.project_id,agent,value:field.value})).value;
+        const message=fresh?'在新对话中粘贴下方任务卡。':'在原对话中粘贴下方任务卡。';
+        await agentCopy(card.text,message);
+        const guide=$('#host-guide');
+        if(host.home){
+          const link=document.createElement('a');link.className='key';link.target='_blank';link.rel='noopener noreferrer';link.href=fresh?host.home:target;
+          link.textContent=fresh?'打开新对话':'打开已记住的对话';guide.replaceChildren(link);
+        }else if(host.cli && (fresh||agent==='claude-code')){
+          guide.textContent='在项目目录终端运行 '+(fresh?host.cli:host.cli+' --resume '+target)+'，然后粘贴已复制的任务卡。';
+        }else guide.textContent='打开 '+hostName(agent)+(fresh?'，点「新对话」。':'，选回原来的对话。')+message;
         break;
       }
       case 'bind':

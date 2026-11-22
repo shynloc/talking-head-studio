@@ -61,3 +61,40 @@
   .workflow-guide { grid-template-columns:1fr; gap:14px; }
   .recorded-entry { align-items:stretch; flex-direction:column; }
 }
+
+/* Keep the video, script and captions in the document flow at every window size. */
+body:not(.dashboard-mode) #main { padding-bottom:36px; }
+body:not(.dashboard-mode) #timeline { position:relative; inset:auto; margin:16px 0; z-index:auto; }
+.dashboard-mode .project-menu,.dashboard-mode .v2-top-home,.dashboard-mode .project-switch {display:none;}
+.project-menu {position:relative;}
+.project-menu summary,.annotations summary, .caption-line summary {cursor:pointer;padding:8px;}
+.project-menu > div {position:absolute;right:0;z-index:30;min-width:160px;background:#fff7e9;border:1px solid #cdbca6;border-radius:12px;padding:8px;box-shadow:0 6px 16px #49351e24;}
+.project-menu button {width:100%;text-align:left;}
+.workflow-guide {padding:16px 20px;gap:12px;}
+.workflow-copy h1 {font-size:clamp(22px,2.2vw,30px);}
+.workflow-actions {flex-direction:row;align-items:center;flex-wrap:wrap;}
+.resume-project {display:flex;gap:16px;align-items:center;justify-content:space-between;background:#fff7eb;border:1px solid #ddc2a0;padding:14px 18px;border-radius:16px;}
+.resume-project p {margin:.25em 0 0;}
+.text-action {display:inline-block;margin:.6em 0;color:#002fa7;background:transparent;border:0;text-decoration:underline;text-underline-offset:3px;}
+.import-text {width:100%;min-height:110px;margin:.5rem 0;}
+.import-actions,.caption-line {display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.caption-line {padding:10px 12px;border-top:1px solid #e1d2bd;}
+.caption-line > input {flex:1 1 160px;min-width:8ch;}
+.caption-line > details {width:100%;color:#544536;font-size:13px;}
+.caption-line summary {width:fit-content;}
+.caption-line .action-row input {width:7em;}
+#markdown-editor:not(.full-format) .vditor-toolbar__item:has(button:is([data-type="strike"],[data-type="outdent"],[data-type="indent"],[data-type="line"],[data-type="code"],[data-type="inline-code"],[data-type="table"],[data-type="upload"],[data-type="both"],[data-type="preview"])) {display:none;}
+summary:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible {outline:2px solid #002fa7;outline-offset:2px;}
+@media(max-width:800px){.workflow-guide{grid-template-columns:1fr}.dashboard,.resume-project,.workflow-actions{max-width:100%;}.top-actions{flex-wrap:wrap;}.resume-project{flex-wrap:wrap;}}
+@media(prefers-reduced-motion:reduce){.ambient,.dash-sculpture{animation:none;}.entry-card,button{transition:none;}}
+
+.entry-start {position:relative;display:grid;min-width:0;}
+.entry-start > .entry-card {width:100%;padding-bottom:58px;}
+.entry-start .text-action {position:absolute;bottom:12px;left:24px;padding:7px;margin:0;}
+.finish-choices > #finish-edit {align-self:center;justify-self:start;padding:.7em 1.3em;}
+@media(max-width:650px){.entry-start .text-action{left:15px;bottom:5px;}}
+
+.hint,.entry-card small,.metric small,.save-status,.dash-intro p,.caption-line summary,
+.workflow-tools summary,.recent-card small,.timeline-head small {color:#624a35;}
+input::placeholder,textarea::placeholder {color:#705c47;opacity:1;}
+@media(max-width:700px){.workflow-actions>button{white-space:normal;}.project-switch,.top-actions{max-width:100%;}.top-actions button,.project-switch select{max-width:100%;}.entry-grid{grid-template-columns:minmax(0,1fr);}}

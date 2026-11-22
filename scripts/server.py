@@ -51,7 +51,9 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_response(200);self.send_header('Content-Type','text/html; charset=utf-8');self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body);return
             if path=='/api/bootstrap':return self.respond(200,{'token':self.server.token,'projects':self.server.store.listing(),'doctor':doctor()})
             if path=='/api/instance':return self.respond(200,{'id':self.server.instance_id})
-            if path=='/api/project':return self.respond(200,self.server.store.load(query['id'][0]))
+            if path=='/api/project':
+                p = self.server.store.load(query['id'][0])
+                return self.respond(200, dict(p, rough_current=rough_current(p)))
             if path=='/api/jobs':
                 with self.server.jobs.lock:result=[dict(j) for j in self.server.jobs.jobs.values() if j['project_id']==query.get('id',[''])[0]]
                 return self.respond(200,result[-40:])
@@ -101,7 +103,9 @@ class Handler(BaseHTTPRequestHandler):
             if self.path.startswith('/api/v2/'):return self.respond(200,v2_api.post(self.server,self.path,data))
             if self.path=='/api/new':
                 p=default_project(data.get('title','新的口播项目'));return self.respond(200,store.save(p,label='新建工程'))
-            if self.path=='/api/save':return self.respond(200,store.edit(data['id'],data))
+            if self.path=='/api/save':
+                p = store.edit(data['id'], data)
+                return self.respond(200, dict(p, rough_current=rough_current(p)))
             if self.path=='/api/complete-task':
                 with LOCK:
                     p=store.load(data['project_id']);task=next(t for t in p['tasks'] if t['id']==data['task_id'])
@@ -181,6 +185,7 @@ def serve(data, port, open_page):
             template = json.loads(demo.read_text(encoding='utf-8'))
             initial = default_project(template['title'])
             initial['pages'] = template['pages']
+            initial['example'] = True
             store.save(initial, label='创建可编辑示例工程')
         server.store = store
         server.jobs = Jobs(store)

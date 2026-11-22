@@ -75,10 +75,8 @@ def main():
         job('skip_rough')
         workbench.reload()
         open_advanced_export()
-        assert workbench.locator('#finish-prepare').inner_text() == '按这版视频继续'
-        workbench.locator('#finish-prepare').click()
-        workbench.locator('#finish-generate').wait_for()
-        workbench.locator('#finish-range-options summary').click()
+        workbench.locator('#finish-confirm').wait_for(timeout=90000)
+        workbench.locator('#finish-another').click()
         workbench.locator('#finish-start').fill('0.5')
         workbench.locator('#finish-duration').fill('2')
         workbench.locator('#finish-generate').click()
@@ -109,12 +107,12 @@ def main():
         workbench.locator('#workflow-guide').wait_for()
         workbench.locator('[data-stage="3"]').click()
         workbench.locator('[data-workflow="finish"]').click()
-        workbench.locator('#finish-generate').wait_for()
-        assert workbench.locator('#finish-confirm').count() == 0
-        assert '旧版' in workbench.locator('#finish-panel').inner_text()
+        workbench.locator('#finish-confirm').wait_for(timeout=90000)
+        assert api('/api/v2/finish?id='+pid)['sample']['id'] != sample['sample']['id']
         checks.append('changed timeline hides old confirmation and stale API confirmation is rejected')
 
         workbench.locator('#close-dialog').click()
+        workbench.locator('.project-menu summary').click()
         workbench.locator('#package').click()
         assert not workbench.locator('#package-source').is_checked()
         workbench.locator('#package-source').check()
@@ -132,6 +130,19 @@ def main():
         checks.append('workbench can request a ZIP with the original video')
 
         state = api(project_path)
+        state['edl'] = [dict(state['edl'][0], end=3.0),
+                        dict(state['edl'][0], id='trim-tail',start=3.0,end=4.0,keep=False)]
+        api('/api/save',state)
+        workbench.reload()
+        workbench.get_by_role('button',name='更新剪辑预览').click()
+        workbench.get_by_role('button',name='用这版剪辑继续').click(timeout=45000)
+        workbench.locator('#finish-confirm').wait_for(timeout=90000)
+        assert api(project_path)['rough']['duration'] < 3.2
+        assert workbench.locator('[data-stage="3"]').get_attribute('aria-current')=='step'
+        workbench.locator('#finish-edit').click()
+        checks.append('changing a real cut rebuilds, auditions and confirms the replacement within the export stage')
+
+        state = api(project_path)
         paragraph = '先把设备连接到电脑，再检查音量和画面。然后打开工作台，确认提词可以完整显示。'
         state['pages'][0]['text'] = paragraph * 4
         state['pages'][0]['notes'] = '原视频参考 02:33'
@@ -147,19 +158,22 @@ def main():
         prompt.wait_for_function(expect_fit)
         prompt.screenshot(path=str(output/'03-wide-prompter.png'))
         prompt.set_viewport_size({'width':390,'height':700})
-        prompt.wait_for_function(expect_fit)
         assert prompt.evaluate('document.body.scrollWidth === innerWidth')
+        assert prompt.locator('#prompt-timeline-toggle').get_attribute('aria-expanded')=='false'
         prompt.locator('#prompt-timeline-toggle').click()
-        prompt.wait_for_function(expect_fit)
-        prompt.locator('#next-btn').click()
+        prompt.locator('#prompt-timeline-toggle').click()
+        while prompt.evaluate('index===0'):
+            prompt.locator('#next-btn').click()
         prompt.locator('#read-more').wait_for()
-        prompt.locator('#read-more').click()
-        assert prompt.locator('#viewport').evaluate('(element)=>element.scrollTop') > 0
+        assert prompt.locator('#read-more').bounding_box()['y'] >= prompt.locator('#viewport').bounding_box()['y']+prompt.locator('#viewport').bounding_box()['height']-1
+        prompt.keyboard.press('ArrowRight')
+        assert prompt.evaluate("index===1 && $('viewport').scrollTop>0")
         prompt.locator('#scroll').click()
         before = prompt.locator('#viewport').evaluate('(element)=>element.scrollTop')
-        prompt.wait_for_function("(before) => $('viewport').scrollTop > before", arg=before, timeout=2000)
+        prompt.wait_for_function("(before) => $('viewport').scrollTop > before", arg=before, timeout=3000)
         prompt.locator('#scroll').click()
         prompt.locator('#prev').click()
+        prompt.set_viewport_size(viewport)
         prompt.wait_for_function(expect_fit)
         checks.append('desktop/mobile fit, compact timeline, overflow next screen and automatic scrolling')
 

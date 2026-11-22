@@ -51,7 +51,10 @@ class StudioMicrophone {
    run.processor.port.onmessage=e=>{
     if(!this.current(run)||!run.active)return;
     const a=e.data;let sum=0;for(const n of a)sum+=n*n;const rms=Math.sqrt(sum/a.length);this.onLevel(Math.min(1,rms*8));
-    if(rms>.003)run.lastSound=performance.now();
+    if(rms>.003){
+      run.lastSound=performance.now();
+      if(!run.heard){run.heard=true;status(recognize?'听到声音了，正在匹配稿件。':'听到声音了。')}
+    }
     if(performance.now()-run.lastSound>6000)status('麦克风已连接，但暂未检测到明显声音，请检查所选设备与系统音量');
     if(run.session){run.queue.push(a);if(run.queue.length>12){this.fail(run,Error('识别处理跟不上录音，已停止以防进度延迟，请重启'));return;}this.send(run);}
    };

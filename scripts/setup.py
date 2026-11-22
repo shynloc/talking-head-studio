@@ -52,10 +52,12 @@ def smoke_test():
         media.run(['ffmpeg', '-v', 'error', '-i', work / 'smoke.mp4', '-f', 'null', '-'])
 
 def main():
-    ap=argparse.ArgumentParser();ap.add_argument('--install',action='store_true');ap.add_argument('--speech',action='store_true');ap.add_argument('--smoke',action='store_true');ap.add_argument('--out');a=ap.parse_args()
+    ap=argparse.ArgumentParser();ap.add_argument('--install',action='store_true');ap.add_argument('--writing-only',action='store_true');ap.add_argument('--speech',action='store_true');ap.add_argument('--smoke',action='store_true');ap.add_argument('--out');a=ap.parse_args()
     configure_tool_path()
     if a.smoke:
         check_ffmpeg()
+    if a.writing_only:
+        subprocess.run([sys.executable,'-m','pip','install','pypdf>=5,<7','python-pptx>=1,<2'],check=True)
     if a.install:
         subprocess.run([sys.executable,'-m','pip','install','-r',str(ROOT/'requirements.txt')],check=True)
         subprocess.run([sys.executable,'-m','playwright','install','chromium'],check=True)

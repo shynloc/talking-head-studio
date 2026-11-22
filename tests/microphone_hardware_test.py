@@ -8,7 +8,7 @@ def main():
  with sync_playwright() as pw:
   browser=pw.chromium.launch(channel='msedge',headless=False)
   context=browser.new_context(permissions=['microphone'],viewport={'width':1280,'height':900});page=context.new_page();errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
-  page.goto(a.url);page.click('[data-v2="mic"]');page.wait_for_selector('#mic-level-only')
+  page.goto(a.url);page.click('#settings');page.click('[data-v2="mic"]');page.wait_for_selector('#mic-level-only')
   page.evaluate('window.levelSamples=0;window.levelPeak=0;const prior=micTester.onLevel;micTester.onLevel=n=>{levelSamples++;levelPeak=Math.max(levelPeak,n);prior(n)}')
   page.click('#mic-level-only');page.wait_for_function('micTester?.run?.processor && levelSamples>5',timeout=15000);page.wait_for_timeout(3000)
   result=page.evaluate('({active:micTester.active,device:micTester.stream.getAudioTracks()[0].label,track:micTester.stream.getAudioTracks()[0].readyState,levelSamples,levelPeak})')

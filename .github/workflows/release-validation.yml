@@ -43,7 +43,7 @@ jobs:
       - name: Build the committed release ZIP
         run: python -X utf8 scripts/package_release.py --output dist
       - name: Run release ZIP and update a previous installation
-        run: python -X utf8 tests/release_install_test.py --bundle dist/talking-head-studio-v3.5.0.zip --out qa --upgrade
+        run: python -X utf8 tests/release_install_test.py --out qa --upgrade
       - uses: actions/upload-artifact@v4
         with:
           name: clip-${{ matrix.label }}
@@ -96,7 +96,7 @@ jobs:
       - name: Build the committed release ZIP
         run: python -X utf8 scripts/package_release.py --output dist
       - name: Open the transferred project and render again
-        run: python -X utf8 tests/release_install_test.py --bundle dist/talking-head-studio-v3.5.0.zip --out qa --migrate inbound/portable-project.zip
+        run: python -X utf8 tests/release_install_test.py --out qa --migrate inbound/portable-project.zip
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -107,3 +107,98 @@ jobs:
             qa/**/server.stderr.log
           retention-days: 7
           if-no-files-found: ignore
+
+  desktop:
+    name: Desktop installer (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {platform: windows, os: windows-2025}
+          - {platform: macos, os: macos-15}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Build portable archive
+        run: python -X utf8 scripts/package_release.py --output dist
+      - name: Configure Developer ID when supplied
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          P12: ${{ secrets.STUDIO_MAC_P12 }}
+          P12_PASSWORD: ${{ secrets.STUDIO_MAC_P12_PASSWORD }}
+          SIGN_ID: ${{ secrets.STUDIO_SIGN_IDENTITY }}
+          NOTARY_KEY: ${{ secrets.STUDIO_NOTARY_KEY }}
+          KEY_ID: ${{ secrets.STUDIO_NOTARY_KEY_ID }}
+          ISSUER: ${{ secrets.STUDIO_NOTARY_ISSUER }}
+        run: |
+          if [[ -z "$P12" && -z "$SIGN_ID" && -z "$NOTARY_KEY" ]]; then
+            echo "Creating an explicitly named preview DMG."
+            exit 0
+          fi
+          : "${P12:?}" "${SIGN_ID:?}" "${NOTARY_KEY:?}" "${KEY_ID:?}" "${ISSUER:?}"
+          umask 077
+          keychain="$RUNNER_TEMP/studio.keychain-db"
+          pw="$(openssl rand -hex 32)"
+          echo "::add-mask::$pw"
+          security create-keychain -p "$pw" "$keychain"
+          security unlock-keychain -p "$pw" "$keychain"
+          security list-keychains -d user -s "$keychain" "$HOME/Library/Keychains/login.keychain-db"
+          printf '%s' "$P12" | base64 -D > "$RUNNER_TEMP/id.p12"
+          security import "$RUNNER_TEMP/id.p12" -k "$keychain" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$pw" "$keychain"
+          printf '%s' "$NOTARY_KEY" > "$RUNNER_TEMP/notary.p8"
+          xcrun notarytool store-credentials studio --key "$RUNNER_TEMP/notary.p8" --key-id "$KEY_ID" --issuer "$ISSUER" --keychain "$keychain"
+          security default-keychain -d user -s "$keychain"
+          echo "STUDIO_SIGN_IDENTITY=$SIGN_ID" >> "$GITHUB_ENV"
+          echo "STUDIO_NOTARY_PROFILE=studio" >> "$GITHUB_ENV"
+      - name: Build system installer
+        shell: bash
+        run: python -X utf8 packaging/build_installers.py "${{ matrix.platform }}" --archive dist/talking-head-studio-v*.zip --out native
+      - name: Install using the bundled Windows Python
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          STUDIO_BUNDLED_PYTHON: '1'
+        run: |
+          Expand-Archive (Get-ChildItem native/*.zip).FullName unpacked
+          & './unpacked/安装并打开工作台.cmd' --no-browser --port 0
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $instance = Get-Content "$HOME/Documents/TalkingHeadStudio/server.json" -Raw | ConvertFrom-Json
+          (Invoke-RestMethod ($instance.url+'/api/v2/status')).version
+      - name: Open application from disk image with the included Python
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          mount="$RUNNER_TEMP/studio-volume"
+          hdiutil attach native/*.dmg -mountpoint "$mount" -nobrowse -readonly
+          trap 'hdiutil detach "$mount"' EXIT
+          app="$mount/口播导演工作台.app"
+          codesign --verify --strict "$app"
+          sudo installer -pkg "$app/Contents/Resources/python-3.13.14-macos11.pkg" -target /
+          "$app/Contents/MacOS/Studio" --no-browser
+          python -c "import json,urllib.request,pathlib; s=json.loads((pathlib.Path.home()/'Documents/TalkingHeadStudio/server.json').read_text()); print(json.load(urllib.request.urlopen(s['url']+'/api/v2/status'))['version'])"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.platform }}
+          path: native/
+          retention-days: 7
+
+  additional-architectures:
+    name: Portable writing and prompter (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, windows-11-arm]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - run: python -X utf8 tests/portable_writing.py

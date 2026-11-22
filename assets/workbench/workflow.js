@@ -11,12 +11,15 @@ function recordingStep() {
       ? ['把录音整理成稿件', '已识别录音里的文字，可以带到稿件编辑器里再修改。', '用这段录音写稿', 'speech-draft']
       : ['先识别录音里的文字', '识别完成后，可以把录音里的文字整理成口播稿。', '识别录音', 'transcribe'];
   }
-  if (P.approvals.rough && P.rough) {
+  if (P.approvals.rough && P.rough && P.rough_current !== false) {
     return ['视频已准备好', '接下来可以加字幕、插入画面，或者直接预览导出。', '去字幕与导出', 'captions'];
   }
-  if (P.rough) {
-    return ['听一遍整理好的视频', '确认停顿剪得自然、该保留的话都在，再继续。', '确认这版视频', 'approve-rough',
-      [['播放整理后的预览', 'play-rough']]];
+  if (P.rough && P.rough_current !== false) {
+    const cuts = P.edl.filter(cut => !cut.keep);
+    const removed = cuts.reduce((total, cut) => total + cut.end - cut.start, 0);
+    const summary = cuts.length ? `剪去 ${cuts.length} 处停顿，约 ${removed.toFixed(1)} 秒。` : '这版保留了全部内容。';
+    return ['听一遍剪后的效果', summary + '可以逐处保留，原视频仍在。', '用这版做字幕', 'approve-rough',
+      [['听剪后', 'play-rough'], ['听原片', 'play-source']]];
   }
   if (P.edl.length > 1 || P.edl.some(cut => cut.reason !== '完整原片')) {
     const count = P.edl.filter(cut => !cut.keep).length;
@@ -26,7 +29,7 @@ function recordingStep() {
     '生成整理后的预览', 'render-rough', [['重新查找长停顿', 'find-pauses']]];
   }
   return ['这条视频还需要剪吗？', '如果还有长停顿，可以先查找，让工作台标出来给你检查。',
-    '查找长停顿', 'find-pauses', [['已经剪好，直接用这版', 'keep-recording']]];
+    '帮我去掉长停顿', 'find-pauses', [['直接用这个视频', 'keep-recording']]];
 }
 
 function exportStep() {
@@ -35,12 +38,18 @@ function exportStep() {
     return ['先准备一条视频', '导入录制视频后，可以加字幕并导出。',
       recording?.video ? '重新选择原视频' : '导入录制视频', recording?.video ? 'relink' : 'recording'];
   }
-  if (!P.rough || !P.approvals.rough) {
+  if((!P.rough&&P.previous_rough)||(P.rough&&P.rough_current===false)){
+    return ['剪辑有改动','更新预览后试听这版剪辑，再继续导出。','更新剪辑预览','finish'];
+  }
+  if(P.rough&&!P.approvals.rough){
+    return ['听一遍剪后的效果','确认要使用这版视频后，继续看成片预览。','试听剪辑预览','finish'];
+  }
+  if (!P.rough || P.rough_current === false || !P.approvals.rough) {
     return ['先确认要使用哪版视频', '整理视频后确认预览。已有剪好的版本可以直接使用。', '去整理视频', 'organize'];
   }
   if (P.captions.length) {
     return ['检查字幕，预览后导出', '可以改错字或补充素材。满意后先看一小段，再导出完整视频。',
-      '预览与导出', 'finish', [['检查字幕', 'edit-captions']]];
+      '看成片效果', 'finish', [['检查字幕', 'edit-captions']]];
   }
   if (P.transcript.length) {
     return ['生成字幕', '工作台会按识别到的说话内容排字幕，并带入准备时留下的画面备注。',
@@ -48,10 +57,10 @@ function exportStep() {
   }
   if (!recording.audio) {
     return ['这条视频没有声音', '可以导入已有字幕，也可以先看画面后导出。',
-      '预览与导出', 'finish', [['导入字幕文件', 'caption-file']]];
+      '看成片效果', 'finish', [['导入字幕文件', 'caption-file']]];
   }
   return ['给视频加字幕', '先识别视频里说的话。已有字幕文件也可以直接导入。',
-    '识别视频里的说话', 'transcribe', [['导入字幕文件', 'caption-file'], ['暂不加字幕，去预览', 'finish']]];
+    '自动加字幕', 'auto-captions', [['导入字幕文件', 'caption-file'], ['暂不加字幕，去预览', 'finish']]];
 }
 
 function workflowStep() {
@@ -128,17 +137,21 @@ document.addEventListener('click', async event => {
       case 'speech-draft':
         await openManuscript('import', false, null, P.transcript.map(line => line.text).join('\n'));
         break;
+      case 'auto-captions':
+        await transcribeDialog(true);
+        break;
       case 'find-pauses':
-        await act('analyze_cuts');
+        await act('prepare_rough');
         break;
       case 'keep-recording':
-        await act('skip_rough');
+        await useRecording('skip_rough');
         break;
       case 'render-rough':
         await act('render_rough');
         break;
+      case 'play-source':
       case 'play-rough': {
-        previewMode = 'rough';
+        previewMode = action === 'play-source' ? 'source' : 'rough';
         render();
         const video = $('#player');
         video?.focus();
@@ -146,10 +159,10 @@ document.addEventListener('click', async event => {
         break;
       }
       case 'approve-rough':
-        await act('approve_rough');
+        await useRecording('approve_rough');
         break;
       case 'caption-file':
-        chooseFile('transcript', '.srt,.vtt,.json');
+        chooseFile('caption-file', '.srt,.vtt,.json');
         break;
       case 'make-captions':
         await act('plan');
@@ -158,7 +171,9 @@ document.addEventListener('click', async event => {
         await save();
         tab = 'captions';
         render();
-        document.querySelector('[data-tab="captions"]')?.focus();
+        const first = document.querySelector('[data-caption][data-field="text"]');
+        first?.focus();
+        first?.scrollIntoView({block:'center'});
         break;
       case 'finish':
         await openFinishReview();
@@ -173,3 +188,22 @@ document.addEventListener('click', async event => {
     button.disabled = false;
   }
 });
+
+async function useRecording(action) {
+  const pid=P.id;
+  const submitted=await act(action);
+  while(!homeMode && P.id===pid && stage===2){
+    const jobs=await api('/api/jobs?id='+pid);
+    const job=jobs.find(item=>item.id===submitted.id);
+    if(!job||['error','interrupted'].includes(job.status))return;
+    if(job.status==='done'){
+      await save();
+      const latest=await api('/api/project?id='+pid);
+      if(homeMode||P.id!==pid||stage!==2)return;
+      P=latest;
+      goToWorkflowStage(3,'captions');
+      return;
+    }
+    await new Promise(resolve=>setTimeout(resolve,350));
+  }
+}

@@ -12,7 +12,13 @@ def get(server,path,q):
         return review_state(server.store.load(q['id'][0]))
     if path=='/api/v2/draft':return server.manuscripts.get(q['id'][0])
     if path=='/api/v2/drafts':
-        return [json.loads(f.read_text(encoding='utf-8')) for f in sorted(server.manuscripts.root.glob('draft_*.json'),key=lambda p:p.stat().st_mtime,reverse=True)]
+        project_id=q.get('project_id',[None])[0]
+        drafts=[]
+        for f in sorted(server.manuscripts.root.glob('draft_*.json'),key=lambda p:p.stat().st_mtime,reverse=True):
+            draft=json.loads(f.read_text(encoding='utf-8'))
+            if project_id is None or draft.get('project_id')==project_id:
+                drafts.append({k:draft.get(k) for k in ('id','status','title')} if 'summary' in q else draft)
+        return drafts
     raise ValueError('未知 V2 接口')
 
 def post(server,path,d):
@@ -26,9 +32,16 @@ def post(server,path,d):
             if draft.get('status')!='pending_host':raise ValueError('稿件不在等待宿主处理状态')
             return ms.accept_result(draft,d['result'])
     if path=='/api/v2/adopt':return ms.apply(d)
+    if path=='/api/v2/page-preview':
+        text = d.get('text', '')
+        if not isinstance(text,str) or len(text)>120000: raise ValueError('稿件最多支持 12 万字')
+        return [page['text'] for page in balanced_pages(text)] if text.strip() else []
     if path=='/api/v2/create':
-        draft=ms.get(d['id']);pid=d.get('project_id')
-        with LOCK:
+        pid=d.get('project_id')
+        with ms.lock,LOCK:
+            draft=ms.get(d['id'])
+            if not pid and draft.get('created_project_id'):
+                return store.load(draft['created_project_id'])
             p=store.load(pid) if pid else default_project(draft.get('title') or '新的口播项目')
             if pid and p['version']!=d.get('version'):raise Conflict('工程已更新，请重新打开导入面板后重试')
             if draft.get('kind')=='paginate' and draft.get('status') in ('review','adopted') and draft.get('pages'):
@@ -45,7 +58,10 @@ def post(server,path,d):
             p['pages']=(p['pages']+pages) if d.get('append') else pages
             p['source_text']=draft['text'];p['manuscript_id']=draft['id'];p['pagination_engine']=engine;p['approvals']={}
             if not d.get('append'):p['timeline']={'mode':'planned','clips':[],'tracks':{}}
-            timeline.validate(p);store.save(p,label='稿件创建 / 更新项目');return p
+            timeline.validate(p);store.save(p,label='稿件创建 / 更新项目')
+            if not draft.get('project_id'):
+                draft.update(project_id=p['id'],created_project_id=p['id']);write_json(ms.file(draft['id']),draft)
+            return p
     if path=='/api/v2/align':
         with LOCK:
             p=store.load(d['id'])

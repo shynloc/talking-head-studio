@@ -3,7 +3,7 @@ from __future__ import annotations
 import copy, difflib, hashlib, json, math, os, re, threading, time, uuid
 from pathlib import Path
 
-VERSION = '3.5.0'
+VERSION = '3.6.0'
 ROOT = Path(__file__).resolve().parents[1]
 LOCK = threading.RLock()
 
@@ -15,6 +15,28 @@ def now():
 
 def digest(value):
     return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+
+def edl_digest(edl):
+    """Use the same time representation after JSON passes through a browser."""
+    return digest([dict(row, start=float(row['start']), end=float(row['end'])) for row in edl])
+
+def matches_edl(stored, edl):
+    if not stored:
+        return False
+    if stored in (edl_digest(edl), digest(edl)):
+        return True
+    # V3.5 skip_rough used integer zero and ffprobe's floating-point duration.
+    if len(edl) == 1 and edl[0]['start'] == 0:
+        return stored == digest([dict(edl[0], start=0, end=float(edl[0]['end']))])
+    return False
+
+def rough_current(p):
+    return matches_edl((p.get('rough') or {}).get('edl_hash'), p['edl'])
+
+def aligned_with_cuts(p):
+    alignment = p['timeline'].get('alignment')
+    return not alignment or (alignment.get('source_id') == p['source_id']
+                             and matches_edl(alignment.get('edl_hash'), p['edl']))
 
 def write_json(path, data):
     path = Path(path); path.parent.mkdir(parents=True, exist_ok=True)
@@ -106,7 +128,9 @@ class Store:
         for path in self.root.glob('project_*/project.json'):
             try:
                 p = json.loads(path.read_text(encoding='utf-8'))
-                result.append({k: p[k] for k in ('id', 'title', 'updated', 'version')})
+                item = {k: p[k] for k in ('id', 'title', 'updated', 'version')}
+                item['example'] = bool(p.get('example') or any(h.get('label') == '创建可编辑示例工程' for h in p.get('history', [])))
+                result.append(item)
             except (OSError, ValueError):
                 continue
         return sorted(result, key=lambda p: p['updated'], reverse=True)
@@ -140,7 +164,7 @@ class Store:
             if len(data.get('pages', [])) > 1000:
                 raise ValueError('单工程页面过多')
             for key in editable:
-                if key not in data: continue
+                if key not in data or data[key] == p.get(key): continue
                 if key == 'edl' and data[key] != p[key]:
                     validate_edl(data[key], source(p)['duration'])
                     p['previous_rough'] = p['rough']; p['rough'] = None; p['approvals'] = {}; p['qa'] = {}

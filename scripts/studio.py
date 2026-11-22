@@ -1,4 +1,5 @@
 """Host-agent bridge. Works with the running workbench API, never invents approvals."""
+from agent_hosts import AGENTS
 import argparse,json,os,urllib.request,time,sys
 from pathlib import Path
 from agent_client import AgentClient
@@ -6,6 +7,9 @@ from agent_client import AgentClient
 
 def handoff_command(args):
     client = AgentClient(args.url, getattr(args, 'agent', 'codex'))
+    if args.command == 'agent-config':
+        return {'mcpServers':{'talking-head-studio':{'command':sys.executable,
+            'args':['-X','utf8',str(Path(__file__).with_name('agent_mcp.py').resolve()),'--agent',args.agent,'--url',args.url]}}}
     if args.command == 'agent-list':
         return client.list()
     if args.command == 'agent-claim':
@@ -26,9 +30,10 @@ def main():
     patch=sub.add_parser('edit');patch.add_argument('id');patch.add_argument('--file',required=True)
     tasks=sub.add_parser('tasks');tasks.add_argument('id')
     finish=sub.add_parser('complete-task');finish.add_argument('id');finish.add_argument('task');finish.add_argument('--text-file',required=True)
-    sub.add_parser('agent-list').add_argument('--agent', choices=('codex', 'workbuddy'), required=True)
-    claim=sub.add_parser('agent-claim');claim.add_argument('id');claim.add_argument('--agent', choices=('codex', 'workbuddy'), required=True)
-    result=sub.add_parser('agent-complete');result.add_argument('id');result.add_argument('--agent', choices=('codex', 'workbuddy'), required=True)
+    sub.add_parser('agent-config').add_argument('--agent', choices=tuple(AGENTS), required=True)
+    sub.add_parser('agent-list').add_argument('--agent', choices=tuple(AGENTS), required=True)
+    claim=sub.add_parser('agent-claim');claim.add_argument('id');claim.add_argument('--agent', choices=tuple(AGENTS), required=True)
+    result=sub.add_parser('agent-complete');result.add_argument('id');result.add_argument('--agent', choices=tuple(AGENTS), required=True)
     result.add_argument('--receipt', required=True);result.add_argument('--file', required=True)
     bind=sub.add_parser('agent-bind');bind.add_argument('project');bind.add_argument('--replace', action='store_true')
     args=p.parse_args()

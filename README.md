@@ -2,9 +2,9 @@
 
 从稿件、提词和录制计划开始，把一条口播做成可发布的视频。你可以使用完整的三阶段流程，也可以从已有定稿或已经粗剪好的视频开始。
 
-最新版本为 **V3.5.0**。安装时下载 GitHub Release 的工作台与 Skill 通用 ZIP。工程、成片和模型均存放在本机指定的数据目录。
+工作台与 Skill 版本为 **V3.6.0**。Windows 安装包和 macOS 磁盘映像包含首次启动所需的 Python 安装程序。已安装 Python 的创作者也可使用通用 Skill ZIP。
 
-[下载 V3.5.0](https://github.com/shynloc/talking-head-studio/releases/tag/v3.5.0)
+[下载安装包与 Skill](https://github.com/shynloc/talking-head-studio/releases/latest)
 
 [功能](#功能) · [实现原理](#实现原理) · [安装部署](#安装部署) · [使用步骤](#使用步骤) · [与-agent-协作](#与-agent-协作) · [faq](#faq)
 
@@ -12,7 +12,7 @@
 
 | 阶段 | 可以做什么 |
 | --- | --- |
-| **1. 稿件与录制** | Dashboard 提供导入已有稿件、AI 稿件润色和新建项目。Markdown 编辑器支持对比并采用 AI 建议。口播、展示、演示和停顿页可增删与排序，可给句子加制作标记。提词器支持整页适配、镜像、滚动、重录标记和可选的麦克风跟读。 |
+| **1. 稿件与录制** | 首页可以从稿件、已有录音或视频、空白项目开始。Markdown 编辑器支持对比并采用 AI 建议。口播、展示、演示和停顿页可增删与排序，可给句子加制作标记。提词器支持整页适配、镜像、滚动、重录标记和可选的麦克风跟读。 |
 | **2. 粗剪与校准** | 从实际录音转写，或导入已有字幕。根据静音和相似重录提出剪点，在确认前可以调整保留区间。已有粗剪可以直接采用，原素材文件保留。 |
 | **3. 精剪与交付** | 在时间线上安排字幕、贴纸、动画、额外视频和声音。既可试看某个素材在口播里的效果，也可查看一段综合预览，再选 MP4、通用剪辑素材包、ChatCut 或剪映草稿。 |
 
@@ -35,29 +35,23 @@ flowchart LR
 
 ## 安装部署
 
-先到 [GitHub Releases](https://github.com/shynloc/talking-head-studio/releases) 下载 `talking-head-studio-v3.5.0.zip` 并完整解压。Release 同时提供 SHA-256 校验文件。工作台会为当前用户创建独立的 Python 环境，首次安装需要联网下载依赖和 Chromium。
-
 ### Windows
 
-1. 安装 [Python 3.12](https://www.python.org/downloads/) 并勾选添加到 PATH。安装完整 FFmpeg，可在终端运行 `winget install --exact --id Gyan.FFmpeg`。安装后重新打开终端确认 `python --version` 和 `ffmpeg -version` 可用。
-2. 双击解压目录里的「安装工作台.cmd」。第一次需要等待安装器下载依赖、检测中文字体和实际渲染一段视频。
-3. 安装完成会打开浏览器。以后从开始菜单搜索「口播导演工作台」即可启动。
+下载文件名带 `windows-x64.zip` 的安装包，完整解压并双击「安装并打开工作台.cmd」。首次安装可能需要几分钟。打开浏览器后点「有稿件」即可开始。以后从开始菜单打开「口播导演工作台」。
 
 ### macOS
 
-在已经安装 Homebrew 的 Mac 上，先安装 Python 和完整 FFmpeg。
+打开 DMG，把「口播导演工作台」拖入「应用程序」并打开。如果需要 Python，跟随系统安装窗口操作。标有 `macos-preview` 的映像是本地签名预览构建，Developer ID 签名与 Apple 公证的版本使用 `macos.dmg` 文件名。系统阻止预览版时，可使用通用 ZIP 并从解压目录运行 `/bin/bash ./install_macos.command`。
 
-```bash
-brew install python@3.12 ffmpeg-full
-```
+### 通用 ZIP
 
-进入解压出的 `talking-head-studio` 目录，然后在终端运行安装脚本。
+下载不带平台后缀的 ZIP，适用于安装 Agent Skill 或自行运行源码。这个包需要已有 Python 3.10–3.13。Windows 可双击「安装工作台.cmd」，macOS 可打开「install_macos.command」。缺少 FFmpeg 时可先写稿提词；想处理录像时，工作台可以调用本机 winget 或 Homebrew 准备视频组件。
 
-```bash
-/bin/bash ./install_macos.command
-```
+<details><summary>准备视频工具和其他安装方式</summary>
 
-安装后可从 Finder 中的 `~/Applications` 打开「口播导演工作台.app」。应用代码默认在 `~/Library/Application Support/TalkingHeadStudio`。需要从终端启动时可运行解压目录的 `launch_macos.command`。
+处理视频需要完整 FFmpeg（含 ffprobe、libass、libx264）。Windows 可运行 `winget install --exact --id Gyan.FFmpeg`。已安装 Homebrew 的 Mac 可运行 `brew install ffmpeg-full`。装好后再次运行同一个工作台安装器，它会补全视频依赖、安装 Chromium 并检查实际编码。macOS 也可以从解压目录运行 `/bin/bash ./install_macos.command`。
+
+</details>
 
 ### 更新旧版
 
@@ -95,23 +89,23 @@ Whisper 用于录制后的转写。提词器的实时跟读使用另一套本地
 
 ## 使用步骤
 
-首页可以选现有稿件、AI 润稿或新建项目。已经录好的人可以点「从视频开始」，直接进入第二步。项目会记住上次停留的步骤。
+首页按手头的素材分为「有稿件」「有录音或视频」「从空白开始」。点「继续创作」回到上次的项目和步骤，示例可以单独展开。
 
 ### 1. 写稿与录制
 
-导入已有稿件后可点「用现稿分页」，也可以等 AI 提供润稿或分页建议。在每页的「画面备注」写下将来要插入的演示、贴纸或动画。需要精确安排时，展开底部时间线。
+选择文件或粘贴稿件，检查分页预览，点「使用这些提词页」。在项目里可以调整页序、补画面备注。想改稿时点「想先润色稿件？」。使用 Codex 待办时可先用现稿，返回的建议由你决定是否采用。
 
-点击「打开提词器」，用翻页或定速滚动配合外部相机录制。需要跟读时，可以先点「测试麦克风」，再在提词器中开启语音跟随。长稿可用全屏或「下一屏」继续读。
+点「打开提词器」，先在手机或相机上开始录像。右方向键或向前按钮先读下一屏，本页读完再翻页。需要时打开自动滚动或「跟我读」。最后点「录好了，导入视频」。
 
 ### 2. 整理视频
 
-导入录制后，按实际情况选择「查找长停顿」或「已经剪好，直接用这版」。查找后可勾选要保留的片段，生成预览并确认。只导入一段录音时，可以先识别文字，再用来写稿。
+原始录像选「帮我去掉长停顿」。听原片或剪后版本，可逐处保留，满意后点「用这版做字幕」。已有剪好的视频选「直接用这个视频」，直接进入下一步。录音文件可以识别成文字后转为提词页。
 
 ### 3. 字幕与导出
 
-可以「识别视频里的说话」，也可以导入对应这条视频的字幕文件。生成字幕后，点击「检查字幕」改字。素材、位置、时长和音量等操作可在展开后的时间线里调整。只想先看画面也可以选「暂不加字幕，去预览」。
+点「自动加字幕」或导入已有字幕。逐句试听、改字，在「这里加画面」中选择放图片、放演示、强调文字或加声音。需要拖动位置和调整多轨时再展开「精细调整」。
 
-点「试看动画与音效」选择素材，看看它和口播、字幕合在一起的效果。也可以点「预览与导出」看一小段，展开「挑选要预览的片段」可指定位置。看完选择出片方式，所有方式都使用当前的完整时间线。
+点「看成片效果」自动准备当前预览，已有有效预览可直接播放。「换一段预览」可以指定位置。「导出 MP4」保存完整视频，「用剪辑软件继续」展开外部剪辑入口。
 
 | 出片方式 | 之后还能改什么 |
 | --- | --- |
@@ -123,6 +117,19 @@ Whisper 用于录制后的转写。提词器的实时跟读使用另一套本地
 外部编辑器里的透明动画可以移动、缩放和裁短，内部文字和关键帧在工作台改。更换编辑器时可参照预览，调整字幕外观和背景乐自动避让。ChatCut 和剪映由各自的导出设置决定分辨率。
 
 继续修改时，重新生成与当前时间线对应的样片。点击顶部「打包工程」可导出稿件、字幕、轨道和素材。跨电脑继续剪辑时，勾选「同时打包当前原片和已有粗剪文件」。使用轻量包时，请在目标工作台重新关联原片。
+
+### 使用自己的助手
+
+在项目顶栏点「交给 AI」，选择助手、写要求、选择随任务带出的稿件或字幕。交给 ChatGPT、Grok 或「其他助手」时，可复制所选内容，回到工作台粘贴结果。工作台不会将原片附在任务卡上。
+
+| 助手 | 如何接着原对话做 | 从新对话开始 |
+| --- | --- | --- |
+| Codex | 绑定过的项目可投递到已核验的会话 ID，失败时保留待办。 | 在项目目录启动新的 Codex，再粘贴任务卡。 |
+| Claude Code | 在「选择原对话或新对话」记住会话 ID，按提示在项目目录执行 `claude --resume ID`。 | 启动 `claude` 后粘贴任务卡。 |
+| Claude 客户端、ChatGPT、Grok Bot | 记住当前项目对应的私有对话网址。回到同一账号打开链接，再粘贴所选资料。 | 从指定服务的新对话入口打开。 |
+| WorkBuddy、TRAE、TraeWork、其他助手 | 把任务卡粘贴进选定的原聊天。本机可用 CLI 或 MCP 时可以直接领取和回写。 | 在该应用点新对话，粘贴同一任务卡。 |
+
+Claude Code、Claude 客户端及支持本地 stdio MCP 的编辑器，可运行 `python scripts/studio.py agent-config --agent claude-code` 获取当前电脑绝对路径的 MCP 配置。将助手名分别替换为 `claude-desktop`、`workbuddy`、`trae` 或 `traework`。使用自定义端口时，在子命令前传入 `--url http://127.0.0.1:端口`。工作台只在本机保存原对话地址。关于会话 ID 可参考 [Claude Code CLI](https://code.claude.com/docs/en/cli-reference)。
 
 ## 与 Agent 协作
 
@@ -167,7 +174,7 @@ Codex 用户还可点「连接 Codex 原对话」，把连接指令粘贴到项�
 
 ### 为何不能直接点「导出成片」？
 
-按「预览与导出」里当时的提示准备视频或补素材。生成预览并在同一窗口确认后，即可导出完整视频。改过字幕、片段或画面后，先生成一段新的预览。
+点「看成片效果」会自动准备当前预览。改过剪点时，就地更新剪辑预览并试听。遇到待补画面时，可以选择文件，也可以在本次导出中略过。满意后点「导出 MP4」。
 
 ### 我的原片会被覆盖或上传吗？
 
@@ -197,7 +204,7 @@ Codex 用户还可点「连接 Codex 原对话」，把连接指令粘贴到项�
 | macOS 15 ARM64 | GitHub Apple Silicon 虚拟机验证了 ZIP 安装、`.app` 启动脚本、旧工程升级、同目录应用重装、中文渲染和三阶段。三阶段使用已知时间戳，运行了实际静音分析、粗剪和视频编码。 | 实体 Mac 上通过 Finder 打开、物理麦克风、Whisper 转写、Mac Intel、剪映和 ChatCut 桌面联测。 |
 | Windows 上的 WorkBuddy 与 ChatCut | WorkBuddy 在原测试对话领取待办。在 ChatCut 本机组装主画面、字幕、两条透明动画和独立音效，改字后保存并导出 MP4，再将项目 ID 写回工作台。 | Mac 上的相同组合、其他客户端版本。 |
 
-Windows 与 macOS 的完整工程 ZIP 跨平台往返后，均已从随包的原片重新渲染样片。Mac 当前通过 ZIP 安装。签名公证的 DMG 待提供。 [V3.5 自动验收记录](https://github.com/shynloc/talking-head-studio/actions/runs/44946232710)
+Windows 与 macOS 的完整工程 ZIP 跨平台往返后，均已从随包的原片重新渲染样片。当前 macOS 分发包括通用 ZIP 和 DMG。预览 DMG 的文件名标有 preview；Developer ID 版本需通过 Apple 公证。 [V3.5 自动验收记录](https://github.com/shynloc/talking-head-studio/actions/runs/44946232710)
 
 ## 第三方组件
 
@@ -208,3 +215,10 @@ Windows 与 macOS 的完整工程 ZIP 跨平台往返后，均已从随包的原
 - Whisper 模型、sherpa-onnx 模型、FFmpeg 和 Chromium 按需从各自渠道安装。
 
 第三方组件的许可适用于对应文件。主项目的源码公开可查看，主项目许可由维护者另行声明。
+
+
+### 如何重新制作系统安装包？
+
+从已提交的发行源码运行 `python scripts/package_release.py --output dist`，再运行 `python packaging/build_installers.py windows --archive dist/talking-head-studio-v3.6.0.zip --out native`。Mac 构建时将平台参数改为 `macos`。构建器使用 Python 官方安装程序及固定 SHA-256。Mac 应用包含 Intel 和 Apple 芯片可执行文件。[Python 安装程序来源](https://www.python.org/downloads/release/python-31314/)
+
+有 Developer ID 的发布者可在 Mac 钥匙串中配置签名身份和 notarytool 配置，构建时提供 `--identity` 与 `--notary-profile`。发布流程会分别签署应用和磁盘映像，等待 Apple 接受并附加公证票据。GitHub Actions 可通过仓库 Secrets 配置相同流程。[Apple 公证说明](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)

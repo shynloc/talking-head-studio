@@ -6,7 +6,8 @@ import shlex
 import subprocess
 import sys
 
-from agent_tasks import AGENTS
+from agent_tasks import agent_key
+from agent_hosts import AGENTS, HOSTS, project_destination
 from core import ROOT
 
 
@@ -17,6 +18,11 @@ def command(url, *args):
 
 def task_card(task, url):
     task_id, agent = task['id'], task['agent']
+    if HOSTS[agent].get('cloud') and 'context' in task:
+        return (f'口播项目：{task["project_title"]}（待办 {task_id}）\n'
+                f'请完成：{task["instruction"]}\n以下是参考资料：\n'
+                + json.dumps(task['context'],ensure_ascii=False)
+                + '\n请直接回复处理结果，方便我粘贴回工作台。')
     claim = command(url, 'agent-claim', task_id, '--agent', agent)
     complete = command(url, 'agent-complete', task_id, '--agent', agent,
                        '--receipt', 'RECEIPT', '--file', 'RESULT.txt')
@@ -50,6 +56,9 @@ def get(server, path, query):
         return tasks.listing(project_id, query.get('agent', [''])[0])
     if path == '/api/agents/task':
         return tasks.get(query.get('id', [''])[0])
+    if path == '/api/agents/destination':
+        agent = agent_key(query.get('agent',[''])[0])
+        return {'value':project_destination(tasks, project_id, agent)}
     if path == '/api/agents/connection':
         url = f'http://127.0.0.1:{server.server_port}'
         return tasks.connection(project_id) | {'card': binding_card(project_id, url)}
@@ -59,6 +68,8 @@ def get(server, path, query):
 def post(server, path, data):
     tasks = server.agent_tasks
     url = f'http://127.0.0.1:{server.server_port}'
+    if path == '/api/agents/destination':
+        return {'value':project_destination(tasks, data['project_id'],agent_key(data['agent']),data['value'])}
     if path == '/api/agents/create':
         return tasks.create(data)
     if path == '/api/agents/claim':

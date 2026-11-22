@@ -4,6 +4,7 @@ import argparse
 import os
 import plistlib
 import shlex
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -80,7 +81,11 @@ def deploy(app, data, port, no_browser, skip_shortcut, entries):
     def prepare(staged):
         if not python.is_file():
             subprocess.run([sys.executable, '-m', 'venv', str(python.parent.parent)], check=True)
-        subprocess.run([str(python), '-X', 'utf8', str(staged / 'scripts/setup.py'), '--install', '--smoke'],
+        full_video = all(shutil.which(tool) for tool in ('ffmpeg','ffprobe'))
+        options = ['--install', '--smoke'] if full_video else ['--writing-only']
+        if not full_video:
+            print('先安装写稿与提词。要处理视频时，装好 FFmpeg 后再次运行本安装器。', flush=True)
+        subprocess.run([str(python), '-X', 'utf8', str(staged / 'scripts/setup.py'), *options],
                        env=env, check=True)
         (staged / marker.name).write_text(VERSION + '\n', encoding='utf-8')
         write_json(staged / '.studio-deployment.json', {'data': str(data), 'port': port})

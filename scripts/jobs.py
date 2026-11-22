@@ -2,6 +2,8 @@ from __future__ import annotations
 import concurrent.futures, importlib.util, json, os, re, shutil, threading, urllib.request, zipfile
 from pathlib import Path
 from core import *
+from agent_hosts import HOSTS
+import materials
 import media
 import project_bundle
 
@@ -9,13 +11,10 @@ def doctor():
     tools={x:shutil.which(x) for x in ('ffmpeg','ffprobe','node')}
     modules={x:bool(importlib.util.find_spec(x)) for x in ('whisper','torch','playwright','PIL','numpy','pypdf','pptx')}
     cache=Path(os.environ.get('XDG_CACHE_HOME',str(Path.home()/'.cache')))/'whisper'
-    return {'version':VERSION,'tools':tools,'modules':modules,'models':[p.stem for p in cache.glob('*.pt')],
+    return {'version':VERSION,'agent_hosts':HOSTS,'tools':tools,'modules':modules,'models':[p.stem for p in cache.glob('*.pt')],
         'llm_configured':bool(os.environ.get('STUDIO_LLM_URL') and os.environ.get('STUDIO_LLM_MODEL')),
-        'vendors': {
-            'html-creator-studio': all(media.hcs_file(file).is_file()
-                                       for file in ('scripts/extract_resume.py', 'shared/frame-styles.mjs')),
-            'gif-factory': (ROOT / 'vendor/gif-factory/scripts/export_pack.py').is_file(),
-        },
+        'components': materials.components(),
+        'vendors': {key:spec['available'] for key,spec in materials.components().items()},
         'speech_follow':'Local streaming ASR with selected browser microphone; run setup_speech.py for models',
         'data_directory':'Local project directory; source footage is referenced, not bundled by default'}
 
@@ -54,6 +53,9 @@ class Jobs:
 
     def action(self,pid,action,args,report):
         store=self.store;p=store.load(pid);folder=store.folder(pid)
+        if action in ('prepare_follow','prepare_transcription','prepare_video_tools'):
+            from local_tools import prepare
+            return prepare(action,store.root,report)
         if action in ('timeline_sample','timeline_final'):
             import timeline_render
             return timeline_render.render(store,pid,report,args.get('start',0),args.get('duration',10),action=='timeline_final')
@@ -128,6 +130,13 @@ class Jobs:
             t=next(t for t in p['tasks'] if t['id']==args['task_id'])
             if not t.get('result'):raise ValueError('任务尚无返回稿件')
             p['pages']=script_pages(t['result']);t['status']='applied';p['approvals'].pop('script',None);store.save(p,label='采用改稿草案');return {'ok':True}
+        if action == 'prepare_rough':
+            self.action(pid, 'analyze_cuts', {}, lambda n, msg: report(n * .45, msg))
+            return self.action(pid, 'render_rough', {}, lambda n, msg: report(.45 + n * .55, msg))
+        if action in ('auto_captions', 'captions_from_file'):
+            first = 'transcribe' if action == 'auto_captions' else 'import_transcript'
+            self.action(pid, first, args, lambda n, msg: report(n * .85, msg))
+            return self.action(pid, 'plan', {}, lambda n, msg: report(.85 + n * .15, msg))
         if action=='transcribe':
             return media.transcribe(store,pid,report,args.get('model',p['settings']['model']),bool(args.get('allow_download')))
         if action=='import_transcript':
@@ -160,10 +169,10 @@ class Jobs:
         if action=='render_rough':return media.render_rough(store,pid,report)
         if action=='skip_rough':return media.render_rough(store,pid,report,skip=True)
         if action=='approve_rough':
-            if not p['rough'] or p['rough']['edl_hash']!=digest(p['edl']):raise ValueError('请先输出当前剪辑清单对应的粗剪')
+            if not rough_current(p):raise ValueError('请先输出当前剪辑清单对应的粗剪')
             p['approvals']['rough']={'at':now(),'hash':digest(p['rough'])};store.save(p,label='用户确认粗剪');return {'ok':True}
         if action=='plan':
-            if not p['rough'] or not p['approvals'].get('rough'):raise ValueError('请先确认粗剪，或选择已粗剪输入')
+            if not rough_current(p) or not p['approvals'].get('rough'):raise ValueError('请先确认粗剪，或选择已粗剪输入')
             if not p['transcript']:raise ValueError('请先转写视频，才能制作实际语音字幕')
             p['captions']=build_captions(p);p['scenes']=scene_plan(p);p['approvals'].pop('final',None)
             import timeline
@@ -196,12 +205,7 @@ class Jobs:
             store.save(p,label='用户确认精剪方案与样片');return {'ok':True}
         if action=='final':return media.render_final(store,pid,report,False)
         if action=='add_asset':
-            path=Path(args['path']).resolve()
-            if not path.is_file() or path.suffix.lower() not in ('.png','.jpg','.jpeg','.webp','.gif','.svg','.mp4','.mov','.webm','.wav','.mp3','.m4a','.flac','.ogg'):
-                raise ValueError('请导入图片、GIF 或视频素材')
-            item={'id':uid('asset'),'name':args.get('name') or path.stem,'path':str(path),'type':path.suffix[1:],
-                'source':args.get('source','用户提供'),'approved':False}
-            p['assets'].append(item);store.save(p,label='导入素材');store.register(pid,path,'asset');return item
+            return materials.add(store,pid,args['path'],args.get('name'),args.get('source','用户提供'))
         if action=='gif':return media.gif_factory(store,pid,args['asset_id'],args.get('text','重点'),args.get('motion','pulse'),report)
         if action=='prompt_export':
             work=folder/'exports'/uid('prompt');work.mkdir(parents=True)

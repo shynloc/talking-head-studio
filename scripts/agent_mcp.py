@@ -1,5 +1,6 @@
 """A local stdio MCP bridge exposing only workbench handoff operations."""
 
+from agent_hosts import AGENTS
 import argparse
 import json
 import sys
@@ -54,7 +55,7 @@ def handle(client, message):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--agent', choices=('codex', 'workbuddy'), required=True)
+    parser.add_argument('--agent', choices=tuple(AGENTS), required=True)
     parser.add_argument('--url', default='http://127.0.0.1:8765')
     args = parser.parse_args()
     client = AgentClient(args.url, args.agent)

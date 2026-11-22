@@ -50,12 +50,12 @@ def sync(p):
                     if clip:base=clip['start']+raw-clip.get('source_in',0)
                     else:orphan=True
                 else:orphan=True
-            c.update(id='tag_'+t['id'],tag_id=t['id'],page_id=pg['id'],sentence_id=sid,name=t['label'],kind=t['kind'],asset_id=t.get('asset_id',''),steps=t.get('steps',[]),orphaned=orphan)
+            c.update(id='tag_'+t['id'],tag_id=t['id'],page_id=pg['id'],sentence_id=sid,name=t['label'],kind=t['kind'],asset_id=t.get('asset_id',''),steps=t.get('steps',[]),orphaned=orphan and c.get('anchor')!='absolute')
             c.setdefault('track',{'product':'pip','demo':'pip','sfx':'sfx','title':'title'}.get(t['kind'],'sticker'))
             c.setdefault('anchor','sentence');c.setdefault('offset',0);c.setdefault('duration',min(4,duration(pg,rate)));c.setdefault('enabled',True)
             if c['anchor']!='absolute':c['start']=round(max(0,base+c['offset']),3)
             tags.append(c)
-    tl['clips']=main+aux+tags;tl['duration']=round(max([cursor]+[c['start']+c['duration'] for c in aux+tags]),3)
+    tl['clips']=main+aux+tags;tl['duration']=round(max([cursor]+[c['start']+c['duration'] for c in aux+tags if c.get('enabled',True)]),3)
     p['schema_version']=2
     return tl
 
@@ -74,7 +74,7 @@ def validate(p):
 
 def validate_output(p):
     """Editing stale timelines is allowed; rendering them is not."""
-    from core import digest
+    from core import rough_current, aligned_with_cuts
     tl=validate(p)
     if any(c['track']=='main' and c.get('enabled') is False for c in tl['clips']):
         raise ValueError('主轨不支持禁用片段。请打开片段并保存以重新启用，或使用裁剪 / 删除调整主画面')
@@ -82,17 +82,17 @@ def validate_output(p):
         raise ValueError('原片已更换，请完成粗剪并重新校准录制后导出')
     if tl['mode']=='actual':
         rough=p.get('rough')
-        if not rough or rough.get('edl_hash')!=digest(p['edl']):
+        if not rough_current(p):
             raise ValueError('请先完成当前粗剪并重新校准录制')
         recordings=[c for c in tl['clips'] if c['track']=='main' and c.get('source_id') and not c.get('asset_id')]
         if any(c['source_id']!=p['source_id'] for c in recordings):
             raise ValueError('时间线仍关联旧原片，请重新校准录制')
-        if tl.get('alignment') and tl['alignment']!={'source_id':p['source_id'],'edl_hash':digest(p['edl'])}:
+        if not aligned_with_cuts(p):
             raise ValueError('剪辑清单已变化，请重新校准录制')
     return tl
 
 def calibrate(p):
-    from core import uid, time_map, build_captions, digest
+    from core import uid, time_map, build_captions, edl_digest
     tl=sync(p)
     p.setdefault('timeline_before_alignment',copy.deepcopy(tl))
     if p.get('transcript'):p['captions']=build_captions(p)
@@ -114,7 +114,7 @@ def calibrate(p):
                     pieces.append(piece)
             main.extend(pieces)
         tl['clips']=[c for c in tl['clips'] if c['track']!='main']+main
-        tl['alignment']={'source_id':p['source_id'],'edl_hash':digest(p['edl'])}
+        tl['alignment']={'source_id':p['source_id'],'edl_hash':edl_digest(p['edl'])}
         return sync(p)
     main=[]
     for m in mapping:
@@ -146,5 +146,5 @@ def calibrate(p):
     main=merged
     tl['clips']=[c for c in tl['clips'] if c['track']!='main']+main;tl['mode']='actual';sync(p)
     tl.pop('needs_alignment',None)
-    tl['alignment']={'source_id':p['source_id'],'edl_hash':digest(p['edl'])}
+    tl['alignment']={'source_id':p['source_id'],'edl_hash':edl_digest(p['edl'])}
     return tl

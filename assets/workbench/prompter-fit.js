@@ -7,6 +7,7 @@ function promptOverflow() {
   const viewport = $('viewport');
   const hasMore = viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop > 2;
   $('read-more').hidden = !hasMore;
+  $('next-btn').textContent=hasMore?'下一屏 ↓':index<P.pages.length-1?'下一页 →':'录好了，导入视频';
 }
 
 function fitPromptPage() {
@@ -16,7 +17,7 @@ function fitPromptPage() {
   script.style.fontSize = requested+'px';
   if (fitWholePage && script.childElementCount && viewport.scrollHeight > viewport.clientHeight + 1) {
     // Use the largest readable font that fits the actual content area.
-    let low = Math.min(requested, viewport.clientWidth < 600 ? 20 : 24);
+    let low = Math.min(requested, 32);
     let high = requested;
     let good = low;
     while (low <= high) {
@@ -39,7 +40,13 @@ function queuePromptFit() {
 
 function advancePromptScreen() {
   const viewport = $('viewport');
-  viewport.scrollTop += Math.max(36, Math.floor(viewport.clientHeight * .75));
+  const bottom = viewport.getBoundingClientRect().bottom;
+  const chars = Array.from($('text').children);
+  const visible = chars.filter(el=>el.getBoundingClientRect().bottom<=bottom);
+  const lastBreak=visible.filter(el=>/[。！？；]/.test(el.textContent)).at(-1);
+  const nextChar=lastBreak?.nextElementSibling;
+  const delta=nextChar ? nextChar.getBoundingClientRect().top-viewport.getBoundingClientRect().top : 0;
+  viewport.scrollTop+=delta>viewport.clientHeight*.4?delta:Math.max(36,Math.floor(viewport.clientHeight*.8));
   promptOverflow();
 }
 
@@ -53,7 +60,7 @@ function initPromptFit() {
     queuePromptFit();
   };
   $('font').oninput = queuePromptFit;
-  $('read-more').onclick = advancePromptScreen;
+
   viewport.addEventListener('scroll',promptOverflow,{passive:true});
   const observer = new ResizeObserver(queuePromptFit);
   observer.observe(viewport);

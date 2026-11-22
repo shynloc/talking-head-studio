@@ -5,6 +5,7 @@ from fractions import Fraction
 from pathlib import Path
 from core import *
 import fonts
+import materials
 
 HCS_DIR = ROOT / 'vendor/html-creator-studio-core'
 
@@ -26,13 +27,15 @@ def probe(path):
     video = next((s for s in raw['streams'] if s['codec_type'] == 'video'), None)
     audio = next((s for s in raw['streams'] if s['codec_type'] == 'audio'), None)
     duration = float((video or audio or {}).get('duration') or raw['format'].get('duration', 0))
-    result = {'duration': duration, 'audio': bool(audio), 'video': bool(video), 'width': 0, 'height': 0, 'fps': 30.}
+    result = {'alpha_capable': False, 'duration': duration, 'audio': bool(audio), 'video': bool(video), 'width': 0, 'height': 0, 'fps': 30.}
     if video:
         w, h = video['width'], video['height']
         rotations = [s.get('rotation', 0) for s in video.get('side_data_list', [])]
         if any(abs(int(r)) % 180 == 90 for r in rotations): w, h = h, w
         try: fps = float(Fraction(video.get('avg_frame_rate', '30/1')))
         except (ValueError, ZeroDivisionError): fps = 30
+        fmt=video.get('pix_fmt','')
+        result['alpha_capable']=fmt.startswith(('yuva','gbrap','rgba','bgra','argb','abgr','ya')) or video.get('tags',{}).get('alpha_mode')=='1'
         result.update(width=w, height=h, fps=fps if fps > 0 else 30, codec=video['codec_name'])
     if duration <= 0: raise ValueError('文件没有可用的媒体时长')
     return result
@@ -170,7 +173,7 @@ def render_rough(store,pid,report,skip=False):
     if not src.get('video'): raise ValueError('请先导入视频')
     if skip:
         edl=[{'id':uid('cut'),'start':0,'end':src['duration'],'keep':True,'protected':False,'reason':'用户提交的粗剪版'}]
-        rough={'media_id':src['id'],'path':src['path'],'duration':src['duration'],'mapping':time_map(edl),'edl_hash':digest(edl)}
+        rough={'media_id':src['id'],'path':src['path'],'duration':src['duration'],'mapping':time_map(edl),'edl_hash':edl_digest(edl)}
         store.patch(pid,{'edl':edl,'rough':rough,'approvals':{'rough':{'at':now(),'kind':'already_cut'}}},'确认已粗剪输入')
         return rough
     validate_edl(p['edl'],src['duration']);mapping=time_map(p['edl'])
@@ -188,9 +191,12 @@ def render_rough(store,pid,report,skip=False):
     run(['ffmpeg','-v','warning','-i',src['path'],'-/filter_complex',script,'-map','[v]','-map','[a]',
         '-c:v','libx264','-preset','fast','-crf','20','-pix_fmt','yuv420p','-r',src['fps'],'-c:a','aac','-b:a','192k','-movflags','+faststart','-y',out],work/'render.log')
     meta=probe(out)
-    if digest(store.load(pid)['edl'])!=digest(p['edl']): raise Conflict('剪辑清单在渲染期间已更改，请重新生成粗剪')
-    item=store.register(pid,out,'rough');rough={'media_id':item['id'],'path':str(out),'duration':meta['duration'],'mapping':mapping,'edl_hash':digest(p['edl'])}
-    store.patch(pid,{'rough':rough,'approvals':{},'qa':{'rough_decode':True}},'粗剪预览已输出')
+    with LOCK:
+        current = store.load(pid)
+        if current['edl'] != p['edl'] or current['source_id'] != p['source_id']:
+            raise Conflict('视频或剪辑清单已更改，请重新生成剪辑预览。')
+        item=store.register(pid,out,'rough');rough={'media_id':item['id'],'path':str(out),'duration':meta['duration'],'mapping':mapping,'edl_hash':edl_digest(p['edl'])}
+        store.patch(pid,{'rough':rough,'approvals':{},'qa':{'rough_decode':True}},'粗剪预览已输出')
     return rough
 
 def ass_time(t):
@@ -340,10 +346,8 @@ def gif_factory(store,pid,asset_id,text,motion,report):
         'ink':'#153c42','tint':'#64f1cc','entries':[{'text':text or '重点','cell':[0,0],'motion':motion,'icon':'none'}]}]}
     write_json(work/'manifest.json',manifest);report(.2,'调用 GIF 工厂生成真实循环动图')
     run([sys.executable,ROOT/'vendor/gif-factory/scripts/export_pack.py',work/'manifest.json',work/'pack','--font',font,'--jobs','1'],work/'gif.log')
-    result=next((work/'pack').rglob('*.gif'));new={'id':uid('asset'),'name':text or '动态贴纸','path':str(result),'type':'gif','source':'GIF Factory / user PNG','approved':False}
-    with LOCK:
-        current=store.load(pid);current['assets'].append(new);store.save(current,label='GIF 工厂素材完成')
-    store.register(pid,result,'asset');return new
+    result=next((work/'pack').rglob('*.gif'))
+    return materials.add(store,pid,result,text or '动态贴纸','GIF Factory / user PNG','gif-factory',asset_id)
 
 def export_prompt(p,work):
     template=(ROOT/'assets/workbench/prompter.html').read_text(encoding='utf-8')

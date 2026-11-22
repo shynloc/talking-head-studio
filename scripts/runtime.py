@@ -3,6 +3,7 @@
 from contextlib import contextmanager
 import os
 import sys
+import shutil
 from pathlib import Path
 
 
@@ -29,6 +30,18 @@ def configure_tool_path():
     current = os.environ.get('PATH', os.defpath).split(os.pathsep)
     paths = (str(path) for path in candidates if path.is_dir())
     os.environ['PATH'] = os.pathsep.join(dict.fromkeys([*paths, *current]))
+
+
+def refresh_installed_tools():
+    if os.name == 'nt':
+        winget=Path(os.environ.get('LOCALAPPDATA') or Path.home()/'AppData/Local')/'Microsoft/WinGet'
+        bins=[winget/'Links']
+        if not shutil.which('ffprobe'):
+            bins.extend(file.parent for file in (winget/'Packages').glob('Gyan.FFmpeg_*/**/bin/ffmpeg.exe'))
+        current=os.environ.get('PATH',os.defpath).split(os.pathsep)
+        os.environ['PATH']=os.pathsep.join(dict.fromkeys([*current,*(str(p) for p in bins if p.is_dir())]))
+        return
+    configure_tool_path()
 
 
 @contextmanager

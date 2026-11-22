@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from core import Conflict, digest, now, uid, write_json
 
 
-AGENTS = {'codex': 'Codex', 'workbuddy': 'WorkBuddy'}
+from agent_hosts import AGENTS
 
 
 def text_value(value, label, limit):
@@ -20,16 +20,18 @@ def text_value(value, label, limit):
 
 def agent_key(value):
     if value not in AGENTS:
-        raise ValueError('请选择 Codex 或 WorkBuddy。')
+        raise ValueError('请选择列表中的助手。')
     return value
 
 
-def project_context(project):
-    return {
+def project_context(project, included=None):
+    context = {
         'title': project['title'],
         'pages': [{key: page.get(key, '') for key in ('title', 'text', 'notes')} for page in project['pages']],
         'captions': [{key: caption[key] for key in ('start', 'end', 'text')} for caption in project['captions']],
     }
+
+    return context if included is None else {key:value for key,value in context.items() if key=='title' or key in included}
 
 
 class AgentTasks:
@@ -68,7 +70,7 @@ class AgentTasks:
         if detail and task['status'] == 'ready':
             try:
                 project = self.store.load(task['project_id'])
-                public['project_changed'] = digest(project_context(project)) != task['context_hash']
+                public['project_changed'] = digest(project_context(project,task.get('included'))) != task['context_hash']
             except FileNotFoundError:
                 public['project_changed'] = True
         return public
@@ -123,11 +125,14 @@ class AgentTasks:
                 task = json.loads(path.read_text(encoding='utf-8'))
                 if task['project_id'] == project['id'] and task.get('request_id') == request_id:
                     return self._public(task)
-            context = project_context(project)
+            included=data.get('included',['pages','captions'])
+            if not isinstance(included,list) or any(k not in ('pages','captions') for k in included):
+                raise ValueError('请选择要交给助手的稿件或字幕。')
+            context = project_context(project,included)
             task = {
                 'id': uid('handoff'), 'request_id': request_id, 'project_id': project['id'],
                 'project_title': project['title'], 'project_version': project['version'],
-                'context': context, 'context_hash': digest(context), 'agent': agent,
+                'included':included,'context': context, 'context_hash': digest(context), 'agent': agent,
                 'instruction': instruction, 'status': 'waiting', 'delivery': 'manual', 'created': now(),
             }
             self._save(task)

@@ -4,6 +4,7 @@ import shutil
 import zipfile
 from pathlib import Path
 
+import materials
 from core import file_digest, source, uid, write_json
 import media
 import timeline
@@ -130,6 +131,9 @@ def build(project, state, root, work, report):
                    '-pix_fmt', 'yuva444p10le', '-y', root / path], stage / 'prores.log')
         placed = placement(clip, path, 'visual', layer=clip['layer'], kind=clip['kind'],
                            original=copy_source(clip.get('asset_id')), volume=0)
+        placed['component']='html-creator-studio'
+        placed['component_version']=materials.components()['html-creator-studio']['version']
+        placed['alpha_capable']=True
         placed['source_in'] = 0
         placements.append(placed)
     for clip in audio:
@@ -154,6 +158,8 @@ def build(project, state, root, work, report):
     manifest = {
         'version': 1, 'project': project['title'], 'timeline_hash': state['hash'],
         'width': width, 'height': height, 'fps': fps, 'duration': duration, 'clips': placements,
+        'assets': [{**{key:item.get(key) for key in ('id','type','name','source','source_asset_id','component','component_version','width','height','duration','alpha_capable')},
+                    'path':copied[item['id']]} for item in map(materials.portable,(asset for asset in project['assets'] if asset['id'] in copied))],
         'base': 'media/主画面.mp4', 'subtitles': '字幕.srt',
         'caption_settings': {key: project['settings'][key] for key in ('caption_y', 'caption_size')},
         'sample': {'path': '预览.mp4', 'start': state['sample']['start'],

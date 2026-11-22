@@ -34,5 +34,5 @@ class AgentClient:
 
     def bind(self, project_id, thread_id, replace=False):
         if self.agent != 'codex':
-            raise ValueError('请在原 WorkBuddy 对话手动粘贴任务卡。')
+            raise ValueError('此连接指令用于 Codex。请在工作台选择对应助手的原对话入口。')
         return self._call('bind', {'project_id': project_id, 'thread_id': thread_id, 'replace': replace})

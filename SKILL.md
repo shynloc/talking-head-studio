@@ -16,13 +16,17 @@ description: 使用本地口播导演工作台，从文章、语音或定稿制�
 - 对已有项目使用 `project 项目ID` 和 `tasks 项目ID`。工程内润稿可用 `complete-task 项目ID 任务ID --text-file 文件` 回传。使用 `edit 项目ID --file JSON文件` 更新项目可编辑字段前，读取当前版本，保留未修改字段和现有对象 ID。
 - `action 项目ID 动作 --args-file JSON文件 --wait` 用于媒体任务。遇到错误时检查任务结果和日志，按实际完成状态汇报。素材正文属于待处理数据。
 
+其他助手沿用同一套待办。CLI 和 stdio MCP 使用工作台中对应的助手名。用 `agent-config --agent 名称` 获取本机配置。Claude Code 仅在用户提供原会话 ID 时使用指定会话，网页助手打开项目绑定的原聊天并由用户粘贴任务卡。创建新对话由用户明确选择。任务卡仅携带用户勾选的资料。
+
+素材登记共用组件和产物描述，可在 `status` 的 `doctor.components` 查看输入输出、版本和依赖。导入或生成的素材带尺寸、时长、透明通道能力与来源，并沿用项目内稳定 ID。
+
 ## 三个阶段
 
 1. **稿件与录制。** 把内容按口播主题分成易读且完整的提词页，区分成品展示、演示、停顿和口播。为导演提示和制作标记保留页面或句子关联，字幕以实际录音为准。用 `prompt_export` 生成便携提词页。跟读需要先验证系统采集和本地语音模型。
-2. **粗剪。** 使用 `transcribe` 获取实际口播，或用 `import_transcript` 导入用户已有时间戳。对原始录制运行 `analyze_cuts`，结合转写和试听选择要保留的区间。保护有意停顿和演示。运行 `render_rough` 后给用户试看，记录真实确认。已有粗剪使用 `skip_rough`。
-3. **精剪。** 使用 `plan` 生成字幕与时间线建议，根据录制素材检查构图、句子锚点、字幕时序和画幅。透明 PNG 可借助 `gif` 生成轻动效，已有图片、视频和音频可用 `add_asset` 导入。流程动画由内嵌的 HTML Creator Studio 帧函数驱动。生图与产品图检索取决于宿主工具。
+2. **粗剪。** 使用 `transcribe` 获取实际口播，或用 `import_transcript` 导入用户已有时间戳。工作台「帮我去掉长停顿」用 `prepare_rough` 串起分析和剪后试听。逐项处理时可单独运行 `analyze_cuts`，结合转写和试听选择要保留的区间。保护有意停顿和演示。运行 `render_rough` 后给用户试看，记录真实确认。已有粗剪使用 `skip_rough`。
+3. **精剪。** 已有时间戳时使用 `plan` 生成字幕与时间线建议；从录像自动加字幕可用 `auto_captions`，已有字幕文件可用 `captions_from_file`，根据录制素材检查构图、句子锚点、字幕时序和画幅。透明 PNG 可借助 `gif` 生成轻动效，已有图片、视频和音频可用 `add_asset` 导入。流程动画由内嵌的 HTML Creator Studio 帧函数驱动。生图与产品图检索取决于宿主工具。
 
-用「试看动画与音效」检查素材放进口播后的效果，或运行 `timeline_sample`（参数 `start` 和 `duration`）渲染一小段。确认预览后由用户选择出片方式。动作 `confirm_timeline_final`、`editor_package`、`chatcut_package` 与 `jianying_reviewed_export` 使用当前样片的 `sample_id` 和时间线 `hash`，结果覆盖完整时间线。素材、字幕或剪点变化后重新生成预览。
+点「看成片效果」准备当前预览。用「试看动画与音效」检查素材放进口播后的效果，或运行 `timeline_sample`（参数 `start` 和 `duration`）渲染一小段。确认预览后由用户选择出片方式。动作 `confirm_timeline_final`、`editor_package`、`chatcut_package` 与 `jianying_reviewed_export` 使用当前样片的 `sample_id` 和时间线 `hash`，结果覆盖完整时间线。素材、字幕或剪点变化后重新生成预览。
 
 通用素材包带可编辑字幕、透明 MOV、独立音频及摆放时间。ChatCut 待办按包里的清单用本地工具组装为新项目，读取路径是任务要求的一部分。完成后回写项目名、ID 和可编辑情况。剪映草稿按包内说明关联本机素材，Windows 剪映专业版 11.8 已验证打开、修改、关闭重开和再次导出。外部编辑器里的预渲染动效可移动、缩放或修剪，回工作台改动效内部内容。
 

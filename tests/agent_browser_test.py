@@ -49,12 +49,13 @@ def main():
         page = browser.new_page(viewport={'width': 1180, 'height': 780})
         page.on('pageerror', lambda error: errors.append(str(error)))
         page.goto(args.url)
-        page.get_by_role('button', name='新建项目').click()
+        page.locator('[data-v2="blank"]').click()
         page.locator('#page-text').fill('这是独立的测试口播稿。')
         page.locator('#agent-inbox').click()
 
         def create(agent, instruction):
-            page.locator('#dialog [data-agent="compose"]').click()
+            if not page.locator('#agent-choice').is_visible():
+                page.locator('#dialog [data-agent="compose"]').click()
             page.locator('#agent-choice').select_option(agent)
             page.locator('#agent-instruction').fill(instruction)
             page.get_by_role('button', name='存为待办').click()
@@ -97,7 +98,8 @@ def main():
         page.get_by_role('button', name='保存结果').click()
         expect(page.locator('.agent-result')).to_have_text('手动保存的建议。')
         page.reload()
-        page.locator('#agent-inbox').click()
+        page.locator('.project-menu summary').click()
+        page.locator('.project-menu [data-agent="list"]').click()
         page.locator(f'[data-task="{task_id}"]').click()
         expect(page.locator('.agent-result')).to_have_text('手动保存的建议。')
         checks.append('a user can paste a result from the original chat and reopen it after reload')

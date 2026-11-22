@@ -1,5 +1,5 @@
 """Explicit, resumable download of pinned local streaming models. No credentials needed."""
-import argparse,hashlib,subprocess,sys,urllib.request,time
+import argparse,hashlib,os,subprocess,sys,urllib.request,time
 from pathlib import Path
 FILES={
  'tokens.txt':(56317,'a8e0e4ec53810e433789b54a5c0134a7eaa2ffca595a6334d54c00da858841d3'),
@@ -15,7 +15,7 @@ def sha(p):
 def main():
  ap=argparse.ArgumentParser();ap.add_argument('--data',default=str(Path.home()/'Documents/TalkingHeadStudio'));ap.add_argument('--skip-pip',action='store_true');a=ap.parse_args()
  if not a.skip_pip:subprocess.run([sys.executable,'-m','pip','install','sherpa-onnx==2.0.2'],check=True)
- root=Path(a.data).resolve()/'models/streaming-zh-en';root.mkdir(parents=True,exist_ok=True)
+ root=Path(os.environ.get('STUDIO_SPEECH_MODEL',Path(a.data).resolve()/'models/streaming-zh-en'));root.mkdir(parents=True,exist_ok=True)
  for name,(size,expected) in FILES.items():
   target=root/name
   if target.exists() and target.stat().st_size==size and sha(target)==expected:print(name,'verified',flush=True);continue

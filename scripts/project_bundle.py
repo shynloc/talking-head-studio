@@ -1,5 +1,6 @@
 """Portable ZIP format and compatibility reader for the original project ZIP."""
 
+import materials
 import copy
 import json
 import re
@@ -42,6 +43,7 @@ def _write_media(archive, item, destination, copied, label):
 
 def export_bundle(store, project, report, include_source=False):
     snapshot = copy.deepcopy(project)
+    snapshot["assets"] = [materials.portable(item) for item in snapshot["assets"]]
     _clear_previews(snapshot)
     primary = source(snapshot)
     with_source = bool(primary and include_source)

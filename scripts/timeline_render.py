@@ -1,7 +1,7 @@
 """Render the exact V2 timeline, including concurrent visuals and mixed audio."""
 import copy, hashlib, json, math, shutil
 from pathlib import Path
-from core import ROOT, LOCK, uid, now, digest, write_json, source, file_digest
+from core import ROOT, LOCK, uid, now, digest, rough_current, aligned_with_cuts, write_json, source, file_digest
 import fonts, media, timeline
 
 def signature(p):
@@ -13,13 +13,14 @@ def review_state(p):
     original = source(p)
     if not original.get('video') or not Path(original.get('path') or '.').is_file():
         return {'state': 'source', 'message': '导入录制视频后，才能生成用于确认的样片。'}
-    if (p.get('rough') or {}).get('edl_hash') != digest(p['edl']):
-        return {'state': 'rough', 'message': '请先输出粗剪预览。已有粗剪版可选择「这是已粗剪的视频」。'}
+    if not rough_current(p):
+        return {'state': 'rough', 'message': '需要按当前保留的片段更新剪辑预览。'}
     tl = p['timeline']
     recordings = [c for c in tl['clips'] if c.get('source_id') and not c.get('asset_id') and c['track'] == 'main']
-    alignment = {'source_id': p['source_id'], 'edl_hash': digest(p['edl'])}
+    if not p['approvals'].get('rough'):
+        return {'state': 'approve_rough', 'message': '先试听剪辑预览，满意后使用这一版。'}
     if (tl['mode'] != 'actual' or tl.get('needs_alignment')
-            or (tl.get('alignment') and tl['alignment'] != alignment)
+            or not aligned_with_cuts(p)
             or any(c['source_id'] != p['source_id'] for c in recordings)):
         return {'state': 'align', 'message': '校准后，工作台会把录制片段对应到时间线，保留安排好的额外素材。'}
     try:
@@ -30,10 +31,17 @@ def review_state(p):
     main = [c for c in tl['clips'] if c['track'] == 'main']
     if not main or tl['tracks'].get('main', {}).get('muted'):
         return {'state': 'blocked', 'message': '请在时间线保留可见的主画面。'}
-    for clip in main:
-        path = files.get(clip.get('asset_id') or clip.get('source_id'))
-        if clip.get('orphaned') or not path or not Path(path).is_file():
-            return {'state': 'material', 'clip_id': clip['id'], 'message': f'主画面「{clip["name"]}」需要关联位置或绑定素材。处理后即可生成样片。'}
+    for clip in tl['clips']:
+        track = clip['track']
+        if track in ('caption','voice') or not clip.get('enabled', True) or tl['tracks'].get(track, {}).get('muted'):
+            continue
+        file_id = clip.get('asset_id') or clip.get('source_id')
+        path = files.get(file_id)
+        if file_id or track in ('main','sfx','music') or clip.get('kind') not in ('title','flow'):
+            if not path or not Path(path).is_file():
+                return {'state':'material', 'clip_id':clip['id'], 'message':f'请为「{clip["name"]}」选择素材，或从本次剪辑中略过。'}
+        if clip.get('orphaned'):
+            return {'state':'placement', 'clip_id':clip['id'], 'message':f'「{clip["name"]}」原来对应的句子已找不到。'}
 
     fingerprint = signature(p)
     def latest(kind):

@@ -49,15 +49,61 @@ function finishError(review, error) {
 }
 
 function finishPreparation(review, state) {
+  if(['material','placement'].includes(state.state)){
+    const clip=P.timeline.clips.find(item=>item.id===state.clip_id);
+    if(!clip)return finishError(review,Error('画面安排已变化，请重新检查。'));
+    const placement=state.state==='placement', main=clip.track==='main',audio=['sfx','music'].includes(clip.track);
+    const choices=P.captions.map(c=>({text:c.text,time:mapCaptionTime(c.start)})).filter(c=>c.time!=null);
+    const picker=placement&&!main?`<label>出现位置 <select id="finish-position"><option value="0">视频开头</option>${choices.map(c=>`<option value="${c.time}">${esc(c.text)}</option>`).join('')}</select></label>`:'';
+    finishPanel(review,`<h3>${placement?'重新选择位置':audio?'待补声音':'待补画面'} · ${esc(clip.name)}</h3><p>${esc(state.message)} 预计 ${sec(clip.duration)} 秒。</p>${picker}
+      <div class="action-row"><button class="key" id="finish-material">${placement?(main?'放到视频末尾':'使用这个位置'):(audio?'选择音频':'选择图片或视频')}</button><button class="ghost" id="finish-omit">这次略过</button></div>
+      <input type="file" id="finish-file" accept="${audio?'.wav,.mp3,.m4a,.flac,.ogg':'.png,.jpg,.jpeg,.webp,.gif,.mp4,.mov,.webm'}" hidden>`);
+    const file=$('#finish-file');
+    $('#finish-material').onclick=()=>placement?resolveMaterial(null,true):file.click();
+    async function resolveMaterial(upload,place=false){
+      try{
+        $('#finish-material').disabled=true;$('#finish-omit').disabled=true;
+        const assetId=upload?await importLocalAsset(review.projectId,upload):null;
+        if(!finishPanelActive(review)||!file.isConnected)return;
+        const current=await api('/api/project?id='+review.projectId);
+        if(!finishPanelActive(review)||!file.isConnected)return;
+        P=current;
+        const target=P.timeline.clips.find(item=>item.id===clip.id);
+        if(target){
+          snapshot();
+          if(place){
+            target.orphaned=false;
+            if(main){target.before_page_id='';P.timeline.clips=P.timeline.clips.filter(item=>item.id!==clip.id).concat(target);}
+            else{target.anchor='absolute';target.start=Number($('#finish-position').value);}
+          }else if(assetId){
+            target.asset_id=assetId;
+            const tag=P.pages.find(pg=>pg.id===target.page_id)?.tags.find(t=>t.id===target.tag_id);
+            if(tag)tag.asset_id=assetId;
+          }else if(main)P.timeline.clips=P.timeline.clips.filter(item=>item.id!==clip.id);
+          else target.enabled=false;
+          mark();await save();render();
+        }
+        await refreshFinishReview(review);
+      }catch(error){if(finishPanelActive(review))finishError(review,error)}
+    }
+    file.onchange=()=>{if(file.files.length)resolveMaterial(file.files[0])};
+    $('#finish-omit').onclick=()=>resolveMaterial(null);
+    return;
+  }
   const labels = {
     source: source()?.video ? '重新选择原视频' : '导入录制视频',
-    rough: '去整理视频', align: '按这版视频继续',
+    rough: (P.previous_rough || P.rough || P.edl.length>1) ? '更新剪辑预览' : '去整理视频', approve_rough:'用这版剪辑继续', align: '按这版视频继续',
     material: '补上缺少的素材', blocked: '查看时间线',
   };
-  if (!finishPanel(review, `<h3>先准备好录制</h3><p>${esc(state.message)}</p>
+  if (!finishPanel(review, `<h3>${({material:'还缺一个画面',blocked:'检查画面安排',rough:'准备剪辑预览',approve_rough:'听一遍剪后的效果',align:'准备视频',source:'先放入视频'})[state.state]}</h3><p>${esc(state.message)}</p>
+    ${state.state==='approve_rough'&&P.rough?.media_id?`<video class="finish-video" controls src="${finishURL(review,P.rough.media_id)}"></video>`:''}
     <div class="action-row"><button class="key" id="finish-prepare">${labels[state.state]}</button></div>`)) return;
   $('#finish-prepare').onclick = async () => {
     try {
+      if (state.state==='rough' && labels.rough==='更新剪辑预览') {
+        return await submitFinishJob(review,'render_rough',{});
+      }
+      if (state.state==='approve_rough') return await submitFinishJob(review,'approve_rough',{});
       if (state.state === 'align') {
         $('#finish-prepare').disabled = true;
         await save();
@@ -78,10 +124,9 @@ function finishPreparation(review, state) {
           if (source()?.video) relinkDialog();
           else await command('import-video');
         }
-      } else if (state.state === 'material') {
-        editClip(state.clip_id);
+
       } else if (state.state === 'blocked') {
-        setTimelineExpanded(true);
+        timelineExpanded=true;renderTimeline();
         $('#timeline')?.scrollIntoView({block:'nearest'});
       }
     } catch (error) { finishError(review,error); }
@@ -116,6 +161,7 @@ function finishSampleForm(review, state, replace = false) {
 
 function finishSampleReview(review, state) {
   const {sample, final, approved} = state;
+  localStorage.removeItem('studio-review-'+review.projectId);
   if (final && approved && review.showFinal) {
     finishPanel(review, `<h3>成片已导出</h3><p>完整视频也可在当前项目的「下载」中找到。</p>
       <video class="finish-video" controls playsinline preload="metadata" src="${finishURL(review,final.id)}"></video>
@@ -124,19 +170,20 @@ function finishSampleReview(review, state) {
   }
   const range = sample.start != null && sample.duration != null
     ? `<p class="hint">起点 ${sec(sample.start)} 秒 · 样片约 ${sec(sample.duration)} 秒</p>` : '';
-  const confirmLabel = approved ? '导出完整视频' : '确认并导出完整视频';
+  const confirmLabel = '导出 MP4';
   if (!finishPanel(review, `<h3>试看预览并确认</h3>
     <p>先播放预览，检查字幕、画面和声音。满意后选一种出片方式。</p>${range}
     <video class="finish-video" controls playsinline preload="metadata" src="${finishURL(review,sample.id)}" aria-label="当前时间线样片"></video>
     <div class="finish-choices" aria-label="出片方式">
       <div><button class="key" id="finish-confirm">${confirmLabel}</button><p>直接得到可发布的 MP4。</p></div>
+      <button class="ghost" id="finish-edit">返回修改</button></div>
+    <details class="workflow-tools"><summary>用剪辑软件继续</summary><div class="finish-choices">
       <div><button class="ghost" data-finish-delivery="editor_package">下载剪辑素材包</button><p>画面、字幕、动效和声音分开，适合在常用剪辑软件里继续做。</p></div>
       <div><button class="ghost" data-finish-delivery="chatcut_package">用 ChatCut 继续剪</button><p>准备素材，交给已连接 ChatCut 的 AI 助手组装。</p></div>
       <div><button class="ghost" data-finish-delivery="jianying_reviewed_export">生成剪映草稿</button><p>用剪映专业版打开，在时间线上继续编辑。打开方式随版本而异。</p></div>
-    </div>
+    </div></details>
     <div class="action-row">
       <button class="ghost" id="finish-another">换一段预览</button>
-      <button class="ghost" id="finish-edit">返回修改</button>
       ${final && approved ? `<a class="ghost" href="${finishURL(review,final.id,true)}">下载已导出的成片</a>` : ''}
     </div>`)) return;
   $('#finish-confirm').onclick = () => submitFinishJob(review,'confirm_timeline_final',{sample_id:sample.id,hash:state.hash});
@@ -163,7 +210,7 @@ function finishDelivery(review, job) {
   const option = finishDeliveries[job.action];
   const result = job.result;
   const handoff = job.action === 'chatcut_package' ?
-    '<div class="action-row"><label>由谁接着做 <select id="finish-agent"><option value="codex">Codex</option><option value="workbuddy">WorkBuddy</option></select></label><button class="key" id="finish-handoff">存为剪辑待办</button></div>' : '';
+    `<div class="action-row"><label>由谁接着做 <select id="finish-agent">${hostOptions(true)}</select></label><button class="key" id="finish-handoff">存为剪辑待办</button></div>` : '';
   if (!finishPanel(review, `<h3>${option.title}</h3><p>${option.help}</p>${handoff}
     <div class="action-row"><a class="key" href="${finishURL(review,result.id,true)}">下载${job.action==='jianying_reviewed_export'?'草稿':'素材包'}</a>
     <button class="ghost" id="finish-return">返回试看</button></div>`)) return;
@@ -196,6 +243,11 @@ async function watchFinishJob(review, job) {
     if (job.status === 'done') {
       if (finishDeliveries[job.action]) { finishDelivery(review,job); return; }
       review.showFinal = ['timeline_final','confirm_timeline_final'].includes(job.action);
+      if (['render_rough','approve_rough'].includes(job.action)) {
+        const updated=await api('/api/project?id='+review.projectId);
+        if(!finishPanelActive(review))return;
+        P=updated;render();
+      }
       await refreshFinishReview(review, false);
       return;
     }
@@ -219,11 +271,28 @@ async function refreshFinishReview(review, inspectJobs = true) {
     if (active) return watchFinishJob(review, active);
   }
   const state = await api('/api/v2/finish?id='+review.projectId);
-  if (state.state !== 'ready') finishPreparation(review,state);
-  else if (!state.sample || review.selectRange) {
-    review.selectRange = false;
-    finishSampleForm(review,state,!!state.sample);
-  } else finishSampleReview(review,state);
+  if(!finishPanelActive(review))return;
+  if(state.state==='rough'&&review.rebuild){
+    review.rebuild=false;
+    return submitFinishJob(review,'render_rough',{});
+  }
+  if (state.state==='align' && !review.aligned) {
+    review.aligned=true;
+    const updated=await api('/api/v2/align',{id:P.id,version:P.version});
+    if(!finishPanelActive(review))return;
+    P=updated;render();
+    return refreshFinishReview(review,false);
+  }
+  if (state.state !== 'ready') return finishPreparation(review,state);
+  if (review.selectRange || !state.sample) {
+    review.selectRange=false;
+    if(review.startedSample)return finishSampleForm(review,state,!!state.sample);
+    review.startedSample=true;
+    const main=P.timeline.clips.find(c=>c.track==='main'&&c.source_id===P.source_id);
+    const start=Math.min(Math.max(0,state.duration-.1),review.start??main?.start??0);
+    return submitFinishJob(review,'timeline_sample',{start,duration:review.material?.duration??10});
+  }
+  finishSampleReview(review,state);
 }
 
 async function submitFinishJob(review, action, args) {
@@ -232,14 +301,15 @@ async function submitFinishJob(review, action, args) {
     await save();
     if (!finishPanelActive(review)) return;
     const job = await api('/api/action',{project_id:review.projectId,action,args});
+    if(['timeline_sample','confirm_timeline_final'].includes(action))localStorage.setItem('studio-review-'+review.projectId,job.id);
     await watchFinishJob(review,job);
   } catch (error) { finishError(review,error); }
 }
 
 async function openFinishReview(start, material = null) {
-  const review = {projectId:P.id,start,material,showFinal:false,selectRange:start != null};
+  const review = {projectId:P.id,start,material,showFinal:false,selectRange:start != null,rebuild:stage===3&&((!P.rough&&!!P.previous_rough)||(!!P.rough&&P.rough_current===false))};
   finishReview = review;
-  openDialog('预览与导出','<div id="finish-panel" class="finish-panel"><p role="status">正在检查视频…</p></div>');
+  openDialog('看成片效果','<div id="finish-panel" class="finish-panel"><p role="status">正在检查视频…</p></div>');
   try {
     await save();
     if (finishPanelActive(review)) await refreshFinishReview(review);

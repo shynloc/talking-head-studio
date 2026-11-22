@@ -200,11 +200,12 @@ Codex 用户还可点「连接 Codex 原对话」，把连接指令粘贴到项�
 
 | 环境 | 已实测 | 待实测 |
 | --- | --- | --- |
-| Windows x64 | Windows 11 本机和 GitHub 全新 Windows 虚拟机验证了 ZIP 安装、升级、中文渲染、三阶段及工程导入后出样片。本机还用 Whisper medium 转写中文录音、完成粗剪与成片，并验证 V2.0.2 Skill 升级后保留工程。 | Windows ARM64。 |
-| macOS 15 ARM64 | GitHub Apple Silicon 虚拟机验证了 ZIP 安装、`.app` 启动脚本、旧工程升级、同目录应用重装、中文渲染和三阶段。三阶段使用已知时间戳，运行了实际静音分析、粗剪和视频编码。 | 实体 Mac 上通过 Finder 打开、物理麦克风、Whisper 转写、Mac Intel、剪映和 ChatCut 桌面联测。 |
-| Windows 上的 WorkBuddy 与 ChatCut | WorkBuddy 在原测试对话领取待办。在 ChatCut 本机组装主画面、字幕、两条透明动画和独立音效，改字后保存并导出 MP4，再将项目 ID 写回工作台。 | Mac 上的相同组合、其他客户端版本。 |
+| Windows x64 | 全新环境用安装包内的 Python 启动工作台。ZIP 安装和升级、中文渲染、三阶段与工程迁移均已跑通。本机用 Whisper 转写中文后完成粗剪、校字幕和导出。C920 实体麦克风有输入电平，识别服务已连接，停止后释放设备。 | 其他麦克风型号和用户的实际录音环境。 |
+| macOS 15 Apple 芯片 | 在 GitHub Mac 虚拟机挂载 DMG，安装随包的 Python，从映像运行应用并读取工作台版本。通用 ZIP 另测了升级、三阶段和工程迁移，使用带时间戳的测试素材完成实际剪切与编码。 | 实体 Mac 的 Finder 首启、麦克风授权与跟读、本机 Whisper、ChatCut 和剪映。 |
+| Intel Mac 和 Windows 11 ARM | 两种架构的虚拟机均已从稿件创建项目并导出独立 HTML 提词页。 | 原生安装包的完整安装体验和视频三阶段。Windows 桌面包目标为 x64。 |
+| Windows 上的 WorkBuddy 与 ChatCut | V3.5 在 WorkBuddy 原对话领取待办，在 ChatCut 装配主画面、字幕、两条透明动画和独立音效，改字、保存、导出 MP4 并回写。V3.6 另测了工作台待办、回写与交接包。 | Mac 上的相同组合、其他客户端版本。 |
 
-Windows 与 macOS 的完整工程 ZIP 跨平台往返后，均已从随包的原片重新渲染样片。当前 macOS 分发包括通用 ZIP 和 DMG。预览 DMG 的文件名标有 preview；Developer ID 版本需通过 Apple 公证。 [V3.5 自动验收记录](https://github.com/shynloc/talking-head-studio/actions/runs/44946232710)
+Windows 与 Apple 芯片 macOS 可以用完整工程 ZIP 互相迁移，并从随包的原片重新渲染。当前发行的 macOS 安装包为本地签名的预览 DMG，尚未取得 Apple Developer ID 公证。 [V3.6 验收运行](https://github.com/shynloc/talking-head-studio/actions/runs/44983980291) · [V3.5 验收运行](https://github.com/shynloc/talking-head-studio/actions/runs/44946232710)
 
 ## 第三方组件
 

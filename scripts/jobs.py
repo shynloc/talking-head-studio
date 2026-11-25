@@ -82,8 +82,20 @@ class Jobs:
         if action=='jianying_export':
             import jianying_export
             return jianying_export.export(store,pid,report)
+        if action=='note_preview':
+            from cue_review import preview
+            return preview(store,pid,args,report)
         if action=='import_media':
-            return media.import_media(store,pid,args['path'])
+            item = media.import_media(store,pid,args['path'])
+            mode = args.get('use_as')
+            if mode in ('ready','captions') and item.get('video'):
+                media.render_rough(store,pid,report,skip=True)
+                project = store.load(pid)
+                if bool(project['settings'].get('caption_only')) != (mode == 'captions'):
+                    project['settings']['caption_only'] = mode == 'captions'
+                    store.save(project,label='选择字幕与画面模式')
+                return dict(item, ready_for_captions=True)
+            return item
         if action=='relink_source':
             original=source(p);path=Path(args['path']).resolve()
             if not original:raise ValueError('工程尚无原片，请先导入')
@@ -155,7 +167,8 @@ class Jobs:
             duration=source(p).get('duration',float('inf'));segments=[]
             for s in rows:
                 if not 0<=float(s['start'])<float(s['end'])<=duration+.1:raise ValueError('字幕时间超出当前原片')
-                segments.append({'id':uid('seg'),'start':float(s['start']),'end':float(s['end']),'text':str(s['text']),'words':s.get('words',[])})
+                segments.append({'id':uid('seg'),'start':float(s['start']),'end':float(s['end']),'text':str(s['text']),'words':s.get('words',[]),
+                                 'subtitle_cue':path.suffix.lower() in ('.srt','.vtt')})
             p['transcript']=segments
             for output in ('final','timeline'):
                 p['approvals'].pop(output,None)

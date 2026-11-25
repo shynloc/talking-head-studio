@@ -23,6 +23,12 @@ def get(server,path,q):
 
 def post(server,path,d):
     ms=server.manuscripts;store=server.store
+    if path=='/api/v2/preview-edit':
+        from preview_edits import edit
+        return edit(store,d['id'],d)
+    if path=='/api/v2/note-decision':
+        from cue_review import decide
+        return decide(store, d['id'], d)
     if path=='/api/v2/settings':return ms.configure(d)
     if path=='/api/v2/draft':return ms.save(d)
     if path=='/api/v2/ai':return ms.start(d)

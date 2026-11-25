@@ -48,6 +48,7 @@ function exportStep() {
     return ['先确认要使用哪版视频', '整理视频后确认预览。已有剪好的版本可以直接使用。', '去整理视频', 'organize'];
   }
   if (P.captions.length) {
+    if(P.settings.caption_only)return ['校完字幕就可以导出','播放预览时暂停，可以直接改听错的字。','看成片效果','finish',[['检查字幕','edit-captions']]];
     return ['检查字幕，预览后导出', '可以改错字或补充素材。满意后先看一小段，再导出完整视频。',
       '看成片效果', 'finish', [['检查字幕', 'edit-captions']]];
   }

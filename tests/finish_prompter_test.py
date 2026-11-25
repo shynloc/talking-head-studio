@@ -181,6 +181,25 @@ def main():
         prompt.goto(next(exported.parent.glob('*.html')).as_uri())
         prompt.wait_for_function(expect_fit)
         checks.append('offline exported HTML has the same fit behavior')
+
+        workbench.reload()
+        workbench.locator('[data-stage="1"]').click()
+        workbench.locator('.page-card').first.click()
+        with workbench.expect_popup() as popup:
+            workbench.locator('[data-workflow="prompt"]').click()
+        live=popup.value
+        live.wait_for_selector('#next-btn')
+        while live.evaluate('index===0'):
+            live.locator('#next-btn').click()
+        workbench.wait_for_function('selected===P.pages[1].id')
+        live.close()
+        workbench.reload()
+        with workbench.expect_popup() as popup:
+            workbench.locator('[data-workflow="prompt"]').click()
+        resumed=popup.value
+        resumed.wait_for_function('index===1')
+        resumed.close()
+        checks.append('reopening the workbench and prompter resumes the last page actually read')
         browser.close()
     assert not errors, errors
     result = {'status':'PASS','checks':checks,'page_errors':errors}

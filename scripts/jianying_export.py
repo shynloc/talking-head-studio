@@ -148,6 +148,7 @@ def export(store,pid,report):
     report(.1,'生成本地剪映草稿与素材清单')
     # Separate tracks per overlapping event preserve temporal placement in the native format.
     for c in sorted(tl['clips'],key=lambda c:(0 if c['track']=='main' else 1,c['start'])):
+        if p['settings'].get('caption_only') and c['track'] not in ('main','voice','caption'):continue
         if c.get('enabled') is False or tl['tracks'].get(c['track'],{}).get('muted'):continue
         if c.get('orphaned'):raise ValueError(c['name']+' 需要重新关联')
         path=assets.get(c.get('asset_id'),files.get(c.get('source_id'),{})).get('path');tr=draft.trange(round(c['start']*1e6),round(c['duration']*1e6))

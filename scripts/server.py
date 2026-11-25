@@ -53,7 +53,8 @@ class Handler(BaseHTTPRequestHandler):
             if path=='/api/instance':return self.respond(200,{'id':self.server.instance_id})
             if path=='/api/project':
                 p = self.server.store.load(query['id'][0])
-                return self.respond(200, dict(p, rough_current=rough_current(p)))
+                from cue_review import summaries
+                return self.respond(200, dict(p, rough_current=rough_current(p), cue_notes=summaries(p)))
             if path=='/api/jobs':
                 with self.server.jobs.lock:result=[dict(j) for j in self.server.jobs.jobs.values() if j['project_id']==query.get('id',[''])[0]]
                 return self.respond(200,result[-40:])

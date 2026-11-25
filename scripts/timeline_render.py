@@ -33,7 +33,7 @@ def review_state(p):
         return {'state': 'blocked', 'message': '请在时间线保留可见的主画面。'}
     for clip in tl['clips']:
         track = clip['track']
-        if track in ('caption','voice') or not clip.get('enabled', True) or tl['tracks'].get(track, {}).get('muted'):
+        if (p['settings'].get('caption_only') and track != 'main') or track in ('caption','voice') or not clip.get('enabled', True) or tl['tracks'].get(track, {}).get('muted'):
             continue
         file_id = clip.get('asset_id') or clip.get('source_id')
         path = files.get(file_id)
@@ -56,6 +56,7 @@ def review_state(p):
 
     return {'state': 'ready', 'hash': fingerprint, 'sample': latest('timeline_sample'),
             'final': latest('timeline_final'), 'duration': sum(c['duration'] for c in main),
+            'caption_spans': [] if tl['tracks'].get('caption',{}).get('muted') else caption_map(p),
             'approved': p['approvals'].get('timeline', {}).get('hash') == fingerprint,
             'has_previous_sample': any(e['kind'] == 'timeline_sample' for e in p['exports'])}
 
@@ -118,7 +119,7 @@ def render_base(p, tl, work, w, h, fps, start, duration, report):
 def layers(p, tl, start, duration):
     scenes=[];audio=[]
     for c in tl['clips']:
-        if c['track'] in ('main','caption','voice') or not c.get('enabled',True) or tl['tracks'].get(c['track'],{}).get('muted'):continue
+        if p['settings'].get('caption_only') or c['track'] in ('main','caption','voice') or not c.get('enabled',True) or tl['tracks'].get(c['track'],{}).get('muted'):continue
         if c['start']>=start+duration or c['start']+c['duration']<=start:continue
         if c.get('orphaned'):raise ValueError(c['name']+' 失去句子关联，请重新定位')
         if c['track'] in ('music','sfx'):
@@ -135,14 +136,15 @@ def layers(p, tl, start, duration):
     return scenes, audio
 
 
-def render(store,pid,report,start=0,duration=10,final=False):
-    p=store.load(pid);tl=timeline.validate_output(p);sig=signature(p)
+def render(store,pid,report,start=0,duration=10,final=False,trial_project=None):
+    p=trial_project if trial_project is not None else store.load(pid)
+    tl=timeline.validate_output(p);sig=signature(p)
     if final and tl['mode']!='actual':raise ValueError('当前是录制前编排，请先导入并校准实际视频')
     if final and p.get('approvals',{}).get('timeline',{}).get('hash')!=sig:
         raise ValueError('时间线已变化或尚未确认。请从「成片检查与导出」生成样片，试看后再确认。')
     main=[c for c in tl['clips'] if c['track']=='main'];total=sum(c['duration'] for c in main)
     if not main:raise ValueError('没有主画面')
-    if any(c.get('enabled',True) and c['start']+c['duration']>total+.05 for c in tl['clips'] if c['track']!='main'):raise ValueError('辅助素材超出主画面末尾，请调整长度，避免留空画面')
+    if any(c.get('enabled',True) and c['start']+c['duration']>total+.05 for c in tl['clips'] if c['track']!='main' and not p['settings'].get('caption_only')):raise ValueError('辅助素材超出主画面末尾，请调整长度，避免留空画面')
     if tl['tracks'].get('main',{}).get('muted'):raise ValueError('主画面已隐藏，不能导出空白画面')
     meta=source(p);w,h=int(meta.get('width') or 1280),int(meta.get('height') or 720);fps=float(meta.get('fps') or 25)
     if not w or not h:w,h=1280,720
@@ -172,6 +174,8 @@ def render(store,pid,report,start=0,duration=10,final=False):
     media.run(['ffmpeg','-v','warning',*inputs,'-filter_complex',';'.join(filters),'-map','[v]','-map','[a]','-t',duration,'-r',fps,'-c:v','libx264','-preset','fast','-crf','19','-c:a','aac','-b:a','192k','-movflags','+faststart','-y',out],work/'encode.log',cwd=work)
     media.run(['ffmpeg','-v','error','-i',out,'-f','null','-'],work/'decode.log');result=media.probe(out)
     if (result['width'],result['height'])!=(w,h):raise RuntimeError('画幅检查失败')
+    if trial_project is not None:
+        return store.register(pid,out,'note_preview')
     item=store.register(pid,out,'final' if final else 'sample');qa={'decode':'PASS','width':w,'height':h,'duration':result['duration'],'fps':fps,'timeline_hash':sig,'subjective_review':'pending','sha256':file_digest(out)}
     if not final:qa['sample_start']=start
     write_json(work/'qa.json',qa)

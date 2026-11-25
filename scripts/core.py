@@ -3,7 +3,7 @@ from __future__ import annotations
 import copy, difflib, hashlib, json, math, os, re, threading, time, uuid
 from pathlib import Path
 
-VERSION = '3.6.0'
+VERSION = '3.7.0'
 ROOT = Path(__file__).resolve().parents[1]
 LOCK = threading.RLock()
 
@@ -231,14 +231,18 @@ def forward_time(t, mapping, end=False):
     return None
 
 def match_script(p, text):
-    target = normalized(text); best, score = None, 0
+    target = normalized(text); best, score, runner_up = None, 0, 0
     for pg in p['pages']:
         for sent in pg['sentences']:
             value = normalized(sent['text'])
             ratio = difflib.SequenceMatcher(None, target, value).ratio()
             if target and target in value: ratio = max(ratio, .85)
-            if ratio > score: best, score = {'page_id': pg['id'], 'sentence_id': sent['id']}, ratio
-    return {**(best or {}), 'match_score': round(score, 3)} if score >= .4 else {'match_score': round(score, 3)}
+            if ratio > score:
+                runner_up, score = score, ratio
+                best = {'page_id': pg['id'], 'sentence_id': sent['id']}
+            else:
+                runner_up = max(runner_up, ratio)
+    return {**(best or {}), 'match_score': round(score, 3), 'ambiguous_match': score - runner_up < .08} if score >= .4 else {'match_score': round(score, 3)}
 
 def mapped_words(p):
     mapping = time_map(p['edl']); result = []
@@ -262,6 +266,7 @@ def mapped_words(p):
 
 def build_captions(p):
     words = mapped_words(p); captions, buf = [], []
+    imported = {s['id'] for s in p['transcript'] if s.get('subtitle_cue')}
     def flush():
         if not buf: return
         text = ''.join(w['text'] for w in buf).strip()
@@ -269,15 +274,24 @@ def build_captions(p):
             capid='cap_'+digest([w['word_id'] for w in buf])[:12]
             previous=next((c for c in p.get('captions',[]) if c['id']==capid),{})
             captions.append({'id': capid, 'text': previous.get('text',text), 'original_text':text,'word_ids':[w['word_id'] for w in buf],
-                'start': round(buf[0]['start'], 3),'end': round(max(buf[-1]['end'], buf[0]['start'] + .1), 3), **match_script(p, text)})
+                'start': round(buf[0]['start'], 3),'end': round(buf[-1]['end'] if buf[0]['segment_id'] in imported else max(buf[-1]['end'], buf[0]['start'] + .1), 3), **match_script(p, text)})
         buf.clear()
     for w in words:
+        if w['segment_id'] in imported:
+            if buf and buf[-1]['segment_id'] != w['segment_id']:
+                flush()
+            buf.append(w)
+            continue
+        if buf and buf[-1]['segment_id'] in imported:
+            flush()
         if buf and (len(''.join(x['text'] for x in buf)) + len(w['text']) > 26 or w['end'] - buf[0]['start'] > 5 or w['start'] - buf[-1]['end'] > .65):
             flush()
         buf.append(w)
         if re.search(r'[。！？!?；;]$', w['text']) or (re.search(r'[，,]$', w['text']) and len(''.join(x['text'] for x in buf))>=5): flush()
     flush()
     for i, c in enumerate(captions):
+        if c['word_ids'][0].rsplit(':',1)[0] in imported:
+            continue
         c['end'] = min(c['end'] + .08, captions[i + 1]['start'] if i + 1 < len(captions) else time_map(p['edl'])[-1]['end'])
     return captions
 
@@ -320,7 +334,7 @@ def scene_plan(p):
         scenes.append(scene)
     return scenes
 
-VISUAL_SETTINGS = ('caption_y','caption_size','overlay_y','overlay_height','protected_rect','accent','sfx')
+VISUAL_SETTINGS = ('caption_only','caption_y','caption_size','overlay_y','overlay_height','protected_rect','accent','sfx')
 
 def file_digest(path):
     value=hashlib.sha256()

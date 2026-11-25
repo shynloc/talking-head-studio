@@ -3,6 +3,7 @@
 let finishReview = null;
 
 function previewableMaterials() {
+  if(P.settings.caption_only)return [];
   return P.timeline.clips.filter(clip => ['title','sticker','pip','music','sfx'].includes(clip.track) &&
     clip.enabled !== false && !clip.orphaned && !P.timeline.tracks[clip.track]?.muted &&
     (clip.asset_id || ['title','flow'].includes(clip.kind)));
@@ -174,9 +175,13 @@ function finishSampleReview(review, state) {
   if (!finishPanel(review, `<h3>试看预览并确认</h3>
     <p>先播放预览，检查字幕、画面和声音。满意后选一种出片方式。</p>${range}
     <video class="finish-video" controls playsinline preload="metadata" src="${finishURL(review,sample.id)}" aria-label="当前时间线样片"></video>
+    <div id="preview-edit-tools"><div id="preview-line" class="preview-line"></div><div class="action-row">
+      <button class="ghost" id="preview-caption">改这句字幕</button>
+      ${P.settings.caption_only?'':'<button class="ghost" id="preview-visual">调整这里的画面</button>'}</div></div>
+    <div id="preview-edit-form" class="cue-fields" hidden></div>
     <div class="finish-choices" aria-label="出片方式">
       <div><button class="key" id="finish-confirm">${confirmLabel}</button><p>直接得到可发布的 MP4。</p></div>
-      <button class="ghost" id="finish-edit">返回修改</button></div>
+      <button class="ghost" id="finish-edit">回工作台</button></div>
     <details class="workflow-tools"><summary>用剪辑软件继续</summary><div class="finish-choices">
       <div><button class="ghost" data-finish-delivery="editor_package">下载剪辑素材包</button><p>画面、字幕、动效和声音分开，适合在常用剪辑软件里继续做。</p></div>
       <div><button class="ghost" data-finish-delivery="chatcut_package">用 ChatCut 继续剪</button><p>准备素材，交给已连接 ChatCut 的 AI 助手组装。</p></div>
@@ -195,6 +200,7 @@ function finishSampleReview(review, state) {
     finishSampleForm(review,state,true);
   };
   $('#finish-edit').onclick = closeDialog;
+  bindPreviewEdits(review,state);
 }
 
 const finishDeliveries = {

@@ -41,8 +41,12 @@ def sync(p):
             base=starts.get(pg['id'],0)
             if sid in ids and tl['mode']=='planned':
                 base+=sum(len(s['text']) for s in sentences[:ids.index(sid)])/max(1,len(pg['text']))*duration(pg,rate)
-            if tl['mode']=='actual' and sid:
-                caps=[x for x in p['captions'] if x.get('sentence_id')==sid]
+            if tl['mode']=='actual' and (sid or t.get('cue_caption')):
+                if t.get('cue_caption'):
+                    caps=[x for x in p['captions'] if x['id']==t['cue_caption']]
+                    orphan=not caps
+                else:
+                    caps=[x for x in p['captions'] if x.get('sentence_id')==sid]
                 if caps:
                     from core import inverse_time
                     raw=inverse_time(caps[0]['start'],p['rough']['mapping']) if p.get('rough') else None
@@ -53,6 +57,7 @@ def sync(p):
             c.update(id='tag_'+t['id'],tag_id=t['id'],page_id=pg['id'],sentence_id=sid,name=t['label'],kind=t['kind'],asset_id=t.get('asset_id',''),steps=t.get('steps',[]),orphaned=orphan and c.get('anchor')!='absolute')
             c.setdefault('track',{'product':'pip','demo':'pip','sfx':'sfx','title':'title'}.get(t['kind'],'sticker'))
             c.setdefault('anchor','sentence');c.setdefault('offset',0);c.setdefault('duration',min(4,duration(pg,rate)));c.setdefault('enabled',True)
+            if tl['mode']=='actual' and t.get('review') in ('pending','skipped'):c['enabled']=False
             if c['anchor']!='absolute':c['start']=round(max(0,base+c['offset']),3)
             tags.append(c)
     tl['clips']=main+aux+tags;tl['duration']=round(max([cursor]+[c['start']+c['duration'] for c in aux+tags if c.get('enabled',True)]),3)

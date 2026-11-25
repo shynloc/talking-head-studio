@@ -12,7 +12,13 @@ function assetURL(id){return `/asset/${P.id}/${id}`}
 function snapshot(){undo.push(JSON.stringify(P));if(undo.length>35)undo.shift()}
 function mark(){dirty=true;$('#save-status').textContent='保存中…';localStorage.setItem('studio-draft-'+P.id,JSON.stringify(P));clearTimeout(timer);timer=setTimeout(()=>save().catch(e=>toast(e.message,true)),700)}
 async function save(){clearTimeout(timer);if(saving)await saving;if(!dirty||!P)return;const payload=JSON.parse(JSON.stringify(P));dirty=false;
-saving=api('/api/save',payload).then(result=>{P.version=result.version;P.history=result.history;P.rough=result.rough;P.rough_current=result.rough_current;P.approvals=result.approvals;P.qa=result.qa;refreshWorkflow();P.pages.forEach(pg=>{const saved=result.pages.find(x=>x.id===pg.id);if(saved&&saved.text===pg.text){pg.sentences=saved.sentences;if(JSON.stringify(pg.tags)===JSON.stringify(payload.pages.find(x=>x.id===pg.id)?.tags))pg.tags=saved.tags}});$('#save-status').textContent='已保存在本机';$('#save-status').classList.remove('error');if(!dirty)localStorage.removeItem('studio-draft-'+P.id)}).catch(e=>{dirty=true;$('#save-status').textContent='保存失败 · 草稿已留存';$('#save-status').classList.add('error');throw e}).finally(()=>saving=null);await saving;if(dirty)await save()}
+saving=api('/api/save',payload).then(result=>{P.version=result.version;P.history=result.history;P.rough=result.rough;P.rough_current=result.rough_current;P.approvals=result.approvals;P.qa=result.qa;refreshWorkflow();P.pages.forEach(pg=>{const saved=result.pages.find(x=>x.id===pg.id);if(saved&&saved.text===pg.text){const anchor=pg.id===selected?$('#anchor'):null;
+if(anchor && JSON.stringify(pg.sentences)!==JSON.stringify(saved.sentences)){
+  const value=anchor.value;
+  anchor.replaceChildren(new Option('整页内容',''),...saved.sentences.map(s=>new Option(s.text.slice(0,28),s.id)));
+  if(saved.sentences.some(s=>s.id===value))anchor.value=value;
+}
+pg.sentences=saved.sentences;if(JSON.stringify(pg.tags)===JSON.stringify(payload.pages.find(x=>x.id===pg.id)?.tags))pg.tags=saved.tags}});$('#save-status').textContent='已保存在本机';$('#save-status').classList.remove('error');if(!dirty)localStorage.removeItem('studio-draft-'+P.id)}).catch(e=>{dirty=true;$('#save-status').textContent='保存失败 · 草稿已留存';$('#save-status').classList.add('error');throw e}).finally(()=>saving=null);await saving;if(dirty)await save()}
 async function refreshProjects(){const b=await api('/api/bootstrap');token=b.token;doctorInfo=b.doctor;$('#projects').innerHTML=b.projects.map(x=>`<option value="${x.id}">${esc(x.title)}</option>`).join('');if(P)$('#projects').value=P.id;return b}
 async function load(id){clearTimeout(timer);localStorage.setItem('studio-current-project',id);P=await api('/api/project?id='+id);dirty=false;selected=P.pages.find(pg=>pg.id===localStorage.getItem('studio-page-'+id))?.id||P.pages[0]?.id||'';undo=[];$('#projects').value=P.id;render();const draft=localStorage.getItem('studio-draft-'+id);if(draft)toast('发现未保存的浏览器草稿，可在设置中恢复。');await poll()}
 let dialogOpener=null,dialogOpenerSelector='';
@@ -39,7 +45,13 @@ async function act(action,args={}){try{await save();const job=await api('/api/ac
 function showJob(j){$('#jobbar').hidden=false;$('#job-title').textContent={auto_captions:'正在自动加字幕',captions_from_file:'正在导入字幕',prepare_rough:'正在准备剪后试听',prepare_video_tools:'准备视频工具',prepare_transcription:'准备自动字幕',prepare_follow:'准备跟读',transcribe:'识别说话内容',analyze_cuts:'查找长停顿',render_rough:'生成整理后的预览',plan:'生成字幕',sample:'生成代表样片',final:'输出完整成片',gif:'GIF 工厂制作'}[j.action]||'工作台正在处理';$('#job-message').textContent=j.message;$('#job-percent').textContent=Math.round(j.progress*100)+'%';$('.job-progress i').style.width=j.progress*100+'%'}
 async function poll(){if(!P||homeMode)return;const pid=P.id;try{const list=await api('/api/jobs?id='+pid);if(homeMode||P.id!==pid)return;const active=list.find(j=>['running','queued'].includes(j.status));busy=!!active;document.body.classList.toggle('busy',busy);if(active)showJob(active);else $('#jobbar').hidden=true;
 let reload=false;for(const j of list){if(['done','error','interrupted'].includes(j.status)&&!jobsSeen.has(j.id)){jobsSeen.add(j.id);if(Date.now()-Date.parse(j.created)<1800000){reload=true;toast(j.status==='done'?(j.result?.message||'任务完成'):(j.error||j.message),j.status!=='done');if(j.result?.project_id){await refreshProjects();await load(j.result.project_id);return}}}}
-if(reload&&!dirty&&!saving){const latest=await api('/api/project?id='+pid);if(homeMode||P.id!==pid||dirty||saving)return;P=latest;if(!P.pages.some(x=>x.id===selected))selected=P.pages[0]?.id;render();await refreshProjects()}}
+if(reload&&!dirty&&!saving){const latest=await api('/api/project?id='+pid);if(homeMode||P.id!==pid||dirty||saving)return;P=latest;
+const direct=list.find(j=>j.result?.ready_for_captions&&j.result.id===P.source_id);
+if(direct&&localStorage.getItem('studio-routed-'+pid)!==direct.id){
+  localStorage.setItem('studio-routed-'+pid,direct.id);
+  if(stage===2){stage=3;tab='captions';previewMode='auto';}
+}
+if(!P.pages.some(x=>x.id===selected))selected=P.pages[0]?.id;render();await refreshProjects()}}
 catch(e){$('#save-status').textContent='连接中断 · 请保留页面'}}
 function stageHeader(metrics){return `
 <section id="workflow-guide" class="workflow-guide" aria-label="当前操作"></section>
@@ -64,16 +76,20 @@ function stageThree(){return stageHeader([[P.captions.length,'字幕片段'],[P.
 <div class="review-grid"><section class="panel"><div class="panel-head">视频预览</div>${videoPanel()}</section>
 <section class="panel"><div class="tabs">${[['plan','画面备注'],['captions','字幕'],['assets','素材库'],['exports','下载']].map(([v,l])=>`<button data-tab="${v}" class="${tab===v?'active':''}">${l}</button>`).join('')}</div><div id="review-content" style="max-height:660px;overflow:auto">${reviewContent()}</div></section></div>`}
 function reviewContent(){if(tab==='plan')return P.scenes.map(s=>`<article class="scene-row"><div class="row"><input type="checkbox" data-scene="${s.id}" data-field="enabled" ${s.enabled?'checked':''} aria-label="启用场景"><small>${esc(tagKinds[s.kind]?.[1]||s.kind)} ${s.orphaned?'· 未匹配，请定位':''}</small><span class="spacer"></span><input class="time-input" type="number" step=".01" data-scene="${s.id}" data-field="start" value="${sec(s.start)}" aria-label="开始时间"><span>→</span><input class="time-input" type="number" step=".01" data-scene="${s.id}" data-field="end" value="${sec(s.end)}" aria-label="结束时间"><button class="ghost mini" data-seek="${s.start}">定位</button></div><input type="text" data-scene="${s.id}" data-field="title" value="${esc(s.title)}" aria-label="画面标题"><select data-scene="${s.id}" data-field="asset_id" aria-label="绑定素材"><option value="">文字 / 流程图（无图片）</option>${P.assets.map(a=>`<option value="${a.id}" ${s.asset_id===a.id?'selected':''}>${esc(a.name)}</option>`).join('')}</select>${s.kind==='flow'?`<input type="text" data-scene="${s.id}" data-field="steps" value="${esc((s.steps||[]).join(' → '))}" placeholder="步骤一 → 步骤二 → 步骤三" style="margin-top:7px">`:''}<label class="checkline" style="margin-top:10px"><input type="checkbox" data-scene="${s.id}" data-field="fullscreen" ${s.fullscreen?'checked':''}>此段使用全屏演示（允许覆盖人物）</label><textarea data-scene="${s.id}" data-field="note" placeholder="制作备注 / 修改意见">${esc(s.note)}</textarea></article>`).join('')||'<div class="empty">确认粗剪后，生成字幕与精剪建议。<br>第一阶段的句子标记会带到这里。</div>';
-if(tab==='captions')return `<div class="panel-body"><button class="ghost mini" data-cmd="add-caption">＋ 添加字幕</button></div>`+P.captions.map(c=>`
+if(tab==='captions')return `<div class="panel-body">${P.captions.length?'<label class="checkline"><input id="caption-only" type="checkbox" '+(P.settings.caption_only?'checked':'')+'> 只加口播字幕</label>':''}${noteButtons('')}<button class="ghost mini" data-cmd="add-caption">＋ 添加字幕</button></div>`+P.captions.map(c=>`
   <div class="caption-line"><button class="ghost mini" data-listen="${c.id}">听这句</button>
     <input data-caption="${c.id}" data-field="text" value="${esc(c.text)}" aria-label="字幕文字">
-    <button class="ghost mini" data-illustrate="${c.id}">这里加画面</button>
+    ${P.settings.caption_only?'':`<button class="ghost mini" data-illustrate="${c.id}">这里加画面</button>`}
+    ${noteButtons(c.id)}
     <details><summary>调整</summary><div class="action-row"><label>开始 <input type="number" step=".01" data-caption="${c.id}" data-field="start" value="${sec(c.start)}" aria-label="字幕开始"></label>
     <label>结束 <input type="number" step=".01" data-caption="${c.id}" data-field="end" value="${sec(c.end)}" aria-label="字幕结束"></label>
     <button class="ghost" data-delete-cap="${c.id}" aria-label="删除字幕">删除字幕</button></div></details></div>`).join('');
 if(tab==='assets')return `<div class="panel-body"><button class="key small" data-cmd="import-asset">＋ 添加素材</button><p class="hint">透明 PNG 可交给 GIF 工厂做轻动效。原创生图、实物抠图可由当前 AI 制作后导入。</p></div><div class="assets-grid">${P.assets.map(a=>`<div class="asset-card">${['mp4','mov','webm'].includes(a.type)?`<video src="${assetURL(a.id)}" controls></video>`:['wav','mp3','m4a','flac','ogg'].includes(a.type)?`<audio src="${assetURL(a.id)}" controls style="width:100%"></audio>`:`<img src="${assetURL(a.id)}" alt="${esc(a.name)}">`}<p>${esc(a.name)}</p>${a.type==='png'?`<button class="ghost job-action" data-gif="${a.id}">✦ 做成动图</button>`:''}<div class="hint">${esc(a.source)}</div></div>`).join('')}</div>`;
 return [...P.media].reverse().filter(m=>['final','sample','deliverable','rough'].includes(m.kind)).map(m=>`<div class="export-item"><div><span>${esc(m.name)}</span><small>${{final:'完整视频',sample:'预览片段',deliverable:'可下载文件',rough:'整理后的预览'}[m.kind]} · ${esc(m.created||'')}</small></div><a href="${fileURL(m.id,true)}" download>下载 ↗</a></div>`).join('')||'<div class="empty">样片、成片、字幕和工程包会出现在这里。</div>'}
-function bindStage(){const pg=currentPage();if(stage===1&&pg){for(const [id,key] of [['page-title','title'],['page-text','text'],['page-notes','notes'],['page-duration','duration'],['page-type','type'],['page-media','media_id']]){const el=$('#'+id);if(!el)continue;el.addEventListener('focus',snapshot,{once:true});el.addEventListener('input',()=>{pg[key]=key==='duration'?Number(el.value):el.value;mark();if(key==='text')$('#word-count').textContent=`${pg.text.length} 字 · ≈ ${Math.ceil(pg.text.length/P.settings.speech_rate*60)} 秒`});el.addEventListener('change',async()=>{await save();if(key==='type')render()})}
+function bindStage(){
+  const captionOnly=$('#caption-only');
+  if(captionOnly)captionOnly.onchange=async()=>{snapshot();P.settings.caption_only=captionOnly.checked;mark();try{await save();render()}catch(error){toast(error.message,true)}};
+  const pg=currentPage();if(stage===1&&pg){for(const [id,key] of [['page-title','title'],['page-text','text'],['page-notes','notes'],['page-duration','duration'],['page-type','type'],['page-media','media_id']]){const el=$('#'+id);if(!el)continue;el.addEventListener('focus',snapshot,{once:true});el.addEventListener('input',()=>{pg[key]=key==='duration'?Number(el.value):el.value;mark();if(key==='text')$('#word-count').textContent=`${pg.text.length} 字 · ≈ ${Math.ceil(pg.text.length/P.settings.speech_rate*60)} 秒`});el.addEventListener('change',async()=>{await save();if(key==='type')render()})}
 let drag='';$$('[data-page]').forEach(el=>{el.addEventListener('dragstart',()=>drag=el.dataset.page);el.addEventListener('dragover',e=>e.preventDefault());el.addEventListener('drop',async e=>{e.preventDefault();if(drag&&drag!==el.dataset.page){snapshot();const from=P.pages.findIndex(p=>p.id===drag),to=P.pages.findIndex(p=>p.id===el.dataset.page);P.pages.splice(to,0,P.pages.splice(from,1)[0]);mark();render()}});el.addEventListener('keydown',e=>{if(e.key==='Enter')el.click()})})}
 $('#preview-mode')?.addEventListener('change',e=>{previewMode=e.target.value;render()})}
 document.addEventListener('click',async e=>{const b=e.target.closest('button,[data-page],[data-seek]');if(!b)return;try{
@@ -93,7 +109,7 @@ if(b.dataset.listen){
 if(b.dataset.illustrate){const caption=P.captions.find(c=>c.id===b.dataset.illustrate);if(caption){await addCaptionMaterial(caption);}return}
 if(b.dataset.seek){const v=$('#player');if(v){v.currentTime=Number(b.dataset.seek);v.play().catch(()=>{})}return}
 if(b.dataset.action){await act(b.dataset.action);return}
-if(b.dataset.tag){snapshot();const pg=currentPage();pg.tags.push({id:makeId('tag'),kind:b.dataset.tag,label:tagKinds[b.dataset.tag][1],sentence_id:$('#anchor').value,asset_id:'',steps:b.dataset.tag==='flow'?['步骤一','步骤二','步骤三']:[]});mark();refreshAnnotations();return}
+if(b.dataset.tag){snapshot();const pg=currentPage();pg.tags.push({id:makeId('tag'),kind:b.dataset.tag,review:'pending',label:tagKinds[b.dataset.tag][1],sentence_id:$('#anchor').value,asset_id:'',steps:b.dataset.tag==='flow'?['步骤一','步骤二','步骤三']:[]});mark();refreshAnnotations();return}
 if(b.dataset.deleteTag){snapshot();currentPage().tags=currentPage().tags.filter(t=>t.id!==b.dataset.deleteTag);mark();refreshAnnotations();return}
 if(b.dataset.protect){snapshot();const cut=P.edl.find(c=>c.id===b.dataset.protect);cut.protected=!cut.protected;if(cut.protected)cut.keep=true;refreshCutEdit();return}
 if(b.dataset.repeat){snapshot();const r=P.repeat_suggestions[Number(b.dataset.repeat)];deleteRange(...r[b.dataset.choice]);refreshCutEdit();return}
@@ -142,13 +158,15 @@ function mediaDialog(fresh=false){
     return;
   }
   openDialog('导入录制',`<p>选择已经录好的视频。录音也可以用来整理口播稿。</p>
+    <label for="recording-use">这份录制怎么用</label><select id="recording-use">
+      <option value="raw">导入后决定怎么剪</option><option value="ready">已经剪好，去做字幕和画面</option><option value="captions">已经剪好，只加字幕</option></select>
     <button class="key" id="video-file">选择本机文件</button>
     <details class="workflow-tools"><summary>大文件可按路径导入</summary>
     <p class="hint">填写本机路径可直接引用文件，节省一份复制空间。</p>
     <input id="media-path" aria-label="本机文件路径" placeholder="粘贴本机文件的完整路径">
     <button class="ghost" id="media-path-go">按路径导入</button></details>`);
-  $('#video-file').onclick=()=>chooseFile(fresh?'new-video':'video','video/*,audio/*');
-  $('#media-path-go').onclick=async()=>{const path=$('#media-path').value.trim();if(!path)return;if(fresh)await newBlank('新的口播视频',2);await act('import_media',{path}).catch(()=>{})};
+  $('#video-file').onclick=()=>chooseFile((fresh?'new-video':'video')+'|'+$('#recording-use').value,'video/*,audio/*');
+  $('#media-path-go').onclick=async()=>{const path=$('#media-path').value.trim();if(!path)return;const use_as=$('#recording-use').value;if(fresh)await newBlank('新的口播视频',2);await act('import_media',{path,use_as}).catch(()=>{})};
 }
 function relinkDialog(){
   openDialog('重新选择原视频',`<p>请选择之前用于这个项目的视频，工作台会保留已有剪辑和字幕。</p>
@@ -211,12 +229,20 @@ async function transcribeDialog(makeCaptions=false){
 function gifDialog(aid){openDialog('GIF 工厂 · 制作轻动效',`<p class="hint">使用你的 PNG 素材制作循环轻动效，输出真实透明 GIF。新角色姿态可先由生图工具准备。</p><div class="field"><label>贴纸文字</label><input id="gif-text" value="重点来了"></div><label>动作</label><select id="gif-motion">${[['pulse','轻轻呼吸'],['offer','递出提示'],['jump','轻跳出现'],['sway','左右摇摆'],['nod','点头强调']].map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select><div class="action-row" style="margin-top:18px"><button class="key" id="gif-go">制作动态贴纸</button></div>`);$('#gif-go').onclick=()=>act('gif',{asset_id:aid,text:$('#gif-text').value,motion:$('#gif-motion').value}).catch(()=>{})}
 function visualDialog(){const s=P.settings;openDialog('构图与字幕设置',`<p class="hint">比例以源视频为准。先确定人物所在区域，再安排上方动画。保护区使用相对画面比例。</p><div class="form-grid">${[['caption_y','字幕底部位置（0–1）'],['caption_size','字号 / 画面高度'],['overlay_y','动画距顶部（0–1）'],['overlay_height','动画区域高度（0–1）']].map(([k,l])=>`<div class="field"><label>${l}</label><input type="number" step=".01" id="set-${k}" value="${s[k]}"></div>`).join('')}<div class="field"><label>人物保护区顶部（0–1）</label><input type="number" step=".01" id="protect-y" value="${s.protected_rect[1]}"></div><div class="field"><label>人物保护区高度（0–1）</label><input type="number" step=".01" id="protect-h" value="${s.protected_rect[3]}"></div><div class="field"><label>动画强调色</label><input type="color" id="set-accent" value="${s.accent}"></div><label class="checkline"><input id="set-sfx" type="checkbox" ${s.sfx?'checked':''}>动画入场配轻音效</label></div><div class="divider"></div><button class="key" id="visual-save">保存构图设置</button>`);$('#visual-save').onclick=async()=>{snapshot();['caption_y','caption_size','overlay_y','overlay_height'].forEach(k=>s[k]=Number($('#set-'+k).value));s.protected_rect[1]=Number($('#protect-y').value);s.protected_rect[3]=Number($('#protect-h').value);s.accent=$('#set-accent').value;s.sfx=$('#set-sfx').checked;mark();await save();closeDialog();render()}}
 function chooseFile(purpose,accept){filePurpose=purpose;$('#file-picker').accept=accept;$('#file-picker').value='';$('#file-picker').click()}
-$('#file-picker').onchange=async e=>{const file=e.target.files[0];if(!file)return;const purpose=filePurpose;try{if(purpose==='new-video')await newBlank(file.name.replace(/\.[^.]+$/,''),2);toast('正在导入文件…');const r=await fetch(`/api/upload?project=${P.id}&name=${encodeURIComponent(file.name)}`,{method:'POST',headers:{'X-Studio-Token':token},body:file});const data=await r.json();if(!r.ok)throw Error(data.error);const action={'new-video':'import_media',video:'import_media',document:'import_document',asset:'add_asset',relink:'relink_source',project:'import_project',transcript:'import_transcript','caption-file':'captions_from_file'}[purpose];await act(action,{path:data.path})}catch(e){toast(e.message,true)}};
+$('#file-picker').onchange=async e=>{const file=e.target.files[0];if(!file)return;const [purpose,use_as]=filePurpose.split('|');try{if(purpose==='new-video')await newBlank(file.name.replace(/\.[^.]+$/,''),2);toast('正在导入文件…');const r=await fetch(`/api/upload?project=${P.id}&name=${encodeURIComponent(file.name)}`,{method:'POST',headers:{'X-Studio-Token':token},body:file});const data=await r.json();if(!r.ok)throw Error(data.error);const action={'new-video':'import_media',video:'import_media',document:'import_document',asset:'add_asset',relink:'relink_source',project:'import_project',transcript:'import_transcript','caption-file':'captions_from_file'}[purpose];await act(action,{path:data.path,use_as})}catch(e){toast(e.message,true)}};
 async function launchPrompt(){await save();const win=window.open('','studio-prompter','width=1200,height=850');if(!win)return toast('请允许本站弹出提词窗口',true);const template=await (await fetch('/prompter.html')).text();const data=JSON.parse(JSON.stringify(P));data.start_page_id=selected;data.asset_urls=Object.fromEntries(P.assets.map(a=>[a.id,new URL(assetURL(a.id),location.href).href]));const blob=new Blob([template.replace('__PROJECT__',JSON.stringify(data).replaceAll('</','<\\/'))],{type:'text/html'});win.location=URL.createObjectURL(blob);promptWindow=win}
 window.addEventListener('message',e=>{
   if(e.origin!==location.origin || e.source!==promptWindow || !P || homeMode || e.data?.projectId!==P.id)return;
   if(e.data.type==='studio-import-recording'){save().then(()=>{goToWorkflowStage(2);mediaDialog()}).catch(err=>toast(err.message,true));return}
-  if(e.data.type==='studio-recording-log'){P.recording_log.push(e.data.entry);mark()}});
+  if(e.data.type==='studio-recording-log'){
+    const entry=e.data.entry;
+    if(entry.event==='page_enter' && P.pages.some(pg=>pg.id===entry.page_id)){
+      selected=entry.page_id;
+      localStorage.setItem('studio-page-'+P.id,selected);
+      if(stage===1)render();
+    }
+    P.recording_log.push(entry);mark()
+  }});
 $('#projects').onchange=async e=>{try{await save();await load(e.target.value)}catch(err){toast(err.message,true)}};
 $('#new-project').onclick=()=>{openDialog('新的口播项目','<label>项目名称</label><input id="new-title" placeholder="例如：我的下一期科技口播" value="新的口播项目"><div style="margin-top:20px"><button class="key" id="create-project">创建工作台 →</button></div>');$('#create-project').onclick=async()=>{try{await save();const p=await api('/api/new',{title:$('#new-title').value||'新的口播项目'});await refreshProjects();await load(p.id);stage=1;render();closeDialog()}catch(e){toast(e.message,true)}}};
 $('#undo').onclick=async()=>{if(!undo.length)return toast('当前没有可撤销操作，历史版本可在设置中恢复');const prev=JSON.parse(undo.pop());prev.version=P.version;P=prev;mark();render()};

@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="zh-CN">
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /><title>
+    通用动效词库 · 口播导演工作台</title
+  ><link rel="stylesheet" href="gallery.css" />
+  <header>
+    <a href="/" class="brand"><i aria-hidden="true">◧</i>口播导演工作台</a>
+    <nav aria-label="工作区">
+      <button id="nav-lib" aria-pressed="true">动效词库</button
+      ><a id="nav-example" href="index.html?view=desk">用稿件做素材</a>
+    </nav>
+    <button id="refs" class="textbtn">词条出处 ↗</button>
+  </header>
+  <main>
+    <section class="hero">
+      <div class="headline">
+        <h1>通用<span>动效词库</span></h1>
+        <p>先看动作，再挑效果。把喜欢的搭配写成提示词，<br />用在自己的文字、配图或演示里。</p>
+        <button class="inkbtn" id="try">用示例稿试一遍 <b>↗</b></button>
+      </div>
+      <div class="heroart" aria-label="书页翻为书签的元素转场">
+        <div class="graticule"></div>
+        <div class="hero-track" aria-hidden="true"><i></i><i></i><i></i></div>
+        <canvas id="hero-canvas" width="650" height="244" aria-hidden="true"></canvas
+        ><button id="hero-play" aria-label="重播书页翻为书签">↻ 重播</button
+        ><small>书页 → 书签 · 局部翻面</small>
+      </div>
+    </section>
+    <section id="example" hidden>
+      <div class="sectionline">
+        <h2>用稿件找画面</h2>
+        <div class="bar">
+          <label for="demo-key">试个题材</label
+          ><select id="demo-key"></select
+          ><button id="load-script" class="outline">填入示例稿</button>
+        </div>
+      </div>
+      <label for="manuscript">粘贴你的口播稿</label
+      ><textarea id="manuscript" rows="4" placeholder="把已写好的稿件贴在这里。"></textarea>
+      <div class="bar">
+        <button class="inkbtn" id="analyze">找值得配画面的原句 →</button
+        ><span class="note">在本机按原句和句式匹配</span>
+      </div>
+      <p role="status" id="ideas-status"></p>
+      <div id="ideas"></div>
+      <div class="bar">
+        <label for="manual-quote">也可指定一句</label
+        ><input id="manual-quote" placeholder="从稿件中复制原句" /><button class="outline" id="use-manual">
+          用这句
+        </button>
+      </div>
+    </section>
+    <section id="library">
+      <div class="sectionline">
+        <h2>挑选效果 <small id="count"></small></h2>
+        <label class="search"
+          ><span aria-hidden="true">⌕</span
+          ><input
+            id="search"
+            type="search"
+            aria-label="搜索名称、术语或描述"
+            placeholder="搜「逐字」或「翻面」"
+        /></label>
+      </div>
+      <details class="recipes">
+        <summary>套用一组搭配 <span id="recipe-count"></span></summary>
+        <div id="recipes"></div>
+      </details>
+      <div class="filters" id="filters" aria-label="效果类别"></div>
+      <div class="cards" id="cards"></div>
+    </section>
+    <section id="sample">
+      <div class="sectionline">
+        <h2>看看搭配效果</h2>
+        <button id="playmix" class="outline">▶ 重播搭配</button>
+      </div>
+      <div class="previewgrid">
+        <div id="stage" class="stage check">
+          <canvas id="mix" width="960" height="360" aria-label="当前搭配的透明画面"></canvas>
+        </div>
+        <div class="controls">
+          <label for="mix-theme">用哪个题材试看</label
+          ><select id="mix-theme"></select
+          ><label for="caption-input">换成自己的文字</label
+          ><input id="caption-input" placeholder="输入想演示的标题" /><label for="scrub">停在这帧看</label
+          ><input type="range" id="scrub" min="0" max="100" value="52" />
+          <details class="adjust">
+            <summary>改图形、前后状态与数字</summary>
+            <div class="inner">
+              <label for="subject-input">给 AI 的素材主体描述</label
+              ><input id="subject-input" placeholder="例如，一只随行杯" />
+              <div class="twos">
+                <label>变化前<input id="label-a" /></label><label>变化后<input id="label-b" /></label>
+              </div>
+              <label for="step-labels">演示节点（用逗号分开）</label><input id="step-labels" />
+              <div class="twos">
+                <label>起始数值<input id="num-a" type="number" min="0" max="99999999" /></label
+                ><label>结束数值<input id="num-b" type="number" min="0" max="99999999" /></label>
+              </div>
+              <label>替换第一张图<input id="image-a" type="file" accept="image/*" /></label
+              ><label>替换第二张图<input id="image-b" type="file" accept="image/*" /></label
+              ><button id="clear-images" class="outline">还原示意图</button>
+            </div>
+          </details>
+          <details class="adjust">
+            <summary>调整底图、位置与时长</summary>
+            <div class="inner">
+              <label for="bg">试贴底图</label
+              ><select id="bg">
+                <option value="check">透明棋盘</option>
+                <option value="light">浅色画面</option>
+                <option value="dark">深色画面</option>
+                <option value="portrait">我的画面</option></select
+              ><label>选择自己的画面<input id="backdrop-file" type="file" accept="image/*" /></label
+              ><label for="position">素材放哪边</label
+              ><select id="position">
+                <option value="top">上方留白</option>
+                <option value="left">左上方</option>
+                <option value="right">右上方</option></select
+              ><label for="duration">建议停留几秒</label
+              ><input id="duration" type="number" min="1" max="12" value="4" />
+            </div>
+          </details>
+          <button id="snapshot" class="outline">下载当前帧 · 透明 PNG</button>
+        </div>
+      </div>
+    </section>
+    <section class="pack">
+      <div>
+        <h2>通用动效示例包</h2>
+        <p>8 款透明 MOV、配套定格 PNG 和可编辑母版。解压后，把 MOV 拖到视频上方的轨道。</p>
+      </div>
+      <a id="download-pack" class="inkbtn" href="sample-pack.zip" download="通用动效示例素材包.zip"
+        >下载示例包 ↓</a
+      >
+    </section>
+  </main>
+  <aside id="composer" aria-label="提示词编辑器">
+    <div class="composer-head">
+      <div><b>我的 AI 提示词</b> <span id="selected-count"></span></div>
+      <div class="actions">
+        <button id="jumpmix" class="outline">看搭配</button
+        ><button id="expand" class="outline">展开全文</button
+        ><button id="copy" class="orangebtn">复制提示词</button
+        ><button id="fold" class="fold" aria-expanded="true" aria-label="收起或展开底部编辑器">⌄</button>
+      </div>
+    </div>
+    <div id="editor-body">
+      <div id="chips"></div>
+      <textarea id="prompt" rows="6" aria-label="可编辑的提示词"></textarea>
+    </div>
+    <span id="notice" role="status" aria-live="polite"></span>
+  </aside>
+  <dialog id="full-editor" aria-labelledby="full-heading">
+    <div class="sectionline">
+      <h2 id="full-heading">编辑完整提示词</h2>
+      <button id="done-edit" class="outline" autofocus>完成</button>
+    </div>
+    <textarea id="full-input" aria-label="完整提示词，可直接修改" spellcheck="false"></textarea>
+    <div class="bar">
+      <span id="full-count" role="status"></span><button id="full-copy" class="orangebtn">复制全文</button>
+    </div>
+  </dialog>
+  <dialog id="sources">
+    <div class="sectionline">
+      <h2>词条出处</h2>
+      <button class="outline" id="close">关闭</button>
+    </div>
+    <p>术语与动作机制参照以下资料。中文提示词和可播放小样为本词库制作。</p>
+    <div id="sources-list"></div>
+  </dialog>
+  <script src="../overlay-easing.js"></script>
+  <script src="boot.js"></script>
+</html>

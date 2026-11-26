@@ -2,7 +2,7 @@
 
 从稿件、提词和录制计划开始，把一条口播做成可发布的视频。你可以使用完整的三阶段流程，也可以从已有定稿或已经粗剪好的视频开始。
 
-本地源码与 Skill 版本为 **V3.14.0**。公开发行包版本见下载页。Windows 安装包和 macOS 磁盘映像包含首次启动所需的 Python 安装程序。已安装 Python 的创作者也可使用通用 Skill ZIP。
+本地源码与 Skill 版本为 **V3.14.1**。公开发行包版本见下载页。Windows 安装包和 macOS 磁盘映像包含首次启动所需的 Python 安装程序。已安装 Python 的创作者也可使用通用 Skill ZIP。
 
 [下载安装包与 Skill](https://github.com/shynloc/talking-head-studio/releases/latest)
 
@@ -14,7 +14,7 @@
 
 从 Codex 开始做素材时，可让当前对话打开专属素材页。Skill 在本机运行 `python scripts/studio.py agent-motion-desk`，验证原对话后返回工作台链接。用此链接贴稿，工作台向同一对话投递。直接从首页进入时，首次可用「复制待办给 Codex」，也可一次连接原对话。WorkBuddy 通过任务卡领取。已配置模型服务的用户可以主动选择直接发送整稿。在等待期间可以先采用标有「本机初选」的搭配，助手回复时会保留你的决定。
 
-词库有 17 类、100 个可播放的效果。除了元素和文字的入场、强调、转场与退场，还可用两点斜率图讲变化、分支图讲分类、地图路线讲地点、逐项勾选讲操作，或用手绘圈注突出原话。每款都能改文字、时长与适用的图形参数。
+从首页点「浏览动效词库」可以直接看 17 类、100 个动效。把鼠标移到卡片上或点播放键看片，点卡片搭配效果。底部的「我的 AI 提示词」可以编辑、展开和复制。「看搭配」会播放组合效果，也可以停在某一帧下载透明 PNG。需要给自己的整篇稿配画面时，点页面顶部的「用稿件做素材」。
 
 想统一整篇的外观，点「挑整篇风格」。素材册有 9 种网页版式、11 套配色、16 个分部件 3D 模型和 24 款贴纸，可看同内容预览并保存常用搭配。「换效果」也能只改当前句。助手结合原话决定用现成动效、库内物件、现画图片、逐步演示或动态贴纸。图片和演示逐个做好后回到各自的原句卡，能切底色、暂停动画、拖到单帧，或选一帧自己的录像试摆。
 
@@ -273,6 +273,6 @@ Windows 与 Apple 芯片 macOS 可以用完整工程 ZIP 互相迁移，并从�
 
 ### 如何重新制作系统安装包？
 
-从已提交的发行源码运行 `python scripts/package_release.py --output dist`，再运行 `python packaging/build_installers.py windows --archive dist/talking-head-studio-v3.14.0.zip --out native`。Mac 构建时将平台参数改为 `macos`。构建器使用 Python 官方安装程序及固定 SHA-256。Mac 应用包含 Intel 和 Apple 芯片可执行文件。[Python 安装程序来源](https://www.python.org/downloads/release/python-31314/)
+从已提交的发行源码运行 `python scripts/package_release.py --output dist`，再运行 `python packaging/build_installers.py windows --archive dist/talking-head-studio-v3.14.1.zip --out native`。Mac 构建时将平台参数改为 `macos`。构建器使用 Python 官方安装程序及固定 SHA-256。Mac 应用包含 Intel 和 Apple 芯片可执行文件。[Python 安装程序来源](https://www.python.org/downloads/release/python-31314/)
 
 有 Developer ID 的发布者可在 Mac 钥匙串中配置签名身份和 notarytool 配置，构建时提供 `--identity` 与 `--notary-profile`。发布流程会分别签署应用和磁盘映像，等待 Apple 接受并附加公证票据。GitHub Actions 可通过仓库 Secrets 配置相同流程。[Apple 公证说明](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)

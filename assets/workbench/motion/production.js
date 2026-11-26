@@ -133,7 +133,7 @@ for (const [route, label] of routes) {
     }
   }
   b.dataset.route = route
-  $('route-options').append(b)
+  $(route === 'catalog' ? 'catalog-route' : 'route-options').append(b)
 }
 async function newProduction(review, row, item, route, visual, treatment) {
   const note =

@@ -82,6 +82,8 @@ class Handler(BaseHTTPRequestHandler):
                 _,_,pid,aid=path.split('/');p=self.server.store.load(pid);item=next(a for a in p['assets'] if a['id']==aid)
                 return self.send_file(Path(item['path']))
             rel='index.html' if path=='/' else urllib.parse.unquote(path[1:])
+            if rel in ('motion/', 'motion/index.html') and 'desk' not in query and query.get('view') != ['desk']:
+                rel = 'motion/gallery.html'
             base=ROOT/'assets/workbench';target=(base/rel).resolve()
             if not target.is_relative_to(base.resolve()):return self.respond(403,{'error':'非法路径'})
             return self.send_file(target)

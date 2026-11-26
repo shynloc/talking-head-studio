@@ -26,7 +26,7 @@ def main():
         page = ctx.new_page()
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
-        page.goto(args.url + "/motion/index.html")
+        page.goto(args.url + "/motion/index.html?view=desk")
         expect(page.locator("#manuscript")).to_be_editable()
         page.locator("#agent-mode").select_option("workbuddy")
 

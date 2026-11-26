@@ -99,7 +99,7 @@ def main():
         expect(page.locator('.sentence')).to_have_count(4)
         ctx2=browser.new_context(viewport={'width':390,'height':844},reduced_motion='reduce')
         other=ctx2.new_page();other.on('pageerror',lambda e:errors.append(str(e)))
-        other.goto(args.url+'/motion/index.html');expect(other.locator('#manuscript')).to_be_editable()
+        other.goto(args.url+'/motion/index.html?view=desk');expect(other.locator('#manuscript')).to_be_editable()
         other.locator('#restore-file').set_input_files(out/'素材搭配.json')
         expect(other.locator('.pack-item')).to_have_count(2);other.locator('.pack-item button').filter(has_text='改这款').last.click()
         expect(other.locator('#title')).to_have_value('从想法到成品');assert other.evaluate('!!images.imageA && !!images.imageB')

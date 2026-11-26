@@ -34,6 +34,7 @@ const aliases = {
 }
 const deskParam = new URLSearchParams(location.search).get('desk') || ''
 const storageKey = /^motion_[0-9a-f]{32}$/.test(deskParam) ? deskParam : 'workspace'
+if (storageKey !== 'workspace') $('browse-gallery').href = 'gallery.html?desk=' + storageKey
 const blank = () => ({ script: '', page: 'script', draft: null, edits: {}, items: [], download: '' })
 let state = blank(),
   db,

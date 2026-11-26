@@ -245,7 +245,7 @@ async function initMaterials() {
   }
   try {
     if (state.page === 'edit' && state.draft) await openItem(state.draft)
-    else nav(state.page === 'pack' ? 'pack' : 'script')
+    else nav(state.page === 'pack' && packItems().length ? 'pack' : 'script')
   } catch (e) {
     nav('script')
     issue(e)

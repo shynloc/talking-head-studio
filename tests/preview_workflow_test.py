@@ -38,6 +38,17 @@ def main():
 
         def import_video(mode):
             page.locator('#recording-use').select_option(mode)
+            if mode=='captions':
+                page.evaluate("let input=document.createElement('input');input.id='drop-fixture';input.type='file';input.multiple=true;document.body.append(input)")
+                files=page.locator('#drop-fixture')
+                files.set_input_files([args.video,args.srt])
+                files.evaluate("""el=>{const data=new DataTransfer();for(const file of el.files)data.items.add(file);
+                    document.querySelector('#recording-drop').dispatchEvent(new DragEvent('drop',{bubbles:true,dataTransfer:data}));el.remove()}""")
+                expect(page.locator('#finish-confirm')).to_be_visible(timeout=90000)
+                assert page.evaluate('P.captions.map(c=>c.text)')==rows
+                jobs=page.evaluate("api('/api/jobs?id='+P.id)")
+                assert all('recognition' not in job.get('result',{}) for job in jobs)
+                return
             with page.expect_file_chooser() as event:page.locator('#video-file').click()
             event.value.set_files(args.video)
             expect(page.locator('[data-stage="3"]')).to_have_attribute('aria-current','step',timeout=45000)
@@ -108,7 +119,6 @@ def main():
         import_video('captions')
         expect(page.locator('#caption-only')).to_be_checked()
         expect(page.locator('[data-recording-note]')).to_have_count(0)
-        page.locator('[data-workflow=finish]').click()
         expect(page.locator('#finish-confirm')).to_be_visible(timeout=90000)
         expect(page.locator('#preview-visual')).to_have_count(0)
         short=export('只加字幕.mp4')

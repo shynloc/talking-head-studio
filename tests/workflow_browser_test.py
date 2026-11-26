@@ -79,7 +79,7 @@ def main():
             expect(page.locator('#dialog-title')).to_have_text('导入录制')
             with page.expect_file_chooser() as chooser:
                 page.locator('#video-file').click()
-            chooser.value.set_files(video)
+            chooser.value.set_files([video,caption])
             expect(page.locator('[data-workflow="find-pauses"]')).to_be_visible(timeout=20000)
             expect(page.locator('[data-workflow="keep-recording"]')).to_be_visible()
             expect(page.locator('[data-tl="collapse"]')).to_have_attribute('aria-expanded', 'false')
@@ -92,11 +92,6 @@ def main():
         page.locator('[data-workflow="play-rough"]').click()
         page.wait_for_function("document.querySelector('#player').currentTime > 0")
         page.locator('[data-workflow="approve-rough"]').click()
-        expect(page.locator('[data-workflow="auto-captions"]')).to_be_visible(timeout=20000)
-        with page.expect_file_chooser() as chooser:
-            page.locator('[data-workflow="caption-file"]').click()
-        chooser.value.set_files(caption)
-        page.locator('[data-workflow="finish"]').click(timeout=20000)
         expect(page.locator('#finish-confirm')).to_be_visible(timeout=45000)
         page.locator('#finish-confirm').click()
         with page.expect_download() as raw_download:
@@ -110,12 +105,10 @@ def main():
 
         start_with_video()
         page.locator('[data-workflow="keep-recording"]').click()
-        expect(page.locator('[data-workflow="auto-captions"]')).to_be_visible(timeout=20000)
+        expect(page.locator('#finish-confirm')).to_be_visible(timeout=45000)
+        page.locator('#finish-edit').click()
         page.reload()
         expect(page.locator('[data-stage="3"]')).to_have_class('active')
-        with page.expect_file_chooser() as chooser:
-            page.locator('[data-workflow="caption-file"]').click()
-        chooser.value.set_files(caption)
         expect(page.locator('[data-workflow="edit-captions"]')).to_be_visible(timeout=20000)
         page.locator('[data-workflow="edit-captions"]').click()
         expect(page.locator('[data-field="text"]').first).to_have_value('先介绍主题。')

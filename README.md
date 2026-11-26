@@ -2,7 +2,7 @@
 
 从稿件、提词和录制计划开始，把一条口播做成可发布的视频。你可以使用完整的三阶段流程，也可以从已有定稿或已经粗剪好的视频开始。
 
-工作台与 Skill 版本为 **V3.7.0**。Windows 安装包和 macOS 磁盘映像包含首次启动所需的 Python 安装程序。已安装 Python 的创作者也可使用通用 Skill ZIP。
+工作台与 Skill 版本为 **V3.8.0**。Windows 安装包和 macOS 磁盘映像包含首次启动所需的 Python 安装程序。已安装 Python 的创作者也可使用通用 Skill ZIP。
 
 [下载安装包与 Skill](https://github.com/shynloc/talking-head-studio/releases/latest)
 
@@ -77,7 +77,7 @@ flowchart LR
 
 | 功能 | 如何启用 |
 | --- | --- |
-| 录音转写与自动字幕 | 运行 `.\.venv\Scripts\python.exe scripts/setup.py --speech` 安装 Whisper。在工作台转写时选择模型，并允许首次下载。已有 SRT 也可直接导入。 |
+| 录音转写与自动字幕 | 选入视频后，按提示同意准备本地识别组件和语音模型。已有 SRT / VTT 可随视频一起导入。手动部署可运行 `.\.venv\Scripts\python.exe scripts/setup.py --speech`。 |
 | 麦克风跟读 | 运行 `.\.venv\Scripts\python.exe scripts/setup_speech.py`，约下载 190 MiB 中文/英文流式模型。自定义了项目目录时，给这条命令传入相同的 `--data`。安装好后可本地识别。 |
 | AI 润稿与语义分页 | 默认提交 Codex 待办，由 Agent 领取。也可在首页配置自己的 Chat Completions 地址、模型和密钥。手动编辑和基础规则排页可以直接使用。 |
 | GIF 工厂轻动效 | 随仓库提供所需导出器。第三阶段导入透明 PNG，再生成 GIF。 |
@@ -103,9 +103,9 @@ Whisper 用于录制后的转写。提词器的实时跟读使用另一套本地
 
 ### 3. 字幕与导出
 
-点「自动加字幕」或导入已有字幕。逐句试听、改字，在「这里加画面」中选择放图片、放演示、强调文字或加声音。需要拖动位置和调整多轨时再展开「精细调整」。
+选「已经剪好，只加字幕」并放入视频，或在试听粗剪后点「用这版做字幕」，工作台会识别实际口播并直接打开有字幕的短预览。逐句试听、改字，在「这里加画面」中选择放图片、放演示、强调文字或加声音。需要拖动位置和调整多轨时再展开「精细调整」。
 
-点「看成片效果」自动准备当前预览，已有有效预览可直接播放。「换一段预览」可以指定位置。「导出 MP4」保存完整视频，「用剪辑软件继续」展开外部剪辑入口。
+点「看成片效果」自动准备当前预览，已有有效预览可直接播放。「换一段预览」可以指定位置。「导出完整 MP4」保存完整视频，「用剪辑软件继续」展开外部剪辑入口。
 
 | 出片方式 | 之后还能改什么 |
 | --- | --- |
@@ -174,7 +174,7 @@ Codex 用户还可点「连接 Codex 原对话」，把连接指令粘贴到项�
 
 ### 为何不能直接点「导出成片」？
 
-点「看成片效果」会自动准备当前预览。改过剪点时，就地更新剪辑预览并试听。遇到待补画面时，可以选择文件，也可以在本次导出中略过。满意后点「导出 MP4」。
+点「看成片效果」会自动准备当前预览。改过剪点时，就地更新剪辑预览并试听。遇到待补画面时，可以选择文件，也可以在本次导出中略过。满意后点「导出完整 MP4」。
 
 ### 我的原片会被覆盖或上传吗？
 
@@ -198,6 +198,8 @@ Codex 用户还可点「连接 Codex 原对话」，把连接指令粘贴到项�
 
 ### 这次实测了哪些电脑和功能？
 
+V3.8 在 Windows 浏览器用同一段 26 秒中文口播走完两条路径。只加字幕保留 26.00 秒；原始录像在试听确认后剪去停顿，导出 21.30 秒。两次都用本机 Whisper medium 识别，在首句附近打开 10 秒预览，点一次导出并下载完整 MP4。两份成片均通过音视频完整解码。
+
 V3.7 的 Windows 浏览器验收用了真实口播节选和配套字幕。由录前备注先试文字、再把 PNG 做成动图，只在采用后写入时间线。随后生成从中段开始的短预览，改当前字幕、替换画面并导出；同一段视频也从「已经剪好，只加字幕」直接导出。两份 MP4 均已完整解码。
 
 | 环境 | 已实测 | 待实测 |
@@ -219,7 +221,7 @@ Windows 与 Apple 芯片 macOS 可以用完整工程 ZIP 互相迁移，并从�
 
 ### 已经剪好、只想加字幕怎么办？
 
-在导入窗口选择「已经剪好，只加字幕」，然后选文件。导入后直接到字幕页，识别或导入字幕并试看即可导出。只加字幕保留主画面与原声，隐藏额外画面和配乐。在字幕页取消勾选可恢复完整编排。
+在导入窗口选择「已经剪好，只加字幕」，选入或拖入视频。已有 SRT 或 VTT 时可与视频一起放入，工作台直接使用里面的文字和时间。自动字幕优先使用本机模型，缺少工具或模型时会先询问，准备好后继续。预览从第一句附近开始，同时显示预览区间和完整时长。满意后点「导出完整 MP4」。只加字幕保留主画面与原声，隐藏额外画面和配乐。在字幕页取消勾选可恢复完整编排。
 
 ## 第三方组件
 
@@ -234,6 +236,6 @@ Windows 与 Apple 芯片 macOS 可以用完整工程 ZIP 互相迁移，并从�
 
 ### 如何重新制作系统安装包？
 
-从已提交的发行源码运行 `python scripts/package_release.py --output dist`，再运行 `python packaging/build_installers.py windows --archive dist/talking-head-studio-v3.7.0.zip --out native`。Mac 构建时将平台参数改为 `macos`。构建器使用 Python 官方安装程序及固定 SHA-256。Mac 应用包含 Intel 和 Apple 芯片可执行文件。[Python 安装程序来源](https://www.python.org/downloads/release/python-31314/)
+从已提交的发行源码运行 `python scripts/package_release.py --output dist`，再运行 `python packaging/build_installers.py windows --archive dist/talking-head-studio-v3.8.0.zip --out native`。Mac 构建时将平台参数改为 `macos`。构建器使用 Python 官方安装程序及固定 SHA-256。Mac 应用包含 Intel 和 Apple 芯片可执行文件。[Python 安装程序来源](https://www.python.org/downloads/release/python-31314/)
 
 有 Developer ID 的发布者可在 Mac 钥匙串中配置签名身份和 notarytool 配置，构建时提供 `--identity` 与 `--notary-profile`。发布流程会分别签署应用和磁盘映像，等待 Apple 接受并附加公证票据。GitHub Actions 可通过仓库 Secrets 配置相同流程。[Apple 公证说明](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)

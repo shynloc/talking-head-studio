@@ -53,6 +53,9 @@ class Jobs:
 
     def action(self,pid,action,args,report):
         store=self.store;p=store.load(pid);folder=store.folder(pid)
+        if action == 'first_preview':
+            from guided_preview import prepare
+            return prepare(self, pid, args, report)
         if action in ('prepare_follow','prepare_transcription','prepare_video_tools'):
             from local_tools import prepare
             return prepare(action,store.root,report)
@@ -86,7 +89,7 @@ class Jobs:
             from cue_review import preview
             return preview(store,pid,args,report)
         if action=='import_media':
-            item = media.import_media(store,pid,args['path'])
+            item = media.import_media(store,pid,args['path'],subtitle_path=args.get('subtitle_path'))
             mode = args.get('use_as')
             if mode in ('ready','captions') and item.get('video'):
                 media.render_rough(store,pid,report,skip=True)
@@ -152,23 +155,8 @@ class Jobs:
         if action=='transcribe':
             return media.transcribe(store,pid,report,args.get('model',p['settings']['model']),bool(args.get('allow_download')))
         if action=='import_transcript':
-            path=Path(args['path']);text=path.read_text(encoding='utf-8-sig')
-            if path.suffix.lower()=='.json':
-                raw=json.loads(text);rows=raw.get('segments',[]) if isinstance(raw,dict) else raw
-            else:
-                rows=[]
-                pattern=r'(\d{1,2}):(\d{2}):(\d{2})[,.](\d{3})\s*-->\s*(\d{1,2}):(\d{2}):(\d{2})[,.](\d{3})[^\n]*\n(.*?)(?=\n\s*\n|\Z)'
-                for match in re.finditer(pattern,text,re.S):
-                    values=[int(v) for v in match.groups()[:8]]
-                    a=values[0]*3600+values[1]*60+values[2]+values[3]/1000
-                    b=values[4]*3600+values[5]*60+values[6]+values[7]/1000
-                    rows.append({'start':a,'end':b,'text':match[9].strip(),'words':[]})
-            if not rows:raise ValueError('未读到有效字幕；支持 Whisper JSON、SRT、带完整时间的 VTT')
-            duration=source(p).get('duration',float('inf'));segments=[]
-            for s in rows:
-                if not 0<=float(s['start'])<float(s['end'])<=duration+.1:raise ValueError('字幕时间超出当前原片')
-                segments.append({'id':uid('seg'),'start':float(s['start']),'end':float(s['end']),'text':str(s['text']),'words':s.get('words',[]),
-                                 'subtitle_cue':path.suffix.lower() in ('.srt','.vtt')})
+            from subtitle_input import read_segments
+            segments = read_segments(args['path'], source(p).get('duration',float('inf')))
             p['transcript']=segments
             for output in ('final','timeline'):
                 p['approvals'].pop(output,None)

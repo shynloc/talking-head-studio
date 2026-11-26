@@ -41,8 +41,8 @@ function closeDialog(){
     (origin||document.querySelector('.workflow-primary'))?.focus({preventScroll:true});
   }
 }
-async function act(action,args={}){try{await save();const job=await api('/api/action',{project_id:P.id,action,args});busy=true;document.body.classList.add('busy');showJob(job);closeDialog();return job}catch(e){toast(e.message,true);throw e}}
-function showJob(j){$('#jobbar').hidden=false;$('#job-title').textContent={auto_captions:'正在自动加字幕',captions_from_file:'正在导入字幕',prepare_rough:'正在准备剪后试听',prepare_video_tools:'准备视频工具',prepare_transcription:'准备自动字幕',prepare_follow:'准备跟读',transcribe:'识别说话内容',analyze_cuts:'查找长停顿',render_rough:'生成整理后的预览',plan:'生成字幕',sample:'生成代表样片',final:'输出完整成片',gif:'GIF 工厂制作'}[j.action]||'工作台正在处理';$('#job-message').textContent=j.message;$('#job-percent').textContent=Math.round(j.progress*100)+'%';$('.job-progress i').style.width=j.progress*100+'%'}
+async function act(action,args={},pid=P.id){try{await save();if(P?.id!==pid||homeMode)throw Error('项目已切换，请回到原项目继续。');const job=await api('/api/action',{project_id:pid,action,args});if(P?.id!==pid||homeMode)return job;busy=true;document.body.classList.add('busy');showJob(job);closeDialog();return job}catch(e){toast(e.message,true);throw e}}
+function showJob(j){$('#jobbar').hidden=false;$('#job-title').textContent={first_preview:'正在准备字幕预览',auto_captions:'正在自动加字幕',captions_from_file:'正在导入字幕',prepare_rough:'正在准备剪后试听',prepare_video_tools:'准备视频工具',prepare_transcription:'准备自动字幕',prepare_follow:'准备跟读',transcribe:'识别说话内容',analyze_cuts:'查找长停顿',render_rough:'生成整理后的预览',plan:'生成字幕',sample:'生成代表样片',final:'输出完整成片',gif:'GIF 工厂制作'}[j.action]||'工作台正在处理';$('#job-message').textContent=j.message;$('#job-percent').textContent=Math.round(j.progress*100)+'%';$('.job-progress i').style.width=j.progress*100+'%'}
 async function poll(){if(!P||homeMode)return;const pid=P.id;try{const list=await api('/api/jobs?id='+pid);if(homeMode||P.id!==pid)return;const active=list.find(j=>['running','queued'].includes(j.status));busy=!!active;document.body.classList.toggle('busy',busy);if(active)showJob(active);else $('#jobbar').hidden=true;
 let reload=false;for(const j of list){if(['done','error','interrupted'].includes(j.status)&&!jobsSeen.has(j.id)){jobsSeen.add(j.id);if(Date.now()-Date.parse(j.created)<1800000){reload=true;toast(j.status==='done'?(j.result?.message||'任务完成'):(j.error||j.message),j.status!=='done');if(j.result?.project_id){await refreshProjects();await load(j.result.project_id);return}}}}
 if(reload&&!dirty&&!saving){const latest=await api('/api/project?id='+pid);if(homeMode||P.id!==pid||dirty||saving)return;P=latest;
@@ -51,7 +51,8 @@ if(direct&&localStorage.getItem('studio-routed-'+pid)!==direct.id){
   localStorage.setItem('studio-routed-'+pid,direct.id);
   if(stage===2){stage=3;tab='captions';previewMode='auto';}
 }
-if(!P.pages.some(x=>x.id===selected))selected=P.pages[0]?.id;render();await refreshProjects()}}
+if(!P.pages.some(x=>x.id===selected))selected=P.pages[0]?.id;render();await refreshProjects()}
+await presentFirstPreview(pid,list)}
 catch(e){$('#save-status').textContent='连接中断 · 请保留页面'}}
 function stageHeader(metrics){return `
 <section id="workflow-guide" class="workflow-guide" aria-label="当前操作"></section>
@@ -151,22 +152,21 @@ case 'add-caption':snapshot();{let end=P.captions.at(-1)?.end||0;P.captions.push
 function scriptDialog(){openDialog('把内容变成口播页面',`<p class="hint">直接粘贴定稿，或导入文章。音频 / 视频请进入第二阶段转写后，再用转写结果排页。</p><div class="action-row"><button class="ghost" id="document-file">导入 TXT / DOCX / PDF / PPTX</button><button class="ghost" id="use-transcript">使用实际转写</button></div><div class="field"><textarea id="script-input" placeholder="粘贴文章或已处理好的口播稿…">${esc(P.source_text)}</textarea></div><label>处理方式</label><select id="script-mode"><option value="original">原稿直接使用 · 按语义自动排页</option><option value="light">规则口语化 · 清理格式和书面连接词</option></select><p class="hint">需要按主题深度改写或调整时长，可在排页后使用“AI 润稿”。重新排页会替换当前页面，可从历史版本恢复。</p><button class="key" id="make-script">生成口播工作台 →</button>`);$('#document-file').onclick=()=>chooseFile('document','.txt,.md,.docx,.pdf,.pptx');$('#use-transcript').onclick=()=>$('#script-input').value=P.transcript.map(s=>s.text).join('\n');$('#make-script').onclick=()=>act('script',{text:$('#script-input').value,mode:$('#script-mode').value}).catch(()=>{})}
 function rewriteDialog(){const drafts=P.tasks.filter(t=>t.status==='draft_ready');openDialog('AI 润稿与待办',`<p class="hint">${doctorInfo.llm_configured?'已配置模型服务，可联网生成草稿。':'当前使用 Codex 协作模式：生成改稿任务后，在聊天中让 AI 处理待办，再回到这里采用草稿。'}</p>${drafts.map(t=>`<div class="task-draft">${esc(t.result)}</div><button class="key small" data-apply-task="${t.id}">采用这份草稿</button>`).join('')}<div class="field"><label>改写要求</label><textarea id="rewrite-instruction" style="min-height:100px">保留事实，改成自然易讲的中文口播。句子不要太长，保持我的表达习惯。</textarea></div>${doctorInfo.llm_configured?'<label class="checkline"><input id="allow-network" type="checkbox">允许将本次稿件发送给已配置的模型服务</label>':''}<button class="key" id="rewrite-go">${doctorInfo.llm_configured?'生成改稿草案':'创建 AI 改稿任务'}</button>`);$$('[data-apply-task]').forEach(b=>b.onclick=()=>act('apply_task',{task_id:b.dataset.applyTask}).catch(()=>{}));$('#rewrite-go').onclick=()=>act('rewrite',{instruction:$('#rewrite-instruction').value,allow_network:$('#allow-network')?.checked||false}).catch(()=>{})}
 function mediaDialog(fresh=false){
-  if(!doctorInfo.tools.ffmpeg||!doctorInfo.tools.ffprobe){
-    openDialog('准备视频工具','<p>导入录音或视频需要 FFmpeg。工作台可使用本机软件管理器下载 FFmpeg 和视频组件。首次下载可能需要几分钟。已有稿件可以继续写和提词。</p><button class="key" id="prepare-video-tools">下载并准备视频工具</button> <button class="ghost" id="back-to-script">先写稿</button>');
-    $('#prepare-video-tools').onclick=async()=>{if(fresh)await newBlank('新的口播视频',2);await act('prepare_video_tools').catch(()=>{})};
-    $('#back-to-script').onclick=async()=>{closeDialog();if(fresh)await newBlank();else goToWorkflowStage(1)};
-    return;
-  }
   openDialog('导入录制',`<p>选择已经录好的视频。录音也可以用来整理口播稿。</p>
     <label for="recording-use">这份录制怎么用</label><select id="recording-use">
       <option value="raw">导入后决定怎么剪</option><option value="ready">已经剪好，去做字幕和画面</option><option value="captions">已经剪好，只加字幕</option></select>
-    <button class="key" id="video-file">选择本机文件</button>
+    <div id="recording-drop" class="recording-drop"><button class="key" id="video-file">选择本机文件</button>
+    <p class="hint">也可以把视频拖到这里。已有字幕时，和视频一起选入 SRT 或 VTT 即可。</p></div>
     <details class="workflow-tools"><summary>大文件可按路径导入</summary>
     <p class="hint">填写本机路径可直接引用文件，节省一份复制空间。</p>
     <input id="media-path" aria-label="本机文件路径" placeholder="粘贴本机文件的完整路径">
     <button class="ghost" id="media-path-go">按路径导入</button></details>`);
-  $('#video-file').onclick=()=>chooseFile((fresh?'new-video':'video')+'|'+$('#recording-use').value,'video/*,audio/*');
-  $('#media-path-go').onclick=async()=>{const path=$('#media-path').value.trim();if(!path)return;const use_as=$('#recording-use').value;if(fresh)await newBlank('新的口播视频',2);await act('import_media',{path,use_as}).catch(()=>{})};
+  $('#video-file').onclick=()=>chooseFile((fresh?'new-video':'video')+'|'+$('#recording-use').value,recordingAccept);
+  const drop=$('#recording-drop');
+  drop.ondragover=e=>{e.preventDefault();drop.classList.add('over')};
+  drop.ondragleave=()=>drop.classList.remove('over');
+  drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');importRecordingFiles([...e.dataTransfer.files],fresh,$('#recording-use').value).catch(e=>toast(e.message,true))};
+  $('#media-path-go').onclick=async()=>{const path=$('#media-path').value.trim();if(!path)return;const use_as=$('#recording-use').value;if(fresh)await newBlank('新的口播视频',2);await importRecording({path,use_as}).catch(e=>toast(e.message,true))};
 }
 function relinkDialog(){
   openDialog('重新选择原视频',`<p>请选择之前用于这个项目的视频，工作台会保留已有剪辑和字幕。</p>
@@ -228,8 +228,10 @@ async function transcribeDialog(makeCaptions=false){
 }
 function gifDialog(aid){openDialog('GIF 工厂 · 制作轻动效',`<p class="hint">使用你的 PNG 素材制作循环轻动效，输出真实透明 GIF。新角色姿态可先由生图工具准备。</p><div class="field"><label>贴纸文字</label><input id="gif-text" value="重点来了"></div><label>动作</label><select id="gif-motion">${[['pulse','轻轻呼吸'],['offer','递出提示'],['jump','轻跳出现'],['sway','左右摇摆'],['nod','点头强调']].map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select><div class="action-row" style="margin-top:18px"><button class="key" id="gif-go">制作动态贴纸</button></div>`);$('#gif-go').onclick=()=>act('gif',{asset_id:aid,text:$('#gif-text').value,motion:$('#gif-motion').value}).catch(()=>{})}
 function visualDialog(){const s=P.settings;openDialog('构图与字幕设置',`<p class="hint">比例以源视频为准。先确定人物所在区域，再安排上方动画。保护区使用相对画面比例。</p><div class="form-grid">${[['caption_y','字幕底部位置（0–1）'],['caption_size','字号 / 画面高度'],['overlay_y','动画距顶部（0–1）'],['overlay_height','动画区域高度（0–1）']].map(([k,l])=>`<div class="field"><label>${l}</label><input type="number" step=".01" id="set-${k}" value="${s[k]}"></div>`).join('')}<div class="field"><label>人物保护区顶部（0–1）</label><input type="number" step=".01" id="protect-y" value="${s.protected_rect[1]}"></div><div class="field"><label>人物保护区高度（0–1）</label><input type="number" step=".01" id="protect-h" value="${s.protected_rect[3]}"></div><div class="field"><label>动画强调色</label><input type="color" id="set-accent" value="${s.accent}"></div><label class="checkline"><input id="set-sfx" type="checkbox" ${s.sfx?'checked':''}>动画入场配轻音效</label></div><div class="divider"></div><button class="key" id="visual-save">保存构图设置</button>`);$('#visual-save').onclick=async()=>{snapshot();['caption_y','caption_size','overlay_y','overlay_height'].forEach(k=>s[k]=Number($('#set-'+k).value));s.protected_rect[1]=Number($('#protect-y').value);s.protected_rect[3]=Number($('#protect-h').value);s.accent=$('#set-accent').value;s.sfx=$('#set-sfx').checked;mark();await save();closeDialog();render()}}
-function chooseFile(purpose,accept){filePurpose=purpose;$('#file-picker').accept=accept;$('#file-picker').value='';$('#file-picker').click()}
-$('#file-picker').onchange=async e=>{const file=e.target.files[0];if(!file)return;const [purpose,use_as]=filePurpose.split('|');try{if(purpose==='new-video')await newBlank(file.name.replace(/\.[^.]+$/,''),2);toast('正在导入文件…');const r=await fetch(`/api/upload?project=${P.id}&name=${encodeURIComponent(file.name)}`,{method:'POST',headers:{'X-Studio-Token':token},body:file});const data=await r.json();if(!r.ok)throw Error(data.error);const action={'new-video':'import_media',video:'import_media',document:'import_document',asset:'add_asset',relink:'relink_source',project:'import_project',transcript:'import_transcript','caption-file':'captions_from_file'}[purpose];await act(action,{path:data.path,use_as})}catch(e){toast(e.message,true)}};
+function chooseFile(purpose,accept){filePurpose=purpose;$('#file-picker').multiple=/^(new-video|video)\|/.test(purpose);$('#file-picker').accept=accept;$('#file-picker').value='';$('#file-picker').click()}
+$('#file-picker').onchange=async e=>{const file=e.target.files[0];if(!file)return;const [purpose,use_as]=filePurpose.split('|');try{if(['video','new-video'].includes(purpose))return await importRecordingFiles([...e.target.files],purpose==='new-video',use_as);
+if(purpose==='guided-subtitles'){const pid=P.id,source_id=P.source_id;const subtitle_path=await uploadRecordingFile(pid,file);if(P.id===pid&&!homeMode)await startFirstPreview({entry:'resume',source_id,subtitle_path});return}
+toast('正在导入文件…');const r=await fetch(`/api/upload?project=${P.id}&name=${encodeURIComponent(file.name)}`,{method:'POST',headers:{'X-Studio-Token':token},body:file});const data=await r.json();if(!r.ok)throw Error(data.error);const action={document:'import_document',asset:'add_asset',relink:'relink_source',project:'import_project',transcript:'import_transcript','caption-file':'captions_from_file'}[purpose];await act(action,{path:data.path,use_as})}catch(e){toast(e.message,true)}};
 async function launchPrompt(){await save();const win=window.open('','studio-prompter','width=1200,height=850');if(!win)return toast('请允许本站弹出提词窗口',true);const template=await (await fetch('/prompter.html')).text();const data=JSON.parse(JSON.stringify(P));data.start_page_id=selected;data.asset_urls=Object.fromEntries(P.assets.map(a=>[a.id,new URL(assetURL(a.id),location.href).href]));const blob=new Blob([template.replace('__PROJECT__',JSON.stringify(data).replaceAll('</','<\\/'))],{type:'text/html'});win.location=URL.createObjectURL(blob);promptWindow=win}
 window.addEventListener('message',e=>{
   if(e.origin!==location.origin || e.source!==promptWindow || !P || homeMode || e.data?.projectId!==P.id)return;

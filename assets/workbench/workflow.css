@@ -106,3 +106,7 @@ input::placeholder,textarea::placeholder {color:#705c47;opacity:1;}
 .preview-line {margin:6px 0;color:#5d4b39;font-size:14px}
 #preview-edit-tools {margin:10px 0}
 #finish-panel [hidden],#note-options[hidden],#note-media[hidden],#dialog button[hidden]{display:none}
+
+.recording-drop { margin: 1em 0; padding: 1em; border: 2px dashed #c18254; border-radius: 14px; }
+.recording-drop.over { border-color: #002fa7; background: #f1f1ff; }
+.recording-drop .hint { margin: .75em 0 0; }

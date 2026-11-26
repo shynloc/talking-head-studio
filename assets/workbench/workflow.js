@@ -139,13 +139,13 @@ document.addEventListener('click', async event => {
         await openManuscript('import', false, null, P.transcript.map(line => line.text).join('\n'));
         break;
       case 'auto-captions':
-        await transcribeDialog(true);
+        await startFirstPreview({entry:'resume',source_id:P.source_id});
         break;
       case 'find-pauses':
         await act('prepare_rough');
         break;
       case 'keep-recording':
-        await useRecording('skip_rough');
+        await startFirstPreview({entry:'keep',source_id:P.source_id});
         break;
       case 'render-rough':
         await act('render_rough');
@@ -160,7 +160,7 @@ document.addEventListener('click', async event => {
         break;
       }
       case 'approve-rough':
-        await useRecording('approve_rough');
+        await startFirstPreview({entry:'approve',source_id:P.source_id,rough_id:P.rough.media_id});
         break;
       case 'caption-file':
         chooseFile('caption-file', '.srt,.vtt,.json');
@@ -189,22 +189,3 @@ document.addEventListener('click', async event => {
     button.disabled = false;
   }
 });
-
-async function useRecording(action) {
-  const pid=P.id;
-  const submitted=await act(action);
-  while(!homeMode && P.id===pid && stage===2){
-    const jobs=await api('/api/jobs?id='+pid);
-    const job=jobs.find(item=>item.id===submitted.id);
-    if(!job||['error','interrupted'].includes(job.status))return;
-    if(job.status==='done'){
-      await save();
-      const latest=await api('/api/project?id='+pid);
-      if(homeMode||P.id!==pid||stage!==2)return;
-      P=latest;
-      goToWorkflowStage(3,'captions');
-      return;
-    }
-    await new Promise(resolve=>setTimeout(resolve,350));
-  }
-}

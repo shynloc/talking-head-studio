@@ -104,7 +104,7 @@ function finishPreparation(review, state) {
       if (state.state==='rough' && labels.rough==='更新剪辑预览') {
         return await submitFinishJob(review,'render_rough',{});
       }
-      if (state.state==='approve_rough') return await submitFinishJob(review,'approve_rough',{});
+      if (state.state==='approve_rough') return await startFirstPreview({entry:'approve',source_id:P.source_id,rough_id:P.rough.media_id});
       if (state.state === 'align') {
         $('#finish-prepare').disabled = true;
         await save();
@@ -167,13 +167,17 @@ function finishSampleReview(review, state) {
     finishPanel(review, `<h3>成片已导出</h3><p>完整视频也可在当前项目的「下载」中找到。</p>
       <video class="finish-video" controls playsinline preload="metadata" src="${finishURL(review,final.id)}"></video>
       <div class="action-row"><a class="key" href="${finishURL(review,final.id,true)}">下载完整成片</a></div>`);
+    if (review.downloadWhenReady && finishPanelActive(review)) {
+      review.downloadWhenReady = false;
+      $('#finish-panel a[download], #finish-panel a.key')?.click();
+    }
     return;
   }
   const range = sample.start != null && sample.duration != null
-    ? `<p class="hint">起点 ${sec(sample.start)} 秒 · 样片约 ${sec(sample.duration)} 秒</p>` : '';
-  const confirmLabel = '导出 MP4';
+    ? `<p class="hint">预览 ${sec(sample.start)}–${sec(Math.min(state.duration,sample.start+sample.duration))} 秒 · 完整视频 ${sec(state.duration)} 秒</p>` : '';
+  const confirmLabel = '导出完整 MP4';
   if (!finishPanel(review, `<h3>试看预览并确认</h3>
-    <p>先播放预览，检查字幕、画面和声音。满意后选一种出片方式。</p>${range}
+    <p>播放时可以暂停改字。满意后点「导出完整 MP4」。</p>${range}
     <video class="finish-video" controls playsinline preload="metadata" src="${finishURL(review,sample.id)}" aria-label="当前时间线样片"></video>
     <div id="preview-edit-tools"><div id="preview-line" class="preview-line"></div><div class="action-row">
       <button class="ghost" id="preview-caption">改这句字幕</button>
@@ -191,7 +195,10 @@ function finishSampleReview(review, state) {
       <button class="ghost" id="finish-another">换一段预览</button>
       ${final && approved ? `<a class="ghost" href="${finishURL(review,final.id,true)}">下载已导出的成片</a>` : ''}
     </div>`)) return;
-  $('#finish-confirm').onclick = () => submitFinishJob(review,'confirm_timeline_final',{sample_id:sample.id,hash:state.hash});
+  $('#finish-confirm').onclick = () => {
+    review.downloadWhenReady = true;
+    return submitFinishJob(review,'confirm_timeline_final',{sample_id:sample.id,hash:state.hash});
+  };
   for (const button of document.querySelectorAll('[data-finish-delivery]')) {
     button.onclick = () => submitFinishJob(review,button.dataset.finishDelivery,{sample_id:sample.id,hash:state.hash});
   }
@@ -312,8 +319,8 @@ async function submitFinishJob(review, action, args) {
   } catch (error) { finishError(review,error); }
 }
 
-async function openFinishReview(start, material = null) {
-  const review = {projectId:P.id,start,material,showFinal:false,selectRange:start != null,rebuild:stage===3&&((!P.rough&&!!P.previous_rough)||(!!P.rough&&P.rough_current===false))};
+async function openFinishReview(start, material = null, replay = false) {
+  const review = {projectId:P.id,start,material,replay,showFinal:false,selectRange:start != null,rebuild:stage===3&&((!P.rough&&!!P.previous_rough)||(!!P.rough&&P.rough_current===false))};
   finishReview = review;
   openDialog('看成片效果','<div id="finish-panel" class="finish-panel"><p role="status">正在检查视频…</p></div>');
   try {

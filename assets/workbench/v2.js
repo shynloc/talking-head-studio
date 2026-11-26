@@ -48,7 +48,8 @@ async function dashboard(){
     reviewDraft=drafts.find(d=>d.status==='review');
   }
   const pendingPreview=recent&&localStorage.getItem('studio-review-'+recent.id);
-  const resumeText=reviewDraft?'查看润稿或分页建议':pendingPreview?'继续看成片效果':'继续创作';
+  const preparing=recent&&localStorage.getItem('studio-preview-task-'+recent.id);
+  const resumeText=reviewDraft?'查看润稿或分页建议':(pendingPreview||preparing)?'继续看成片效果':'继续创作';
   const stageName=id=>workSteps[Number(localStorage.getItem('studio-stage-'+id)||1)-1]||workSteps[0];
   const projectButton=p=>`<button class="recent-card" data-open-project="${esc(p.id)}"><strong>${esc(p.title)}</strong><small>${stageName(p.id)} · 继续编辑</small></button>`;
   const examples=projectList.filter(p=>p.example);

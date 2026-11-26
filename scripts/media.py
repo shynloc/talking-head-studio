@@ -40,17 +40,20 @@ def probe(path):
     if duration <= 0: raise ValueError('文件没有可用的媒体时长')
     return result
 
-def import_media(store, pid, path, source_video=True):
+def import_media(store, pid, path, source_video=True, subtitle_path=None):
     path = Path(path).resolve()
     if not path.is_file(): raise ValueError('文件不存在')
-    meta = probe(path); folder = store.folder(pid); folder.mkdir(exist_ok=True)
+    from subtitle_input import read_segments
+    meta = probe(path)
+    transcript = read_segments(subtitle_path, meta['duration']) if subtitle_path else []
+    folder = store.folder(pid); folder.mkdir(exist_ok=True)
     with LOCK:
         p = store.load(pid); item = {'id': uid('file'), 'name': path.name, 'path': str(path), 'kind': 'source', **meta}
         p['media'].append(item)
         if source_video:
             if p.get('source_id') and p.get('timeline',{}).get('mode')=='actual':
                 p['timeline']['needs_alignment']=True
-            p.update(source_id=item['id'], transcript=[], edl=[], rough=None, captions=[], scenes=[], approvals={})
+            p.update(source_id=item['id'], transcript=transcript, edl=[], previous_rough=None, rough=None, captions=[], scenes=[], approvals={})
             p['edl'] = [{'id': uid('cut'), 'start': 0, 'end': meta['duration'], 'keep': True, 'reason': '完整原片', 'protected': False}]
         store.save(p, label='导入原始媒体')
     return item

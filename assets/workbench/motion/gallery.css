@@ -1006,21 +1006,24 @@ html {
 }
 
 .brand,
-#nav-example {
+nav a {
   color: inherit;
   text-decoration: none;
 }
-#nav-example {
+nav a {
   padding: 8px 13px;
   font-size: 14px;
 }
-#nav-example:hover,
+nav a:hover,
 .brand:hover {
   text-decoration: underline;
 }
 @media (max-width: 640px) {
-  #nav-example {
+  nav a {
     padding: 6px;
     font-size: 12px;
   }
+}
+@media (max-width: 640px) {
+  header nav { flex-wrap: wrap; align-items: center; }
 }

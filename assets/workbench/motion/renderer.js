@@ -362,6 +362,7 @@ function swapShape(g, id, n, ctx) {
     h = 108
   function tile(b) {
     const opacity = ctx.plate === 'half' ? 0.5 : ctx.plate === 'quarter' ? 0.25 : 0
+    if (id === 'photoStack') box(g, x, y, w, h, 12, CREAM, INK)
     if (opacity) box(g, x, y, w, h, 15, 'rgba(' + (b ? '255,233,178,' : '212,225,255,') + opacity + ')', null)
     art(g, ctx.key, b, 240, 60, 0.82, b ? ctx.imageB : ctx.imageA)
     label(g, b ? ctx.b : ctx.a, 240, 103, 17, INK, 700, 120)
@@ -413,6 +414,16 @@ function swapShape(g, id, n, ctx) {
         tile(false)
         return
       }
+      if (id === 'photoStack') {
+        tile(true)
+        isolate(g, () => {
+          g.translate(x - n * (w + 26), y - n * 9)
+          g.rotate(-n * 0.23)
+          g.translate(-x, -y)
+          tile(false)
+        })
+        return
+      }
       if (id === 'cross') {
         isolate(g, () => {
           g.globalAlpha *= 1 - n
@@ -427,6 +438,9 @@ function swapShape(g, id, n, ctx) {
       }
       const reveal = () => {
         switch (id) {
+          case 'compareWipe':
+            g.rect(x - 1, y - 1, (w + 2) * n, h + 2)
+            break
           case 'circleSwap':
             g.arc(240, 74, 95 * n, 0, TAU)
             break
@@ -467,6 +481,12 @@ function swapShape(g, id, n, ctx) {
         tile(false)
       })
       clip(reveal, () => tile(true))
+      if (id === 'compareWipe') {
+        const divider = x + w * n
+        line(g, [[divider, y], [divider, y + h]], BLUE, 3)
+        orb(g, divider, y + h / 2, 7, CREAM)
+        line(g, [[divider, y + h / 2 - 3], [divider, y + h / 2 + 3]], BLUE, 2)
+      }
     },
   )
 }
@@ -629,6 +649,22 @@ function titleLayer(g, opts, t, ids, y, solo, plate) {
   const width = widths.reduce((a, b) => a + b, 0) + (chars.length - 1) * spacing
   let cursor = 240 - width / 2
   isolate(g, () => {
+    const span = width + 32
+    if (intro === 'centerTitle') {
+      const reveal = span * ease(en)
+      g.beginPath()
+      g.rect(240 - reveal / 2, y - size, reveal, size * 2)
+      g.clip()
+    }
+    if (exit === 'rubAway') {
+      const edge = 240 - span / 2 + span * out
+      if (out > 0 && out < 1) {
+        box(g, edge - 4, y - size * 0.6, 7, size * 1.2, 3, ORANGE)
+      }
+      g.beginPath()
+      g.rect(edge, y - size, span * (1 - out), size * 2)
+      g.clip()
+    }
     if (plate !== 'clear')
       box(
         g,
@@ -742,7 +778,8 @@ function draw(canvas, t, ids = [], subject = '', solo = false, settings = {}) {
   g.setTransform(1, 0, 0, 1, 0, 0)
   g.clearRect(0, 0, canvas.width, canvas.height)
   const base = sceneFor(subject),
-    c = { ...base, values: base.key === 'sport' ? [6000, 8000] : [3, 5], ...settings }
+    c = { ...base, values: base.key === 'sport' ? [6000, 8000] : [3, 5],
+      ...(solo && ids.length === 1 ? TERM[ids[0]]?.preview : {}), ...settings }
   const pick = (cat) => ids.find((id) => TERM[id]?.group === cat),
     enter = pick('in'),
     cue = pick('cue'),
@@ -873,6 +910,15 @@ function draw(canvas, t, ids = [], subject = '', solo = false, settings = {}) {
         })
     }
     body()
+    if (cue === 'focusCorners') {
+      const gap = 22 * (1 - ease(epoch(t, 0.06, 0.74)))
+      for (const sx of [-1, 1]) {
+        for (const sy of [-1, 1]) {
+          const x = 240 + sx * (56 + gap), y = 73 + sy * (38 + gap)
+          line(g, [[x - sx * 15, y], [x, y], [x, y - sy * 12]], BLUE, 3)
+        }
+      }
+    }
     if (action === 'orbit') orb(g, 240 + 66 * Math.cos(t * TAU), 73 + 34 * Math.sin(t * TAU), 7, ORANGE)
     if (cue === 'ring') {
       g.beginPath()

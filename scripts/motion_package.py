@@ -64,7 +64,9 @@ def validate(manifest):
     if not isinstance(items, list) or not 1 <= len(items) <= 64:
         raise ValueError('每包可导出 1 至 64 款已选动画。')
     for item in items:
-        if not isinstance(item, dict) or not isinstance(item.get('quote'), str) or not item['quote'].strip():
+        if not isinstance(item, dict) or not isinstance(item.get('quote'), str):
+            raise ValueError('素材的原句字段无效。')
+        if not item['quote'].strip() and ('sample' in item or item.get('standalone') is not True):
             raise ValueError('每款素材都需要对应的口播原句。')
         if 'sample' in item:
             if manifest['format']!='talking-head-motion/2' or not isinstance(item.get('title'),str) or not isinstance(item['sample'],dict):
@@ -154,7 +156,7 @@ def export(data, stream, size):
                     if item.get("sample", {}).get("kind") == "image"
                     else f"{item['seconds']} 秒"
                 )
-                lines.append(f"{stem}（{duration}）\n{item['quote']}\n")
+                lines.append(f"{stem}（{duration}）\n{item['quote'] or '自由搭配，可放在需要的位置。'}\n")
             if packet.remaining:
                 raise ValueError("收到的帧数与搭配不一致，请重试。")
             archive.writestr("原句对照.txt", "\n".join(lines))

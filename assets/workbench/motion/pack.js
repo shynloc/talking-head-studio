@@ -1,21 +1,5 @@
 'use strict'
 
-const FORMAT = 'talking-head-motion/1'
-function prefix(length) {
-  const buf = new ArrayBuffer(4)
-  new DataView(buf).setUint32(0, length)
-  return buf
-}
-function pngBlob(canvas) {
-  return new Promise((resolve, reject) =>
-    canvas.toBlob((b) => (b ? resolve(b) : reject(Error('无法读取预览帧。'))), 'image/png'),
-  )
-}
-async function jsonResponse(res) {
-  const payload = await res.json()
-  if (!res.ok) throw Error(payload.error || '工作台请求失败。')
-  return payload
-}
 async function session() {
   token = (await jsonResponse(await fetch('/api/bootstrap', { cache: 'no-store' }))).token
 }
@@ -40,53 +24,11 @@ async function makePack() {
   navBar.inert = true
   back.inert = true
   try {
-    const capability = await jsonResponse(await fetch('/api/motion/status', { cache: 'no-store' }))
-    if (!capability.ready && packItems().some((item) => !item.sample))
-      throw Error('导出 MOV 需要 FFmpeg。安装媒体工具后回到这里重试，已选素材会保留。')
-    const entries = packItems().map(reviewedCopy),
-      header = new TextEncoder().encode(
-        JSON.stringify({
-          format: entries.some((item) => item.sample) ? 'talking-head-motion/2' : FORMAT,
-          items: entries,
-        }),
-      )
-    if (entries.length > 64 || header.byteLength > 32 * 1024 * 1024)
-      throw Error('这个包的素材较多，请分批导出。')
-    const chunks = [prefix(header.length), header]
-    let total = 4 + header.length
-    const canvas = document.createElement('canvas')
-    canvas.width = 960
-    canvas.height = 360
-    for (const [n, item] of entries.entries()) {
-      if (item.sample) continue
-      const imgs = await loadImages(item),
-        count = countFrames(item)
-      for (let f = 0; f < count; f++) {
-        paint(canvas, item, f, imgs)
-        const blob = await pngBlob(canvas)
-        chunks.push(prefix(blob.size), blob)
-        total += 4 + blob.size
-        if (total > 512 * 1024 * 1024) throw Error('本包的画面数据超过 512 MB，请分批导出。')
-        if (f % 5 === 0)
-          $('progress').textContent =
-            '正在绘制第 ' +
-            (n + 1) +
-            ' / ' +
-            entries.length +
-            ' 款 · ' +
-            Math.round(((f + 1) / count) * 100) +
-            '%'
-      }
-    }
-    $('progress').textContent = '正在本机编码透明 MOV 并打包…'
-    await session()
-    const response = await jsonResponse(
-      await fetch('/api/motion/export', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/octet-stream', 'X-Studio-Token': token },
-        body: new Blob(chunks),
-      }),
-    )
+    const entries = packItems().map(reviewedCopy)
+    const response = await exportMotionPack(entries, async (item) => {
+      const imgs = await loadImages(item)
+      return (canvas, f) => paint(canvas, item, f, imgs)
+    }, (message) => { $('progress').textContent = message })
     state.downloadItems = entries.map((item) => item.id).join()
     state.download = response.url
     save()
@@ -136,7 +78,7 @@ function parseItem(raw) {
   if (
     !raw ||
     typeof raw.quote !== 'string' ||
-    !raw.quote.trim() ||
+    (!raw.quote.trim() && raw.standalone !== true) ||
     !Array.isArray(raw.ids) ||
     !raw.ids.length ||
     raw.ids.some((id) => typeof id !== 'string' || !Object.hasOwn(TERM, id)) ||
@@ -153,6 +95,7 @@ function parseItem(raw) {
   )
     throw Error('素材时长或定格位置无效。')
   const item = createItem({ quote: raw.quote, offset: Number.isInteger(raw.offset) ? raw.offset : 0 })
+  if (!raw.quote.trim() && raw.standalone === true) item.standalone = true
   for (const field of ['title', 'a', 'b', 'theme', 'notes', 'promptBase'])
     if (typeof raw[field] === 'string') item[field] = raw[field]
   if (item.theme !== 'neutral' && !DATA.quotes.some((q) => q.key === item.theme)) item.theme = 'neutral'
@@ -218,11 +161,12 @@ $('restore-file').onchange = async (event) => {
     state.download = ''
     if (!state.script.trim()) {
       let offset = 0
-      for (const item of incoming) {
+      const withQuotes = incoming.filter(item => !item.standalone)
+      for (const item of withQuotes) {
         item.offset = offset
         offset += item.quote.length + 1
       }
-      state.script = incoming.map((s) => s.quote).join('\n')
+      state.script = withQuotes.map((s) => s.quote).join('\n')
       resetReview()
     }
     nav('pack')

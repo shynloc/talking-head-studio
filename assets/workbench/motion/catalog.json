@@ -1131,6 +1131,133 @@
         "states"
       ],
       "foreground": true
+    },
+    {
+      "id": "centerTitle",
+      "name": "标题从中间展开",
+      "tech": "中心遮罩揭字",
+      "prompt": "从标题正中向左右同时揭开整行字，字形和基线固定，展开后完整停留。",
+      "group": "type",
+      "ref": "mask",
+      "fields": [
+        "title"
+      ],
+      "keywords": "片头 开场 揭标题 中间打开",
+      "preview": {
+        "title": "周末去哪里"
+      }
+    },
+    {
+      "id": "rubAway",
+      "name": "把这行字擦走",
+      "tech": "擦线退字",
+      "prompt": "在尾段用一条橙色短线从左往右擦去文字，擦过处恢复透明，末帧清空。",
+      "group": "textout",
+      "ref": "mask",
+      "fields": [
+        "title"
+      ],
+      "keywords": "擦字 橡皮擦 清除标题 结尾",
+      "preview": {
+        "title": "上一条小提示"
+      }
+    },
+    {
+      "id": "compareWipe",
+      "name": "拖一条线看前后",
+      "tech": "分界线对照",
+      "prompt": "两张图对齐在同一位置，竖向分界线从左向右滑过，逐步揭出处理后的图，结束时只留结果。",
+      "group": "swap",
+      "ref": "mask",
+      "fields": [
+        "states"
+      ],
+      "keywords": "修图前后 对比 原图 成片 调色对比 前后对照",
+      "preview": {
+        "a": "原图",
+        "b": "调色后"
+      }
+    },
+    {
+      "id": "photoStack",
+      "name": "抽走上面那张照片",
+      "tech": "叠放相片转场",
+      "prompt": "把两张相片叠在局部小卡片内，上面的旧照片轻轻旋转并向左抽走，露出下面的新照片。",
+      "group": "swap",
+      "ref": "transform",
+      "fields": [
+        "states"
+      ],
+      "keywords": "换照片 相册 卡片切换 翻相册 旅行照片",
+      "preview": {
+        "a": "第一站",
+        "b": "下一站"
+      }
+    },
+    {
+      "id": "focusCorners",
+      "name": "用四个角框住细节",
+      "tech": "对焦框收拢",
+      "prompt": "四段直角线从目标四周向内收拢，在轮廓外停住，中央透出原来的图像。",
+      "group": "cue",
+      "ref": "path",
+      "fields": [],
+      "keywords": "相机对焦 框重点 聚焦 取景框 提醒看这里",
+      "preview": {}
+    },
+    {
+      "id": "holdConfirm",
+      "name": "按住直到圆环走满",
+      "tech": "长按确认",
+      "prompt": "触点按下，进度环顺时针走满一圈，松开前显出完成勾和结果文字。",
+      "group": "interface",
+      "ref": "holdGesture",
+      "fields": [
+        "states"
+      ],
+      "keywords": "长按 等待完成 按住不放 按钮确认",
+      "preview": {
+        "a": "按住保存",
+        "b": "已保存"
+      },
+      "foreground": true
+    },
+    {
+      "id": "dialTurn",
+      "name": "把旋钮转到下一档",
+      "tech": "旋钮分档",
+      "prompt": "指针从左侧第一档转到中间停一下，再转到右侧第三档。三处档位名称始终可读。",
+      "group": "interface",
+      "ref": "canvasArc",
+      "fields": [
+        "labels"
+      ],
+      "keywords": "调档 旋钮 调节火力 调音量 调挡 三档",
+      "preview": {
+        "labels": [
+          "小火",
+          "中火",
+          "大火"
+        ]
+      },
+      "foreground": true
+    },
+    {
+      "id": "marginNote",
+      "name": "在旁边写一行批注",
+      "tech": "引线旁批",
+      "prompt": "保留原词，从它上方画出折线，在末端由左向右揭出短批注，文字留在主体旁边。",
+      "group": "paperMark",
+      "ref": "stroke",
+      "fields": [
+        "states"
+      ],
+      "keywords": "旁批 讲书 读书笔记 边注 写注释 旁注",
+      "preview": {
+        "a": "慢一点",
+        "b": "给观众留一拍"
+      },
+      "foreground": true
     }
   ],
   "quotes": [
@@ -1414,6 +1541,26 @@
       "MDN",
       "分步节奏",
       "https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Values/easing-function/steps"
+    ],
+    "holdGesture": [
+      "Apple",
+      "长按手势",
+      "https://developer.apple.com/design/human-interface-guidelines/gestures"
+    ],
+    "canvasArc": [
+      "MDN",
+      "圆弧与转角",
+      "https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/arc"
     ]
-  }
+  },
+  "recent": [
+    "centerTitle",
+    "rubAway",
+    "compareWipe",
+    "photoStack",
+    "focusCorners",
+    "holdConfirm",
+    "dialTurn",
+    "marginNote"
+  ]
 }

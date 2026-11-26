@@ -281,7 +281,7 @@ function fieldValue(id, val) {
 }
 function updateFields() {
   const d = state.draft
-  $('selected-quote').textContent = '「' + d.quote + '」'
+  $('selected-quote').textContent = d.standalone ? '动效词库里的自由搭配' : '「' + d.quote + '」'
   for (const id of ['title', 'theme', 'a', 'b', 'seconds']) fieldValue(id, d[id])
   fieldValue('labels', d.labels.join('、'))
   fieldValue('from', d.values[0])
@@ -339,7 +339,7 @@ function toggle(id) {
 function updatePrompt(d) {
   const hasText = usesField(d.ids, 'title')
   const result = [
-    '为口播原句「' + d.quote + '」做一件透明叠加素材。',
+    d.standalone ? '制作一件可叠在口播画面上的透明动效素材。' : '为口播原句「' + d.quote + '」做一件透明叠加素材。',
     (hasText ? '画面文字' : '素材名称') + '「' + d.title + '」。',
     ...d.ids.map((id) => groupNames[TERM[id].group] + ' · ' + TERM[id].prompt),
   ]
@@ -435,7 +435,7 @@ function showPack() {
     const name = document.createElement('strong')
     name.textContent = i + 1 + ' · ' + item.title
     const text = document.createElement('small')
-    text.textContent = '「' + item.quote + '」 · ' + item.seconds + ' 秒'
+    text.textContent = (item.standalone ? '自由搭配' : '「' + item.quote + '」') + ' · ' + item.seconds + ' 秒'
     copy.append(name, text)
     row.append(
       thumb,
@@ -480,7 +480,7 @@ function renderTerms() {
   const terms = DATA.terms.filter(
     (t) =>
       (!group || t.group === group) &&
-      [t.name, t.tech, t.prompt, aliases[t.id], groupNames[t.group]].join(' ').toLowerCase().includes(q),
+      [t.name, t.tech, t.prompt, t.keywords, aliases[t.id], groupNames[t.group]].join(' ').toLowerCase().includes(q),
   )
   for (const t of terms) {
     const card = document.createElement('div')

@@ -69,7 +69,7 @@ class MotionRecommendationTests(unittest.TestCase):
 
     def test_catalog_and_whole_source(self):
         data = catalog()
-        self.assertEqual(len({entry["id"] for entry in data["terms"]}), 100)
+        self.assertEqual(len({entry["id"] for entry in data["terms"]}), 108)
         self.assertEqual(len(data["groups"]), 17)
         self.assertTrue(all(t["ref"] in data["refs"] for t in data["terms"]))
         with self.assertRaises(ValueError):

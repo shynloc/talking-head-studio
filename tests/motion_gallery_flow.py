@@ -19,8 +19,8 @@ def check(base_url, screenshot=None):
         url = base_url + "/motion/index.html"
         page.goto(url)
         cards = page.locator("#cards .card")
-        expect(cards).to_have_count(100)
-        expect(page.locator("#filters button")).to_have_count(18)
+        expect(cards).to_have_count(108)
+        expect(page.locator("#filters button")).to_have_count(19)
         expect(page.locator("#composer")).to_be_visible()
         if screenshot:
             page.screenshot(path=screenshot)
@@ -59,7 +59,7 @@ def check(base_url, screenshot=None):
         expect(page.locator("#pack")).to_be_visible()
         expect(page.locator("#save-state")).to_have_text("草稿已存本机")
         page.goto(url)
-        expect(cards).to_have_count(100)
+        expect(cards).to_have_count(108)
         expect(page.locator("#prompt")).to_have_value(new_text)
         page.locator("#nav-example").click()
         expect(page.locator("#manuscript")).to_be_visible()
@@ -70,7 +70,7 @@ def check(base_url, screenshot=None):
         expect(page.locator(".pack-item")).to_have_count(1)
         expect(page.locator("#save-state")).to_have_text("草稿已存本机")
         page.locator("#browse-gallery").click()
-        expect(cards).to_have_count(100)
+        expect(cards).to_have_count(108)
         page.locator("#nav-example").click()
         expect(page.locator(".pack-item")).to_have_count(1)
 
@@ -78,7 +78,7 @@ def check(base_url, screenshot=None):
         page.goto(url + "?desk=" + scoped)
         expect(page.locator("#manuscript")).to_have_value("")
         page.locator("#browse-gallery").click()
-        expect(cards).to_have_count(100)
+        expect(cards).to_have_count(108)
         expect(page.locator("#nav-example")).to_have_attribute("href", "index.html?desk=" + scoped)
         assert "请留出标题的位置。" not in page.locator("#prompt").input_value()
         page.set_viewport_size({"width": 390, "height": 844})

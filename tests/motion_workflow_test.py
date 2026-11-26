@@ -77,7 +77,7 @@ def main():
         page.locator('#title').fill('用留白组织画面')
         page.locator('#seconds').select_option('2')
         page.locator('#open-library').click()
-        expect(page.locator('#cards .card')).to_have_count(100)
+        expect(page.locator('#cards .card')).to_have_count(108)
         page.locator('[data-group=textcue]').click();page.locator('[data-id=underline] .pick').click()
         page.locator('#close-library').click();page.locator('#play').click()
         page.wait_for_function("Number(document.getElementById('scrub').value)>3");page.locator('#play').click()

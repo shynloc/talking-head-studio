@@ -4,7 +4,7 @@ async function startMaterialDesk() {
   if (!response.ok) throw Error('动效词库加载失败，请刷新页面。')
   window.DATA = await response.json()
   const gallery = !!document.getElementById('hero-canvas')
-  const files = ['renderer.js', 'illustrations.js']
+  const files = ['renderer.js', 'illustrations.js', 'export.js']
   if (gallery) {
     files.push('gallery.js')
   } else {

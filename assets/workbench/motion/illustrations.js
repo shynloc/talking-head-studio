@@ -292,6 +292,32 @@ function locationGraphic(g, id, t, c) {
 }
 function interfaceGraphic(g, id, t, c) {
   const p = epoch(t, 0.05, 0.85)
+  if (id === 'holdConfirm') {
+    const fill = epoch(p, 0.12, 0.78), done = fill === 1
+    orb(g, 240, 68, 31, done ? BLUE : CREAM)
+    ringStroke(g, 240, 68, 37, -Math.PI / 2, Math.PI * 1.5, '#c4c1b7', 4)
+    ringStroke(g, 240, 68, 37, -Math.PI / 2, -Math.PI / 2 + TAU * fill, ORANGE, 5)
+    if (done) partialLine(g, [[226, 68], [236, 78], [255, 55]], epoch(p, 0.78, 0.95), CREAM, 4)
+    else {
+      orb(g, 240, 68 + 17 * (1 - ease(epoch(p, 0, 0.12))), 9, BLUE)
+    }
+    caption(g, done ? c.b : c.a, 240, 130, c.plate, 230)
+    return
+  }
+  if (id === 'dialTurn') {
+    const pos = ease(epoch(p, 0, 0.45)) + ease(epoch(p, 0.55, 1))
+    const angle = (pos - 1) * Math.PI / 2 - Math.PI / 2
+    orb(g, 240, 92, 38, CREAM)
+    ringStroke(g, 240, 92, 38, 0, TAU, INK, 2)
+    for (let i = 0; i < 3; i++) {
+      const theta = (i - 2) * Math.PI / 2, dx = Math.cos(theta), dy = Math.sin(theta)
+      line(g, [[240 + 44 * dx, 92 + 44 * dy], [240 + 50 * dx, 92 + 50 * dy]], BLUE, 3)
+      caption(g, c.labels[i], 240 + 113 * dx, 92 + 68 * dy, c.plate, 106)
+    }
+    line(g, [[240, 92], [240 + 28 * Math.cos(angle), 92 + 28 * Math.sin(angle)]], ORANGE, 5)
+    orb(g, 240, 92, 5, INK)
+    return
+  }
   if (id === 'checkList') {
     c.labels.forEach((s, i) => {
       const y = 33 + i * 37
@@ -401,6 +427,20 @@ function interfaceGraphic(g, id, t, c) {
 }
 function editorialGraphic(g, id, t, c) {
   const p = epoch(t, 0.05, 0.85)
+  if (id === 'marginNote') {
+    caption(g, c.a, 135, 99, c.plate, 170)
+    partialLine(g, [[143, 78], [186, 48], [236, 48]], cut(p * 2), ORANGE, 3)
+    const note = Array.from(c.b)
+    const visible = Math.ceil(note.length * epoch(p, 0.38, 1))
+    isolate(g, () => {
+      g.beginPath()
+      const width = Math.min(173, note.length * 18 + 12)
+      g.rect(256, 25, width * visible / Math.max(note.length, 1), 45)
+      g.clip()
+      label(g, c.b, 256 + width / 2, 48, 18, BLUE, 700, width)
+    })
+    return
+  }
   if (id === 'sideBrace') {
     partialLine(
       g,

@@ -19,15 +19,18 @@
     initial = saved || legacy || {}
   let ids = (Array.isArray(initial.ids) ? initial.ids : []).filter((id) => TERM[id]),
     quote = initial.quote || '',
-    group = '',
+    group = new URLSearchParams(location.search).get('show') === 'new' ? 'recent' : '',
     mixT = 0.52,
     cardAnim = 0,
+    restoreCard = null,
     mixAnim = 0,
     heroAnim = 0,
     noticeTimer,
     previous = {},
     backdrop = null,
-    images = {}
+    images = {},
+    exporting = false
+  const pendingImages = new Map()
   const promptBox = $('#prompt'),
     full = $('#full-input'),
     dialog = $('#full-editor'),
@@ -105,6 +108,7 @@
       .map((s) => s.trim())
     return {
       title: val('caption-input') || '你的标题',
+      name: val('caption-input') || '你的标题',
       a: val('label-a') || '变化前',
       b: val('label-b') || '变化后',
       labels: [0, 1, 2].map((i) => labels[i] || '步骤' + (i + 1)),
@@ -142,7 +146,7 @@
       const term = ids.map((id) => TERM[id]).find((term) => term.group === g.id)
       if (term) p[g.id] = g.name + '：' + term.prompt
     }
-    p.layout =
+    p.placement =
       '摆放在' +
       $('#position').selectedOptions[0].textContent +
       '，避开人物、手势和字幕。建议时长 ' +
@@ -196,6 +200,7 @@
     play(1000 * cut(Number(val('duration')) || 4, 1, 12), drawMix, (n) => (mixAnim = n))
   }
   function selectState() {
+    updateExportButton()
     const chips = $('#chips')
     chips.replaceChildren()
     for (const id of ids) {
@@ -218,7 +223,12 @@
   function toggle(id) {
     const old = ids.find((x) => primarySlot(x) === primarySlot(id))
     ids = ids.filter((x) => x !== old)
-    if (old !== id) ids.push(id)
+    if (old !== id) {
+      if (!ids.length && !quote && !bound.has('caption-input'))
+        $('#caption-input').value = TERM[id].preview?.title || TERM[id].name
+      ids.push(id)
+      if (!quote) previewFields(TERM[id].preview)
+    }
     selectState()
     announce(
       old === id
@@ -227,6 +237,20 @@
           ? '已将「' + TERM[old].name + '」换为「' + TERM[id].name + '」'
           : '已加入「' + TERM[id].name + '」',
     )
+  }
+  function previewFields(example) {
+    if (!example) return
+    for (const [key, field] of [
+      ['title', 'caption-input'],
+      ['a', 'label-a'],
+      ['b', 'label-b'],
+      ['labels', 'step-labels'],
+    ]) {
+      if (example[key] && !bound.has(field))
+        document.getElementById(field).value = Array.isArray(example[key])
+          ? example[key].join('、')
+          : example[key]
+    }
   }
   const recipes = [
     ['一句话留在屏幕上', 'book', ['letterRise', 'underline', 'textFade']],
@@ -241,11 +265,17 @@
     ['卡片逐格换图', 'photo', ['tiles', 'spark', 'clear']],
     ['看清图层结构', 'product', ['fade', 'explode', 'clear']],
     ['给图标一点呼吸', 'travel', ['zoomIn', 'breathe', 'glint', 'vanish']],
+    ['看看照片改了哪里', 'photo', ['fade', 'compareWipe', 'half', 'vanish']],
+    ['演示长按保存', 'product', ['lift', 'holdConfirm', 'vanish']],
+    ['讲清火力怎么调', 'coffee', ['fade', 'dialTurn', 'quarter']],
+    ['给原话加一条旁批', 'book', ['lift', 'marginNote', 'vanish']],
   ]
   $('#recipe-count').textContent = '· ' + recipes.length + ' 款可修改的模板'
   for (const [name, key, list] of recipes) {
     const b = button('', 'recipe', () => {
       if (!quote && !bound.size && !images.imageA && !images.imageB) setTheme(key)
+      if (!quote && !bound.has('caption-input')) $('#caption-input').value = name
+      if (!quote) list.forEach((id) => previewFields(TERM[id].preview))
       ids = [...list]
       selectState()
       go('#sample')
@@ -255,7 +285,14 @@
     const c = document.createElement('canvas')
     c.width = 360
     c.height = 135
-    draw(c, list.includes('flip') ? 0.82 : 0.52, list, key)
+    draw(
+      c,
+      list.includes('flip') ? 0.82 : 0.52,
+      list,
+      key,
+      false,
+      Object.assign({}, ...list.map((id) => TERM[id].preview)),
+    )
     const label = document.createElement('strong')
     label.textContent = name
     b.append(c, label)
@@ -296,16 +333,18 @@
   const posterTime = (t) => (t.id === 'flip' ? 0.81 : t.group === 'textout' ? 0.4 : 0.52)
   function renderCards() {
     cancelAnimationFrame(cardAnim)
+    restoreCard = null
     const q = val('search').trim().toLowerCase().replace('专场', '转场'),
       terms = catalogue.filter(
         (t) =>
-          (!group || group === t.group) &&
+          (!group || group === t.group || (group === 'recent' && DATA.recent.includes(t.id))) &&
           [
             t.name,
             t.tech,
             t.prompt,
             groups[t.group],
             synonyms[t.id] || '',
+            t.keywords || '',
             t.group === 'swap' ? '切换 替换 局部转场' : '',
             t.group === 'fx' ? '特效' : '',
           ]
@@ -318,7 +357,15 @@
     if (!terms.length) {
       const p = document.createElement('p')
       p.className = 'nores'
-      p.textContent = '没有找到。试试「逐字」「翻面」「路线」，或点「全部」查看其他类别。'
+      p.textContent = '没有找到匹配的效果。'
+      p.append(
+        ' ',
+        button('清除筛选', 'outline', () => {
+          $('#search').value = ''
+          $('#filters [data-group=""]').click()
+          $('#search').focus()
+        }),
+      )
       cards.append(p)
     }
     for (const term of terms) {
@@ -337,6 +384,8 @@
         paint = (t) => draw(c, t, [term.id], key, true),
         start = () => {
           cancelAnimationFrame(cardAnim)
+          restoreCard?.()
+          restoreCard = () => paint(posterTime(term))
           play(
             2100,
             (t) => paint(t === 1 ? posterTime(term) : t),
@@ -359,7 +408,7 @@
       el.querySelector('i').textContent = on ? '✓' : '+'
     }
   }
-  for (const g of [{ id: '', name: '全部' }, ...DATA.groups]) {
+  for (const g of [{ id: '', name: '全部' }, { id: 'recent', name: '本次新增' }, ...DATA.groups]) {
     const b = button(g.name, '', () => {
       group = g.id
       for (const el of $('#filters').children) {
@@ -370,8 +419,8 @@
       renderCards()
     })
     b.dataset.group = g.id
-    b.classList.toggle('on', !g.id)
-    b.setAttribute('aria-pressed', !g.id)
+    b.classList.toggle('on', group === g.id)
+    b.setAttribute('aria-pressed', group === g.id)
     $('#filters').append(b)
   }
   $('#search').oninput = renderCards
@@ -511,6 +560,8 @@
   }
   function clearImages() {
     images = {}
+    pendingImages.clear()
+    updateExportButton()
     $('#image-a').value = ''
     $('#image-b').value = ''
   }
@@ -528,6 +579,10 @@
     document.getElementById(id).onchange = async (e) => {
       const file = e.target.files[0]
       if (!file) return
+      if (slot !== 'backdrop') {
+        pendingImages.set(slot, file)
+        updateExportButton()
+      }
       const url = URL.createObjectURL(file),
         img = new Image()
       img.src = url
@@ -545,8 +600,17 @@
           $('#bg').value = 'portrait'
           stageStyle()
         } else {
-          images[slot] = img
+          const source = document.createElement('canvas')
+          const scale = Math.min(1, 700 / Math.max(img.naturalWidth, img.naturalHeight))
+          source.width = Math.max(1, Math.round(img.naturalWidth * scale))
+          source.height = Math.max(1, Math.round(img.naturalHeight * scale))
+          source.getContext('2d').drawImage(img, 0, 0, source.width, source.height)
+          const portable = new Image()
+          portable.src = source.toDataURL('image/png')
           URL.revokeObjectURL(url)
+          await portable.decode()
+          if (e.target.files[0] !== file || pendingImages.get(slot) !== file) return
+          images[slot] = portable
           if (slot === 'imageB' && !ids.some((id) => TERM[id].group === 'swap' || id === 'compare')) {
             ids.push('cross')
             selectState()
@@ -556,6 +620,9 @@
       } catch {
         URL.revokeObjectURL(url)
         announce('图片未能打开，请选择可预览的 PNG、JPEG 或 WebP。')
+      } finally {
+        if (pendingImages.get(slot) === file) pendingImages.delete(slot)
+        updateExportButton()
       }
     }
   }
@@ -575,11 +642,7 @@
       (document.getElementById(id).oninput = () => {
         bound.add(id)
         cancelAnimationFrame(mixAnim)
-        if (
-          id === 'caption-input' &&
-          val(id).trim() &&
-          !ids.some((x) => ['type', 'textcue', 'textout'].includes(TERM[x].group))
-        ) {
+        if (id === 'caption-input' && val(id).trim() && !ids.some((x) => TERM[x].fields.includes('title'))) {
           ids.push('letterRise')
           selectState()
           announce('已用逐字上浮预览你的文字，可在词库中换一种。')
@@ -609,6 +672,79 @@
     drawMix(Number(val('scrub')) / 100)
   }
   $('#playmix').onclick = replay
+  function updateExportButton() {
+    $('#export-mix').disabled = exporting || !ids.length || pendingImages.size > 0
+    $('#export-mix').title = ids.length
+      ? '下载透明动画、定格图片和可编辑搭配'
+      : '先点一张动效卡，或选一组搭配'
+  }
+  $('#export-mix').onclick = async () => {
+    if ($('#export-mix').disabled) return
+    exporting = true
+    updateExportButton()
+    const status = $('#mix-progress'),
+      link = $('#mix-download')
+    status.textContent = '正在准备当前搭配…'
+    try {
+      const settings = options(),
+        theme = val('mix-theme'),
+        effects = [...ids]
+      const seconds = cut(Math.round(Number(val('duration')) || 4), 1, 12)
+      const frames = seconds * 25
+      const render = (canvas, f) => draw(canvas, f / (frames - 1), effects, theme, false, settings)
+      const check = document.createElement('canvas')
+      check.width = 480
+      check.height = 180
+      const poster = [mixT, 0.52, 0.28, 0.82]
+        .map((t) => Math.round(t * (frames - 1)))
+        .find((f) => {
+          render(check, f)
+          const rgba = check.getContext('2d').getImageData(0, 0, check.width, check.height).data
+          return rgba.some((value, i) => i % 4 === 3 && value > 16)
+        })
+      if (poster === undefined) throw Error('这一组还没有可见画面，请先加文字、图片或换一个效果。')
+      const item = {
+        id: crypto.randomUUID(),
+        quote,
+        standalone: !quote,
+        offset: 0,
+        title: settings.title,
+        ids: effects,
+        theme,
+        a: settings.a,
+        b: settings.b,
+        labels: settings.labels,
+        values: settings.values,
+        seconds,
+        poster,
+        notes: promptBox.value,
+        promptBase: Object.values(parts()).join('\n'),
+        files: Object.fromEntries(Object.entries(images).map(([slot, image]) => [slot, image.src])),
+      }
+      const response = await exportMotionPack(
+        [item],
+        () => render,
+        (message) => {
+          status.textContent = message
+        },
+      )
+      link.href = response.url
+      link.hidden = false
+      link.click()
+      status.textContent = '已导出。解压后，把「透明动画」里的 MOV 拖到视频上方。'
+    } catch (error) {
+      status.textContent = error.message
+    } finally {
+      exporting = false
+      updateExportButton()
+    }
+  }
+  window.addEventListener('beforeunload', (event) => {
+    if (exporting) {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+  })
   $('#jumpmix').onclick = () => {
     go('#sample')
     replay()

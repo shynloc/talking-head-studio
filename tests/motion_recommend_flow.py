@@ -99,11 +99,11 @@ def main():
             return {id:t.id,ok:frames.every(f=>!f.corner&&f.painted)&&frames[0].image!==frames[1].image}
           })
         }""")
-        assert len(checks) == 26 and all(c["ok"] for c in checks), [c for c in checks if not c["ok"]]
+        assert len(checks) == 29 and all(c["ok"] for c in checks), [c for c in checks if not c["ok"]]
         assert not errors, errors
         browser.close()
     print(
-        "Whole-script paste, WorkBuddy protocol, delayed replies, skip/restore, scoped choices, mobile and 26 animated alpha previews passed."
+        "Whole-script paste, WorkBuddy protocol, delayed replies, skip/restore, scoped choices, mobile and 29 animated alpha previews passed."
     )
 
 

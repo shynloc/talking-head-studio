@@ -8,6 +8,7 @@
     <nav aria-label="工作区">
       <button id="nav-lib" aria-pressed="true">动效词库</button
       ><a id="nav-example" href="index.html?view=desk">用稿件做素材</a>
+      <a href="visual/index.html" target="_blank" rel="noopener" title="查看网页风格、配色、3D 物件和贴纸">风格与素材册 ↗</a>
     </nav>
     <button id="refs" class="textbtn">词条出处 ↗</button>
   </header>
@@ -59,7 +60,7 @@
             id="search"
             type="search"
             aria-label="搜索名称、术语或描述"
-            placeholder="搜「逐字」或「翻面」"
+            placeholder="搜「逐字」「调档」「修图前后」"
         /></label>
       </div>
       <details class="recipes">
@@ -122,6 +123,9 @@
             </div>
           </details>
           <button id="snapshot" class="outline">下载当前帧 · 透明 PNG</button>
+          <button id="export-mix" class="orangebtn" disabled>导出这组动画</button>
+          <small id="mix-progress" role="status"></small>
+          <a id="mix-download" download="我的透明动画.zip" hidden>下载刚导出的素材包 ↓</a>
         </div>
       </div>
     </section>

@@ -125,6 +125,7 @@ function parseItem(raw) {
       title: String(raw.title),
       producer: raw.producer,
       productionTask: raw.productionTask,
+      treatment: raw.treatment,
       ids: [],
       sample: raw.sample,
       visual: raw.visual || {},

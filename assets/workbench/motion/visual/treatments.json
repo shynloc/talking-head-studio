@@ -1,0 +1,170 @@
+[
+  {
+    "id": "cup-mark",
+    "object": "jug",
+    "label": "标出液面刻度",
+    "description": "把短引线落在读数处，保留透明杯壁。",
+    "kind": "still",
+    "subjects": [
+      "量杯",
+      "量水杯",
+      "刻度杯"
+    ],
+    "cues": [
+      "刻度",
+      "液面",
+      "毫升"
+    ],
+    "part": "level"
+  },
+  {
+    "id": "cup-pour",
+    "object": "jug",
+    "label": "演示倒到刻度",
+    "description": "水流入杯，液面升到指定位置后停住。",
+    "kind": "motion",
+    "subjects": [
+      "量杯",
+      "量水杯",
+      "刻度杯"
+    ],
+    "cues": [
+      "倒",
+      "加水",
+      "水位"
+    ],
+    "part": "level"
+  },
+  {
+    "id": "scale-read",
+    "object": "scale",
+    "label": "只看最后读数",
+    "description": "保留秤面和读数，突出原句给出的重量。",
+    "kind": "still",
+    "subjects": [
+      "电子秤",
+      "厨房秤",
+      "秤上",
+      "秤面",
+      "秤盘"
+    ],
+    "cues": [
+      "克",
+      "读数",
+      "重量"
+    ],
+    "part": "display"
+  },
+  {
+    "id": "scale-tare",
+    "object": "scale",
+    "label": "放大归零按钮",
+    "description": "在秤面的按键位置画引线，标明归零。",
+    "kind": "still",
+    "subjects": [
+      "电子秤",
+      "厨房秤",
+      "秤上",
+      "秤面",
+      "秤盘"
+    ],
+    "cues": [
+      "归零",
+      "清零",
+      "去皮"
+    ],
+    "part": "tare"
+  },
+  {
+    "id": "scale-weigh",
+    "object": "scale",
+    "label": "演一遍归零称重",
+    "description": "按键归零后才加料，最终数值取自原句。",
+    "kind": "motion",
+    "subjects": [
+      "电子秤",
+      "厨房秤",
+      "秤上",
+      "秤面",
+      "秤盘"
+    ],
+    "cues": [
+      "归零",
+      "去皮",
+      "称重"
+    ],
+    "part": "display"
+  },
+  {
+    "id": "clip-tip",
+    "object": "binder",
+    "label": "看夹口的位置",
+    "description": "用引线标出夹住纸张的金属夹口。",
+    "kind": "still",
+    "subjects": [
+      "长尾夹",
+      "燕尾夹",
+      "票夹"
+    ],
+    "cues": [
+      "夹口",
+      "夹住",
+      "纸"
+    ],
+    "part": "jaw"
+  },
+  {
+    "id": "clip-grip",
+    "object": "binder",
+    "label": "演一遍夹住纸",
+    "description": "手柄收拢、夹口打开，纸叠就位后回弹夹紧。",
+    "kind": "motion",
+    "subjects": [
+      "长尾夹",
+      "燕尾夹",
+      "票夹"
+    ],
+    "cues": [
+      "捏",
+      "夹住",
+      "松开"
+    ],
+    "part": "jaw"
+  },
+  {
+    "id": "pack-pocket",
+    "object": "backpack",
+    "label": "标出侧袋",
+    "description": "水瓶露出一截，端点引线落在侧袋口。",
+    "kind": "still",
+    "subjects": [
+      "背包",
+      "双肩包",
+      "书包"
+    ],
+    "cues": [
+      "侧袋",
+      "水瓶",
+      "水壶"
+    ],
+    "part": "pocket"
+  },
+  {
+    "id": "pack-lift",
+    "object": "backpack",
+    "label": "演一下怎么拿",
+    "description": "水瓶从侧袋里上提，停在袋口上方。",
+    "kind": "motion",
+    "subjects": [
+      "背包",
+      "双肩包",
+      "书包"
+    ],
+    "cues": [
+      "取",
+      "拿",
+      "抽出"
+    ],
+    "part": "pocket"
+  }
+]

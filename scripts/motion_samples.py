@@ -284,7 +284,60 @@ def from_library(root, raw):
                     mark.thumbnail(
                         (im.width // 3, im.height // 3), Image.Resampling.LANCZOS
                     )
-                    im.alpha_composite(mark, (im.width - mark.width - 12, 12))
+                    anchors = obj.get("tokens", {}).get("anchors", {})
+                    tip = sticker.get("tokens", {}).get("anchor")
+                    x, y = im.width - mark.width - 12, 12
+                    point_marks = {
+                        "pin",
+                        "loupe",
+                        "focus",
+                        "leader",
+                        "tap",
+                        "dragtrail",
+                        "rotatearc",
+                        "dimension",
+                        "level",
+                    }
+                    if sticker["id"] not in point_marks and tip:
+                        bounds = im.getbbox()
+                        if bounds:
+                            x = min(
+                                im.width - mark.width - 4, bounds[2] - mark.width // 3
+                            )
+                            y = max(4, bounds[1] - mark.height // 4)
+                    if sticker["id"] in point_marks and anchors and tip:
+                        target = (
+                            "tare"
+                            if sticker["id"] == "tap" and "tare" in anchors
+                            else next(iter(anchors))
+                        )
+                        u, v = anchors[target]
+                        x = round(u * im.width - tip[0] / 192 * mark.width)
+                        y = round(v * im.height - tip[1] / 128 * mark.height)
+                        x = max(0, min(x, im.width - mark.width))
+                        y = max(0, min(y, im.height - mark.height))
+                        if sticker["id"] == "loupe":
+                            from PIL import ImageDraw
+
+                            radius = max(4, round(33 * mark.width / 192))
+                            cx, cy = round(u * im.width), round(v * im.height)
+                            half = max(2, radius // 2)
+                            zoom = im.crop(
+                                (cx - half, cy - half, cx + half, cy + half)
+                            ).resize((radius * 2, radius * 2), Image.Resampling.LANCZOS)
+                            mask = Image.new("L", zoom.size)
+                            ImageDraw.Draw(mask).ellipse(
+                                (0, 0, 2 * radius - 1, 2 * radius - 1), fill=255
+                            )
+                            im.paste(
+                                zoom,
+                                (
+                                    x + round(78 * mark.width / 192) - radius,
+                                    y + round(51 * mark.height / 128) - radius,
+                                ),
+                                mask,
+                            )
+                    im.alpha_composite(mark, (x, y))
                     main = Path(tmp) / "stack.png"
                     im.save(main)
             archive.write(main, "media.png")

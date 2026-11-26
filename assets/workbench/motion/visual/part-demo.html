@@ -1,0 +1,147 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>原句演示</title>
+<style>html,body{padding:0;margin:0;background:transparent}svg{display:block;width:100%;height:auto}text{font:600 20px "Microsoft YaHei","PingFang SC",sans-serif;fill:var(--ink)}.read{font:700 24px Consolas,monospace}</style>
+<svg viewBox="0 0 560 330" xmlns="http://www.w3.org/2000/svg" stroke-linecap="round" stroke-linejoin="round" aria-label="口播透明素材"></svg>
+<script id="scene-data" type="application/json">__SCENE__</script>
+<script>
+'use strict'
+const d=JSON.parse(document.querySelector('#scene-data').textContent),svg=document.querySelector('svg')
+const {object:body,accent, surface, text:ink}=d.colors
+svg.style.setProperty('--ink',ink)
+function el(tag,props={},parent=svg,words){
+  const node=document.createElementNS(svg.namespaceURI,tag)
+  for(const [key,value] of Object.entries(props))node.setAttribute(key,value)
+  if(words!==undefined)node.textContent=words
+  parent.appendChild(node);return node
+}
+const path=(v,fill,stroke='none',width=3,g=svg)=>el('path',{d:v,fill,stroke,'stroke-width':width},g)
+const rect=(x,y,width,height,rx,fill,stroke='none',g=svg)=>el('rect',{x,y,width,height,rx,fill,stroke,'stroke-width':3},g)
+const label=(s,x,y,g=svg)=>el('text',{x,y,'text-anchor':'middle'},g,s)
+function pointer(x,y,caption){
+  const end=Math.max(347,x+30),top=Math.max(36,Math.min(y-48,170))
+  path('M'+x+' '+y+' L'+(end-12)+' '+top+' H'+end,'none',accent,3)
+  el('circle',{cx:x,cy:y,r:5,fill:accent,stroke:surface,'stroke-width':2})
+  const width=Math.min(192,Math.max(70,caption.length*19+18))
+  rect(end,top-19,width,36,12,surface,accent);label(caption,end+width/2,top+7)
+}
+const ease=t=>{t=Math.max(0,Math.min(t,1));return typeof easeOutCubic==='function'?easeOutCubic(t):1-(1-t)**3}
+function staticFrame(){
+  el('image',{href:d.png,x:55,y:8,width:310,height:310})
+  const [u,v]=d.anchor
+  pointer(55+310*u,8+310*v,d.callout)
+}
+function jug(t){
+  path('M284 114 C364 91 345 195 286 195','none',ink,13)
+  path('M284 114 C362 94 340 187 286 188','none',surface,7)
+  const rise=ease((t-.12)/.58), level=263-(263-d.fillY)*rise
+  const defs=el('defs'),clip=el('clipPath',{id:clipName},defs)
+  path('M104 101 L124 263 Q190 278 266 263 L286 101 Z','white','none',0,clip)
+  const g=el('g',{'clip-path':'url(#'+clipName+')'})
+  rect(90,level,220,280-level,0,'#64AEC5','none',g)
+  el('ellipse',{cx:194,cy:level,rx:103,ry:7,fill:'#ADDBDE'},g)
+  path('M77 85 L105 105 L123 262 Q187 285 267 263 L291 95 Q213 73 134 88 Z','none',ink,5)
+  path('M107 105 Q189 123 289 96','none',ink,3)
+  for(let i=0;i<5;i++)path('M230 '+(237-i*25)+' h'+(i%2?17:26),'none',ink,3)
+  if(t>.06 && t<.7)path('M126 44 Q147 43 150 '+level,'none','#67B8CB',6)
+  pointer(239,d.fillY,d.callout)
+}
+function scale(t){
+  path('M94 196 L138 130 H292 L321 202 Z',surface,ink)
+  rect(94,191,227,61,13,body,ink)
+  rect(140,204,103,34,6,'#e4eee2',ink)
+  const tare=t>.26, done=t>.67
+  el('text',{x:193,y:229,'text-anchor':'middle',class:'read'},svg,done?d.value:tare?'0':'—')
+  el('circle',{cx:281,cy:221,r:12,fill:tare?accent:surface,stroke:ink,'stroke-width':2})
+  path('M120 133 Q137 194 226 182 Q269 175 279 133 Z',surface,ink)
+  el('ellipse',{cx:200,cy:133,rx:79,ry:15,fill:surface,stroke:ink,'stroke-width':3})
+  if(t>.42){
+    const m=ease((t-.42)/.25);path('M145 134 Q168 '+(133-44*m)+' 193 '+(134-43*m)+' Q219 '+(132-37*m)+' 254 135 Q199 151 145 134',body)
+    if(!done)for(let i=0;i<5;i++)el('circle',{cx:186+i*3,cy:70+((t*170+i*6)%48),r:2,fill:body})
+  }
+  if(d.kind==='still' && done){rect(137,201,109,40,8,'none',accent)}
+  else pointer(done?235:281,done?209:221,done?d.finalLabel:'按键归零')
+}
+function binder(t){
+  const squeeze=ease((t-.12)/.17)*(1-ease((t-.64)/.18)),gap=18*squeeze
+  const paper=ease((t-.36)/.27)
+  for(let i=3;i>=0;i--)path('M'+(37+121*paper)+' '+(240+i*3)+' l112 -20 l55 12 l-112 22 z',surface,ink,1.5)
+  for(const side of [-1,1]){
+    const pivot=205+side*(22+gap),top=205+side*(33-24*squeeze)
+    path('M'+(pivot-7)+' 185 Q'+(top-18)+' 106 '+(top-13)+' 84 Q'+top+' 66 '+(top+13)+' 84 Q'+(top+18)+' 100 '+(pivot+7)+' 185','none',ink,6)
+    path('M205 158 L'+(211+side*54)+' 174 L'+(207+side*(26+gap))+' 236 L'+(192+side*(26+gap))+' 234 Z',side<0?body:accent,ink)
+  }
+  pointer(219+gap,232, t<.31?'捏住手柄':t<.66?'放入纸张':'松手夹紧')
+}
+function backpack(t){
+  path('M115 116 Q120 72 157 86 M202 84 Q239 60 252 116','none',ink,11)
+  path('M83 230 L91 127 Q96 75 155 76 L199 80 Q243 87 252 147 L256 247 Q204 275 103 254 Z',body,ink,5)
+  path('M103 149 Q134 102 210 118','none',surface,4)
+  rect(105,172,102,65,14,surface,ink)
+  const lift=81*ease((t-.2)/.52), bottle=el('g',{transform:'translate(0 '+(-lift)+')'})
+  rect(230,128,36,91,10,'#afd7dd',ink,bottle);rect(238,112,20,18,4,accent,ink,bottle)
+  path('M215 173 Q241 184 271 167 L266 238 Q244 263 215 244 Z',accent,ink,4)
+  pointer(262,170,t<.42?'侧袋开口':'向上取出')
+}
+const partName={level:'液面',jaw:'夹口',display:'显示窗',tare:'归零键',pocket:'侧袋口'}
+const steps={jug:['准备量杯','加水','到刻度'],scale:['放碗','按归零','加料读数'],binder:['捏手柄','放入纸','松手'],backpack:['找侧袋','握住瓶','取出来']}
+let clipName='liquid-0'
+function drawState(t) {
+ if(d.kind==='still' && d.object==='jug')jug(1)
+ else if(d.kind==='still' && d.object==='scale' && d.part==='display')scale(1)
+ else if(d.kind==='still')staticFrame()
+ else ({jug,scale,binder,backpack}[d.object])(t)
+}
+function nest(nodes,x,y,w,h,viewBox){
+ const clipped=el('svg',{x,y,width:w,height:h,viewBox,overflow:'hidden'})
+ clipped.append(...nodes)
+}
+function sourceState(t,id) {
+ clipName='liquid-'+id;drawState(t)
+ const content=[...svg.childNodes];content.forEach(n=>n.remove());return content
+}
+window.renderFrame=(i,n)=>{
+ svg.replaceChildren()
+ const t=n<=1?1:i/(n-1), current=sourceState(t,'now')
+ if(d.style==='compare' && d.kind==='motion'){
+  const previous=sourceState(0,'before')
+  nest(previous,9,49,262,223,'39 15 457 290');nest(current,285,49,262,223,'39 15 457 290')
+  for(const [x,name,color] of [[120,'操作前',ink],[410,'现在',accent]]){
+   rect(x-46,252,92,32,10,surface,color);label(name,x,275)
+  }
+ }else if(d.style==='closeup'){
+  const center=d.kind==='still'?[55+310*d.anchor[0],8+310*d.anchor[1]]:
+    ({binder:[206,226],jug:[238,d.fillY],scale:[220,217],backpack:[245,173]}[d.object])
+  const detail=current.filter(n=>n.tagName.toLowerCase()!=='text').map(n=>n.cloneNode(true))
+  for(const node of detail){
+   for(const clip of node.querySelectorAll('[id]'))clip.id+='-detail'
+   if(node.getAttribute('clip-path'))node.setAttribute('clip-path',node.getAttribute('clip-path').replace(')', '-detail)'))
+  }
+  nest(current,5,29,328,248,'44 17 478 290')
+  rect(353,63,154,153,15,surface,accent)
+  nest(detail,362,73,136,133,(center[0]-47)+' '+(center[1]-44)+' 94 90')
+  rect(375,225,110,34,10,surface,accent);label(partName[d.part]+'特写',430,249)
+ }else{
+  svg.append(...current)
+  if(d.style==='progress' && d.kind==='motion'){
+   const words=steps[d.object],index=t<.24?0:t<.66?1:2
+   words.forEach((word,k)=>{
+    const x=96+k*134
+    rect(x,289,114,31,11,k===index?surface:'none',k===index?accent:body)
+    label(word,x+57,312)
+   })
+  }
+ }
+ if(d.sticker)el('image',{href:d.sticker,x:490,y:8,width:58,height:40})
+}
+window.renderFrame(0,75)
+if(location.protocol==='file:' && d.kind==='motion'){
+ const controls=document.createElement('div'), btn=document.createElement('button'), slider=document.createElement('input')
+ const frames=d.frames || 75
+ btn.textContent='播放';slider.type='range';slider.min=0;slider.max=frames-1;slider.value=0;slider.setAttribute('aria-label','画面进度')
+ let timer=0
+ function stop(){clearInterval(timer);timer=0;btn.textContent='播放'}
+ slider.oninput=()=>{stop();window.renderFrame(+slider.value,frames)}
+ btn.onclick=()=>{if(timer){stop();return}if(+slider.value===frames-1)slider.value=0;btn.textContent='暂停'
+  timer=setInterval(()=>{slider.value=+slider.value+1;window.renderFrame(+slider.value,frames);if(+slider.value===frames-1)stop()},40)}
+ controls.append(btn,slider);document.body.append(controls)
+}
+</script></html>

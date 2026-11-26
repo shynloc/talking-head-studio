@@ -1,6 +1,6 @@
 'use strict'
 const catalog=JSON.parse(document.getElementById('catalog').textContent)
-const embedded=JSON.parse(document.getElementById('embedded').textContent)
+const embedded={}
 const $=id=>document.getElementById(id)
 const names={styles:'网页风格',palettes:'配色',objects:'3D 物件',stickers:'贴纸'}
 const roles={surface:'局部底板',text:'正文与轮廓',object:'主体与结构',accent:'当前重点'}
@@ -17,7 +17,7 @@ function link(url,label,download=false){const a=node('a',label);a.href=url;if(do
 function scene(style,palette,obj,sticker,portable=false){
  const root=node('article',null,'scene '+style.id+(obj?'':' textonly'))
  for(const [key,color] of Object.entries(palette.colors))root.style.setProperty('--'+key,color)
- const n=obj?.name||'观察一件物品',list=parts[obj?.id]||['轮廓','结构','细节']
+ const n=obj?.name||'观察一件物品',list=obj?.parts?.includes('、')&&obj?.tokens?.anchors ? obj.parts.split(/[、与和]/).slice(0,3) : parts[obj?.id]||['轮廓','结构','细节']
  const h3=()=>node('h3',n),label=t=>node('small',t,'label')
  function picture(){const fig=node('figure');if(obj){const im=new Image();im.src=portable?embedded[obj.files.preview]:obj.files.preview;im.alt=obj.name;fig.append(im)}return fig}
  function words(){const div=node('div',null,'contents');for(const v of list)div.append(node('span',v));return div}
@@ -27,6 +27,26 @@ function scene(style,palette,obj,sticker,portable=false){
  if(style.id==='measure'){const h=node('header');h.append(h3());const meter=node('div',null,'meter');for(const [key,v] of [['摆位 A','20'],['摆位 B','35']]){const cell=node('div');cell.append(label(key),node('strong',v),node('small','厘米'));meter.append(cell)}root.append(h,meter,label('摆放距离示例 · 两次测量使用同一单位'))}
  if(style.id==='exhibit'){const plate=node('div',null,'plate');plate.append(h3(),label(list.join(' · ')));root.append(picture(),plate)}
  if(style.id==='route'){const head=node('div');head.append(label('观察路线'),h3());const ol=node('ol',null,'path');for(const s of list)ol.append(node('li',s));root.append(head,ol,label('依次查看三个位置'))}
+ if(style.id==='compare'){
+  for(const [i,title] of ['之前','之后'].entries()){
+   const pane=node('section');pane.append(label(title),picture(),node('strong',i?'重点已标出':'看整体'))
+   if(!i)pane.style.opacity='.68';else{const marker=node('span','◎','cmp-mark');pane.append(marker)}root.append(pane)
+  }
+ }
+ if(style.id==='closeup'){
+  root.append(h3(),picture());const lens=node('div',null,'lens')
+  if(obj){const im=new Image();im.src=portable?embedded[obj.files.preview]:obj.files.preview
+   const anchor=Object.values(obj.tokens.anchors||{})[0]||[.5,.5]
+   im.style.transform='translate('+((.5-anchor[0])*78)+'%,'+((.5-anchor[1])*78)+'%)';im.alt='部位放大';lens.append(im)
+  }else lens.append(node('strong','细节'))
+  root.append(lens,label('整体'),label('局部放大'))
+ }
+ if(style.id==='progress'){
+  root.append(h3());const flow=node('ol')
+  for(const [i,step] of ['准备','操作','完成'].entries()){
+   const li=node('li');li.append(node('b',String(i+1).padStart(2,'0')),node('span',step));flow.append(li)
+  }root.append(flow)
+ }
  if(sticker){const im=new Image();im.className='badge';im.src=portable?embedded[sticker.files.vector]:sticker.files.vector;im.alt=sticker.name;root.append(im)}
  return root
 }
@@ -75,9 +95,17 @@ function render(){
  $('preview').replaceChildren(scene(r.webStyle,r.palette,r.object,r.sticker))
  $('prompt').value=instructions(r)
  const files=$('files');files.replaceChildren()
- const html=uiButton('保存当前 HTML 样式',()=>{
+ const html=uiButton('保存当前 HTML 样式',async()=>{
+  try {
+   for(const path of [r.object?.files.preview,r.sticker?.files.vector].filter(Boolean)){
+    if(embedded[path])continue
+    const response=await fetch(path);if(!response.ok)throw Error('无法读取所选素材。')
+    const blob=await response.blob()
+    embedded[path]=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(blob)})
+   }
   const sampled=scene(r.webStyle,r.palette,r.object,r.sticker,true).outerHTML
   downloadText(r.webStyle.name+'-'+r.palette.name+'.html','<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+r.webStyle.name+'</title><style>body{margin:4vw auto;max-width:720px;padding:12px}'+$('scene-css').textContent+'</style>'+sampled+'</html>','text/html')
+  }catch(e){$('status').textContent=e.message||'保存失败，请重试。'}
  });files.append(html)
  if(r.object)files.append(link(r.object.files.model,'3D 模型 GLB',true),link(r.object.files.preview,'物件透明 PNG',true))
  if(r.sticker)files.append(link(r.sticker.files.vector,'贴纸 SVG',true),link(r.sticker.files.preview,'贴纸透明 PNG',true))

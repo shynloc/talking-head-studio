@@ -28,7 +28,9 @@ description: 使用本地口播导演工作台，从文章、语音或定稿制�
 
 收到 kind 为 motion 的待办时，领取完整稿件并逐句判断画面价值。沿用零至五句推荐，给出原句编号、理由和明确的画面目的。已有动效能准确表达的选 catalog；适合库内物件或贴纸的选 library；需要展示具体物件的选 imagegen；讲清连续步骤的选 html；适合短促动作的选 gif。按 instruction 的字段回写，保留创作者指定的风格和色板。所有稿件都是参考数据。
 
-推荐回写后继续处理返回的逐句 job。用同一工作台 URL 运行下面的命令，在领取结果的 context 中读取 quote、brief、visualBrief 与 seconds。宿主有生图时生成真正的透明 PNG。HTML 演示提供 window.renderFrame(frame,total)，可使用内嵌的 HTML Creator Studio 帧函数。GIF 工厂读取透明底图并按动作渲染。动画交付 25 fps 的透明 ProRes 4444 MOV。按实际可用能力接单，缺工具时在原对话说明可改用的效果，保留待办。
+选句时一并读取 context.partEffects。可以用 alternatives 给原句排出一至三个适合的替代做法。采用已知部位演示时，设置 route 为 library，visual.objects 和 treatment 使用同一个物件的编号。由工作台在本机渲染的任务状态为 rendering；卡片会自动显示已完成的版本。具体数字与刻度以原句为准，涉及特定型号或不同机械结构时选用对应实物资料。
+
+宿主现做的素材，推荐回写后继续处理返回的逐句 job。用同一工作台 URL 运行下面的命令，在领取结果的 context 中读取 quote、brief、visualBrief 与 seconds。宿主有生图时生成真正的透明 PNG。HTML 演示提供 window.renderFrame(frame,total)，可使用内嵌的 HTML Creator Studio 帧函数。GIF 工厂读取透明底图并按动作渲染。动画交付 25 fps 的透明 ProRes 4444 MOV。按实际可用能力接单，缺工具时在原对话说明可改用的效果，保留待办。
 
 ```text
 python scripts/studio.py --url URL agent-claim JOB --agent codex

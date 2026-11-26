@@ -110,6 +110,7 @@ function buildRows(plans, units, previous = []) {
     item.visual = clone(plan.visual || state.visual || {})
     item.producer = plan.route || 'catalog'
     if (item.producer !== 'catalog') item.ids = []
+    if (plan.treatment) item.treatment=plan.treatment
     if (plan.job) item.productionTask = plan.job
     if (plan.sample) item.sample = plan.sample
     return {
@@ -117,6 +118,7 @@ function buildRows(plans, units, previous = []) {
       reason: plan.reason,
       sentence: plan.sentence,
       brief: plan.brief,
+      alternatives: plan.alternatives || [],
       job: plan.job,
       candidate: !!saved && !!plan.job && saved.sample?.id !== plan.sample?.id,
       previous: before?.previous,
@@ -297,7 +299,7 @@ function addPick(list, review, row) {
   )
   accept.disabled = !ready
   if (item.producer && item.producer !== 'catalog')
-    recipe.textContent = routeNames[item.producer] + (item.sample ? ' · 已就绪' : ' · 制作中')
+    recipe.textContent = (PART_EFFECTS.find(e=>e.id===item.treatment)?.label || routeNames[item.producer]) + (item.sample ? ' · 已就绪' : row.renderError ? ' · 可换一版' : ' · 制作中')
   accept.setAttribute('aria-pressed', String(adopted))
   actions.append(
     accept,

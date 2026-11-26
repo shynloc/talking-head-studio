@@ -12,6 +12,7 @@ from core import Conflict, digest, now, uid, write_json
 from agent_hosts import AGENTS
 import motion_recommend as motion
 import motion_samples as samples
+import motion_treatments as treatments
 
 
 def text_value(value, label, limit):
@@ -46,6 +47,8 @@ class AgentTasks:
         self.codex = codex
         for path in self.root.glob('handoff_*.json'):
             task = json.loads(path.read_text(encoding='utf-8'))
+            if task.get('status')=='rendering':
+                self.pool.submit(self._render_treatment,task['id'])
             if task.get('status')=='analyzing':
                 task.update(status='failed',error='工作台已重启，请重新分析。')
                 self._save(task)
@@ -225,6 +228,10 @@ class AgentTasks:
         }
         if type(context["seconds"]) != int or not 1 <= context["seconds"] <= 12:
             raise ValueError("时长无效。")
+        effect=data.get('treatment')
+        if effect:
+            if route!='library' or not visual.get('objects'):raise ValueError('请先选择这个部位所属的物件。')
+            context['treatment']=treatments.resolve(effect,visual['objects'])['id']
         rid = text_value(data.get("request_id"), "提交编号", 100)
         key = "handoff_" + digest([workspace, parent, rid, i])[:12]
         with self.lock:
@@ -250,12 +257,29 @@ class AgentTasks:
                 "delivery": "manual",
                 "instruction": "依照本句 brief 和 visualBrief，用指定工具现做透明素材。通过 sample_tool.py deliver 提交真实文件；不得只交文字。",
             }
+            if effect:
+                job.update(status="rendering",treatment=effect)
+                self._save(job)
+                self.pool.submit(self._render_treatment,key)
+                return self._public(job)
             if route == "library":
                 job.update(
                     sample=samples.from_library(self.store.root, visual), status="ready"
                 )
             self._save(job)
             return self._public(job)
+
+    def _render_treatment(self,key):
+        try:
+            context=self._get(key)['context']
+            sample=treatments.render(self.store.root,context)
+            update=dict(status='ready',sample=sample)
+        except Exception as exc:
+            update=dict(status='failed',error='这版未生成，请重选效果。'+str(exc)[:200])
+        with self.lock:
+            job=self._get(key)
+            job.update(update)
+            self._save(job)
 
     def planned(self, task, rows):
         ctx = task["context"]
@@ -389,7 +413,7 @@ class AgentTasks:
 
     def has_dispatches(self):
         with self.lock:
-            return any(t['delivery']=='sending' or t['status']=='analyzing' for t in
+            return any(t['delivery']=='sending' or t['status'] in ('analyzing','rendering') for t in
                        (self._get(path.stem) for path in self.root.glob('handoff_*.json')))
 
     def _dispatch(self, task_id, binding, card):

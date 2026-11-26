@@ -78,6 +78,8 @@ function chooseEffect(review, row, item) {
   $('effect-quote').textContent = '「' + item.quote + '」'
   $('production-note').value = ''
   $('effect-style-summary').textContent = styleLabel(editing.visual)
+  showSentenceOptions(review, row, item)
+  $('all-routes').open = false
   $('effect-dialog').showModal()
 }
 $('effect-close').onclick = () => $('effect-dialog').close()
@@ -133,7 +135,7 @@ for (const [route, label] of routes) {
   b.dataset.route = route
   $('route-options').append(b)
 }
-async function newProduction(review, row, item, route, visual) {
+async function newProduction(review, row, item, route, visual, treatment) {
   const note =
     $('production-note').value.trim() || '依照原句制作' + routeNames[route] + '，留透明边缘，突出讲到的内容。'
   const request = {
@@ -144,17 +146,20 @@ async function newProduction(review, row, item, route, visual) {
     sentences: lines(review.text).map((line) => line.quote),
     sentence: row.sentence,
     brief: note,
-    title: item.title,
+    title: treatment?.label || item.title,
     seconds: Math.min(12, Math.max(1, Math.round(item.seconds || 3))),
     visual,
     route,
+    ...(treatment ? { treatment: treatment.id, brief: treatment.description } : {}),
   }
   const task = await agentRequest('/api/agents/production', request)
-  if (state.review !== review) return
+  if (state.review !== review || (treatment && (editing?.row !== row || !$('effect-dialog').open))) return
+  row.renderError = null
   row.item = {
     ...createItem(item),
     id: item.id,
-    title: item.title,
+    title: request.title,
+    treatment: treatment?.id,
     producer: route,
     ids: [],
     visual,
@@ -202,7 +207,14 @@ function acceptSample(item) {
 function observeProduction(review) {
   for (const row of review.rows) {
     const job = row.job
-    if (!job || row.item.sample || watched.has(job) || review.skipped.includes(row.sentence)) continue
+    if (
+      !job ||
+      row.renderError ||
+      row.item.sample ||
+      watched.has(job) ||
+      review.skipped.includes(row.sentence)
+    )
+      continue
     watched.set(job, row)
     const poll = async () => {
       if (
@@ -217,8 +229,9 @@ function observeProduction(review) {
       }
       try {
         const task = await agentRequest('/api/agents/task?id=' + encodeURIComponent(job))
-        if (row.job === job && state.review === review && task.sample) {
-          row.item.sample = task.sample
+        if (row.job === job && state.review === review && (task.sample || task.status === 'failed')) {
+          if (task.sample) row.item.sample = task.sample
+          else row.renderError = task.error || '未能生成，可以换一版。'
           watched.delete(job)
           save()
           const card = $('picks').querySelector('[data-sentence="' + row.sentence + '"]')
@@ -238,6 +251,12 @@ function observeProduction(review) {
   }
 }
 function sampleStage(stage, item, row) {
+  if (!item.sample && item.treatment) {
+    const msg = document.createElement('p')
+    msg.textContent = row.renderError || '正在做好这版小样，会自动出现在这里…'
+    stage.append(msg)
+    return
+  }
   if (!item.sample) {
     const waiting = document.createElement('small')
     waiting.textContent = '等待' + routeNames[item.producer] + '回到这里'

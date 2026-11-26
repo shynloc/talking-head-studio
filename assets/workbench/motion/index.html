@@ -171,9 +171,10 @@
     </dialog>
     <dialog id="effect-dialog" aria-labelledby="effect-title">
       <div class="bar"><h2 id="effect-title">这句想怎么配？</h2><button class="link" id="effect-close">关闭</button></div>
-      <p id="effect-quote"></p><div id="route-options"></div>
+      <p id="effect-quote"></p><div id="sentence-options" aria-label="这句适合的效果"></div>
+        <details id="all-routes"><summary>更多做法与风格</summary><div id="route-options"></div>
       <label for="production-note">想改哪里？（可选）</label><textarea id="production-note" rows="2" placeholder="例如，把操作分成两步，箭头指向旋钮"></textarea>
-      <button class="link" id="effect-style">只改这句的风格和配色</button><small id="effect-style-summary"></small><p role="status" id="effect-error"></p>
+      <button class="link" id="effect-style">只改这句的风格和配色</button><small id="effect-style-summary"></small></details><p role="status" id="effect-error"></p>
     </dialog>
     <dialog id="lexicon" aria-labelledby="library-title">
       <div class="bar">

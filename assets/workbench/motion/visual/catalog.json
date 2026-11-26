@@ -1,6 +1,6 @@
 {
   "schema": "visual-library/1",
-  "revision": 1,
+  "revision": 2,
   "styles": [
     {
       "id": "field",
@@ -121,6 +121,63 @@
         "pathWidthPx": 2,
         "nodeDiameterPx": 11,
         "endNode": "filled"
+      }
+    },
+    {
+      "id": "compare",
+      "name": "前后对照",
+      "summary": "把同一对象的前后状态放在同一条基线上。",
+      "uses": "改造、前后变化、同单位比较",
+      "layout": "两栏等宽，共享基线；前与后各一短标签。",
+      "type": "数字等宽，状态标题 18px。",
+      "detail": "同单位不用重复图例；强调色保留给变化处。",
+      "overlay": "只取主体、节点和指向线；标签使用局部底板，四周透明。",
+      "when": "改造、前后变化、同单位比较",
+      "source": "grid",
+      "tokens": {
+        "referenceWidthPx": 480,
+        "paddingPx": 20,
+        "columns": "1fr 1fr",
+        "baselinePx": 2,
+        "gapPx": 14
+      }
+    },
+    {
+      "id": "closeup",
+      "name": "操作特写",
+      "summary": "从整体看清部位，再看一个操作。",
+      "uses": "数码、工具、手作",
+      "layout": "左侧保留物件全貌；右侧圆窗放大引线所指部位。",
+      "type": "动作动词加粗，说明最多两行。",
+      "detail": "大图与圆窗必须指向同一个真实部位。",
+      "overlay": "只取主体、节点和指向线；标签使用局部底板，四周透明。",
+      "when": "数码、工具、手作",
+      "source": "grid",
+      "tokens": {
+        "referenceWidthPx": 480,
+        "paddingPx": 20,
+        "insetShape": "circle",
+        "zoom": 2.2,
+        "leaderPx": 2
+      }
+    },
+    {
+      "id": "progress",
+      "name": "时间进程",
+      "summary": "将动作排到时间线上，在关键处停一下。",
+      "uses": "烹饪、旅行、复盘",
+      "layout": "时间从左到右，三个节点各显示动作短语。",
+      "type": "节点名加粗，时间用等宽数字。",
+      "detail": "只有原句给了时长才刻数字，否则按先后分段。",
+      "overlay": "只取主体、节点和指向线；标签使用局部底板，四周透明。",
+      "when": "烹饪、旅行、复盘",
+      "source": "grid",
+      "tokens": {
+        "referenceWidthPx": 480,
+        "paddingPx": 20,
+        "direction": "horizontal",
+        "nodes": 3,
+        "activeMarker": "filled"
       }
     }
   ],
@@ -308,6 +365,75 @@
         },
         "textOnSurfaceContrast": 12.81
       }
+    },
+    {
+      "id": "porcelain",
+      "name": "白瓷与番茄红",
+      "uses": "厨房、浅色器皿",
+      "colors": {
+        "surface": "#FFF7EB",
+        "text": "#302422",
+        "object": "#D99C62",
+        "accent": "#AA3429"
+      },
+      "rule": "浅色只作局部标签底，文字用深色，强调色指向操作部位。",
+      "distribution": "主体优先，强调色约占可见图形面积的 5%。",
+      "source": "roles",
+      "tokens": {
+        "scope": "visible graphic only",
+        "areaTargets": {
+          "surface": 0.7,
+          "object": 0.25,
+          "accent": 0.05
+        },
+        "textOnSurfaceContrast": 14.1
+      }
+    },
+    {
+      "id": "sandpine",
+      "name": "沙岩与松针绿",
+      "uses": "户外、收纳、旅行",
+      "colors": {
+        "surface": "#F4E8CE",
+        "text": "#282E24",
+        "object": "#B78251",
+        "accent": "#266344"
+      },
+      "rule": "浅色只作局部标签底，文字用深色，强调色指向操作部位。",
+      "distribution": "主体优先，强调色约占可见图形面积的 5%。",
+      "source": "roles",
+      "tokens": {
+        "scope": "visible graphic only",
+        "areaTargets": {
+          "surface": 0.7,
+          "object": 0.25,
+          "accent": 0.05
+        },
+        "textOnSurfaceContrast": 11.47
+      }
+    },
+    {
+      "id": "violet",
+      "name": "暖灰与紫罗兰",
+      "uses": "屏幕、数码、办公",
+      "colors": {
+        "surface": "#F1ECE8",
+        "text": "#292631",
+        "object": "#958C94",
+        "accent": "#673DA3"
+      },
+      "rule": "浅色只作局部标签底，文字用深色，强调色指向操作部位。",
+      "distribution": "主体优先，强调色约占可见图形面积的 5%。",
+      "source": "roles",
+      "tokens": {
+        "scope": "visible graphic only",
+        "areaTargets": {
+          "surface": 0.7,
+          "object": 0.25,
+          "accent": 0.05
+        },
+        "textOnSurfaceContrast": 12.64
+      }
     }
   ],
   "objects": [
@@ -373,6 +499,18 @@
         "slate": {
           "model": "3D/slate/pot.glb",
           "preview": "3D/slate/pot.png"
+        },
+        "porcelain": {
+          "model": "3D/porcelain/pot.glb",
+          "preview": "3D/porcelain/pot.png"
+        },
+        "sandpine": {
+          "model": "3D/sandpine/pot.glb",
+          "preview": "3D/sandpine/pot.png"
+        },
+        "violet": {
+          "model": "3D/violet/pot.glb",
+          "preview": "3D/violet/pot.png"
         }
       }
     },
@@ -438,6 +576,18 @@
         "slate": {
           "model": "3D/slate/camera.glb",
           "preview": "3D/slate/camera.png"
+        },
+        "porcelain": {
+          "model": "3D/porcelain/camera.glb",
+          "preview": "3D/porcelain/camera.png"
+        },
+        "sandpine": {
+          "model": "3D/sandpine/camera.glb",
+          "preview": "3D/sandpine/camera.png"
+        },
+        "violet": {
+          "model": "3D/violet/camera.glb",
+          "preview": "3D/violet/camera.png"
         }
       }
     },
@@ -503,6 +653,18 @@
         "slate": {
           "model": "3D/slate/lamp.glb",
           "preview": "3D/slate/lamp.png"
+        },
+        "porcelain": {
+          "model": "3D/porcelain/lamp.glb",
+          "preview": "3D/porcelain/lamp.png"
+        },
+        "sandpine": {
+          "model": "3D/sandpine/lamp.glb",
+          "preview": "3D/sandpine/lamp.png"
+        },
+        "violet": {
+          "model": "3D/violet/lamp.glb",
+          "preview": "3D/violet/lamp.png"
         }
       }
     },
@@ -568,6 +730,1018 @@
         "slate": {
           "model": "3D/slate/box.glb",
           "preview": "3D/slate/box.png"
+        },
+        "porcelain": {
+          "model": "3D/porcelain/box.glb",
+          "preview": "3D/porcelain/box.png"
+        },
+        "sandpine": {
+          "model": "3D/sandpine/box.glb",
+          "preview": "3D/sandpine/box.png"
+        },
+        "violet": {
+          "model": "3D/violet/box.glb",
+          "preview": "3D/violet/box.png"
+        }
+      }
+    },
+    {
+      "id": "jug",
+      "name": "透明量杯",
+      "uses": "量水、配料、看液位",
+      "parts": "杯壁、液面、倾倒口、把手和刻度线",
+      "projection": "前右方正交视图；GLB 可改角度和部件位置。",
+      "appearance": "主体和重点继承色板；金属和液体保留辨识色。",
+      "framing": "方形透明裁切，主体占最长边约 82%。",
+      "source": "glb",
+      "tokens": {
+        "upAxis": "+Y",
+        "viewFrom": [
+          2.6,
+          1.7,
+          4.5
+        ],
+        "keyLightFrom": [
+          -0.55,
+          0.85,
+          0.7
+        ],
+        "frameUtilization": 0.82,
+        "previewWidthPx": 512,
+        "materialSource": "GLB materials[].pbrMetallicRoughness",
+        "alphaOutside": 0,
+        "anchors": {
+          "level": [
+            0.379,
+            0.624
+          ]
+        }
+      },
+      "files": {
+        "model": "3D/jug.glb",
+        "preview": "3D/jug.png"
+      },
+      "variants": {
+        "atelier": {
+          "model": "3D/atelier/jug.glb",
+          "preview": "3D/atelier/jug.png"
+        },
+        "herb": {
+          "model": "3D/herb/jug.glb",
+          "preview": "3D/herb/jug.png"
+        },
+        "night": {
+          "model": "3D/night/jug.glb",
+          "preview": "3D/night/jug.png"
+        },
+        "ink": {
+          "model": "3D/ink/jug.glb",
+          "preview": "3D/ink/jug.png"
+        },
+        "coast": {
+          "model": "3D/coast/jug.glb",
+          "preview": "3D/coast/jug.png"
+        },
+        "plum": {
+          "model": "3D/plum/jug.glb",
+          "preview": "3D/plum/jug.png"
+        },
+        "cobalt": {
+          "model": "3D/cobalt/jug.glb",
+          "preview": "3D/cobalt/jug.png"
+        },
+        "slate": {
+          "model": "3D/slate/jug.glb",
+          "preview": "3D/slate/jug.png"
+        },
+        "porcelain": {
+          "model": "3D/porcelain/jug.glb",
+          "preview": "3D/porcelain/jug.png"
+        },
+        "sandpine": {
+          "model": "3D/sandpine/jug.glb",
+          "preview": "3D/sandpine/jug.png"
+        },
+        "violet": {
+          "model": "3D/violet/jug.glb",
+          "preview": "3D/violet/jug.png"
+        }
+      }
+    },
+    {
+      "id": "scale",
+      "name": "电子秤",
+      "uses": "厨房归零、读数、比较重量",
+      "parts": "称盘、显示窗与去皮键",
+      "projection": "前右方正交视图；GLB 可改角度和部件位置。",
+      "appearance": "主体和重点继承色板；金属和液体保留辨识色。",
+      "framing": "方形透明裁切，主体占最长边约 82%。",
+      "source": "glb",
+      "tokens": {
+        "upAxis": "+Y",
+        "viewFrom": [
+          2.6,
+          1.7,
+          4.5
+        ],
+        "keyLightFrom": [
+          -0.55,
+          0.85,
+          0.7
+        ],
+        "frameUtilization": 0.82,
+        "previewWidthPx": 512,
+        "materialSource": "GLB materials[].pbrMetallicRoughness",
+        "alphaOutside": 0,
+        "anchors": {
+          "display": [
+            0.31,
+            0.565
+          ],
+          "tare": [
+            0.55,
+            0.612
+          ]
+        }
+      },
+      "files": {
+        "model": "3D/scale.glb",
+        "preview": "3D/scale.png"
+      },
+      "variants": {
+        "atelier": {
+          "model": "3D/atelier/scale.glb",
+          "preview": "3D/atelier/scale.png"
+        },
+        "herb": {
+          "model": "3D/herb/scale.glb",
+          "preview": "3D/herb/scale.png"
+        },
+        "night": {
+          "model": "3D/night/scale.glb",
+          "preview": "3D/night/scale.png"
+        },
+        "ink": {
+          "model": "3D/ink/scale.glb",
+          "preview": "3D/ink/scale.png"
+        },
+        "coast": {
+          "model": "3D/coast/scale.glb",
+          "preview": "3D/coast/scale.png"
+        },
+        "plum": {
+          "model": "3D/plum/scale.glb",
+          "preview": "3D/plum/scale.png"
+        },
+        "cobalt": {
+          "model": "3D/cobalt/scale.glb",
+          "preview": "3D/cobalt/scale.png"
+        },
+        "slate": {
+          "model": "3D/slate/scale.glb",
+          "preview": "3D/slate/scale.png"
+        },
+        "porcelain": {
+          "model": "3D/porcelain/scale.glb",
+          "preview": "3D/porcelain/scale.png"
+        },
+        "sandpine": {
+          "model": "3D/sandpine/scale.glb",
+          "preview": "3D/sandpine/scale.png"
+        },
+        "violet": {
+          "model": "3D/violet/scale.glb",
+          "preview": "3D/violet/scale.png"
+        }
+      }
+    },
+    {
+      "id": "binder",
+      "name": "长尾夹",
+      "uses": "夹住纸张、整理线材",
+      "parts": "折叠弹簧片、前后手柄、两条夹唇",
+      "projection": "前右方正交视图；GLB 可改角度和部件位置。",
+      "appearance": "主体和重点继承色板；金属和液体保留辨识色。",
+      "framing": "方形透明裁切，主体占最长边约 82%。",
+      "source": "glb",
+      "tokens": {
+        "upAxis": "+Y",
+        "viewFrom": [
+          2.6,
+          1.7,
+          4.5
+        ],
+        "keyLightFrom": [
+          -0.55,
+          0.85,
+          0.7
+        ],
+        "frameUtilization": 0.82,
+        "previewWidthPx": 512,
+        "materialSource": "GLB materials[].pbrMetallicRoughness",
+        "alphaOutside": 0,
+        "anchors": {
+          "jaw": [
+            0.403,
+            0.843
+          ]
+        }
+      },
+      "files": {
+        "model": "3D/binder.glb",
+        "preview": "3D/binder.png"
+      },
+      "variants": {
+        "atelier": {
+          "model": "3D/atelier/binder.glb",
+          "preview": "3D/atelier/binder.png"
+        },
+        "herb": {
+          "model": "3D/herb/binder.glb",
+          "preview": "3D/herb/binder.png"
+        },
+        "night": {
+          "model": "3D/night/binder.glb",
+          "preview": "3D/night/binder.png"
+        },
+        "ink": {
+          "model": "3D/ink/binder.glb",
+          "preview": "3D/ink/binder.png"
+        },
+        "coast": {
+          "model": "3D/coast/binder.glb",
+          "preview": "3D/coast/binder.png"
+        },
+        "plum": {
+          "model": "3D/plum/binder.glb",
+          "preview": "3D/plum/binder.png"
+        },
+        "cobalt": {
+          "model": "3D/cobalt/binder.glb",
+          "preview": "3D/cobalt/binder.png"
+        },
+        "slate": {
+          "model": "3D/slate/binder.glb",
+          "preview": "3D/slate/binder.png"
+        },
+        "porcelain": {
+          "model": "3D/porcelain/binder.glb",
+          "preview": "3D/porcelain/binder.png"
+        },
+        "sandpine": {
+          "model": "3D/sandpine/binder.glb",
+          "preview": "3D/sandpine/binder.png"
+        },
+        "violet": {
+          "model": "3D/violet/binder.glb",
+          "preview": "3D/violet/binder.png"
+        }
+      }
+    },
+    {
+      "id": "backpack",
+      "name": "背包",
+      "uses": "侧袋取物、旅行收纳",
+      "parts": "双肩带、前仓、弹力侧袋与瓶身",
+      "projection": "前右方正交视图；GLB 可改角度和部件位置。",
+      "appearance": "主体和重点继承色板；金属和液体保留辨识色。",
+      "framing": "方形透明裁切，主体占最长边约 82%。",
+      "source": "glb",
+      "tokens": {
+        "upAxis": "+Y",
+        "viewFrom": [
+          2.6,
+          1.7,
+          4.5
+        ],
+        "keyLightFrom": [
+          -0.55,
+          0.85,
+          0.7
+        ],
+        "frameUtilization": 0.82,
+        "previewWidthPx": 512,
+        "materialSource": "GLB materials[].pbrMetallicRoughness",
+        "alphaOutside": 0,
+        "anchors": {
+          "pocket": [
+            0.706,
+            0.565
+          ]
+        }
+      },
+      "files": {
+        "model": "3D/backpack.glb",
+        "preview": "3D/backpack.png"
+      },
+      "variants": {
+        "atelier": {
+          "model": "3D/atelier/backpack.glb",
+          "preview": "3D/atelier/backpack.png"
+        },
+        "herb": {
+          "model": "3D/herb/backpack.glb",
+          "preview": "3D/herb/backpack.png"
+        },
+        "night": {
+          "model": "3D/night/backpack.glb",
+          "preview": "3D/night/backpack.png"
+        },
+        "ink": {
+          "model": "3D/ink/backpack.glb",
+          "preview": "3D/ink/backpack.png"
+        },
+        "coast": {
+          "model": "3D/coast/backpack.glb",
+          "preview": "3D/coast/backpack.png"
+        },
+        "plum": {
+          "model": "3D/plum/backpack.glb",
+          "preview": "3D/plum/backpack.png"
+        },
+        "cobalt": {
+          "model": "3D/cobalt/backpack.glb",
+          "preview": "3D/cobalt/backpack.png"
+        },
+        "slate": {
+          "model": "3D/slate/backpack.glb",
+          "preview": "3D/slate/backpack.png"
+        },
+        "porcelain": {
+          "model": "3D/porcelain/backpack.glb",
+          "preview": "3D/porcelain/backpack.png"
+        },
+        "sandpine": {
+          "model": "3D/sandpine/backpack.glb",
+          "preview": "3D/sandpine/backpack.png"
+        },
+        "violet": {
+          "model": "3D/violet/backpack.glb",
+          "preview": "3D/violet/backpack.png"
+        }
+      }
+    },
+    {
+      "id": "timer",
+      "name": "计时器",
+      "uses": "倒计时、等待和提醒",
+      "parts": "圆形表盘、刻线、指针、顶钮",
+      "projection": "前右方正交视图；GLB 可改角度和部件位置。",
+      "appearance": "主体和重点继承色板；金属和液体保留辨识色。",
+      "framing": "方形透明裁切，主体占最长边约 82%。",
+      "source": "glb",
+      "tokens": {
+        "upAxis": "+Y",
+        "viewFrom": [
+          2.6,
+          1.7,
+          4.5
+        ],
+        "keyLightFrom": [
+          -0.55,
+          0.85,
+          0.7
+        ],
+        "frameUtilization": 0.82,
+        "previewWidthPx": 512,
+        "materialSource": "GLB materials[].pbrMetallicRoughness",
+        "alphaOutside": 0,
+        "anchors": {
+          "dial": [
+            0.5,
+            0.488
+          ]
+        }
+      },
+      "files": {
+        "model": "3D/timer.glb",
+        "preview": "3D/timer.png"
+      },
+      "variants": {
+        "atelier": {
+          "model": "3D/atelier/timer.glb",
+          "preview": "3D/atelier/timer.png"
+        },
+        "herb": {
+          "model": "3D/herb/timer.glb",
+          "preview": "3D/herb/timer.png"
+        },
+        "night": {
+          "model": "3D/night/timer.glb",
+          "preview": "3D/night/timer.png"
+        },
+        "ink": {
+          "model": "3D/ink/timer.glb",
+          "preview": "3D/ink/timer.png"
+        },
+        "coast": {
+          "model": "3D/coast/timer.glb",
+          "preview": "3D/coast/timer.png"
+        },
+        "plum": {
+          "model": "3D/plum/timer.glb",
+          "preview": "3D/plum/timer.png"
+        },
+        "cobalt": {
+          "model": "3D/cobalt/timer.glb",
+          "preview": "3D/cobalt/timer.png"
+        },
+        "slate": {
+          "model": "3D/slate/timer.glb",
+          "preview": "3D/slate/timer.png"
+        },
+        "porcelain": {
+          "model": "3D/porcelain/timer.glb",
+          "preview": "3D/porcelain/timer.png"
+        },
+        "sandpine": {
+          "model": "3D/sandpine/timer.glb",
+          "preview": "3D/sandpine/timer.png"
+        },
+        "violet": {
+          "model": "3D/violet/timer.glb",
+          "preview": "3D/violet/timer.png"
+        }
+      }
+    },
+    {
+      "id": "phone",
+      "name": "手机",
+      "uses": "点按、插线、查看屏幕",
+      "parts": "屏幕、侧键、听筒、底部接口",
+      "projection": "前右方正交视图；GLB 可改角度和部件位置。",
+      "appearance": "主体和重点继承色板；金属和液体保留辨识色。",
+      "framing": "方形透明裁切，主体占最长边约 82%。",
+      "source": "glb",
+      "tokens": {
+        "upAxis": "+Y",
+        "viewFrom": [
+          2.6,
+          1.7,
+          4.5
+        ],
+        "keyLightFrom": [
+          -0.55,
+          0.85,
+          0.7
+        ],
+        "frameUtilization": 0.82,
+        "previewWidthPx": 512,
+        "materialSource": "GLB materials[].pbrMetallicRoughness",
+        "alphaOutside": 0,
+        "anchors": {
+          "port": [
+            0.482,
+            0.877
+          ]
+        }
+      },
+      "files": {
+        "model": "3D/phone.glb",
+        "preview": "3D/phone.png"
+      },
+      "variants": {
+        "atelier": {
+          "model": "3D/atelier/phone.glb",
+          "preview": "3D/atelier/phone.png"
+        },
+        "herb": {
+          "model": "3D/herb/phone.glb",
+          "preview": "3D/herb/phone.png"
+        },
+        "night": {
+          "model": "3D/night/phone.glb",
+          "preview": "3D/night/phone.png"
+        },
+        "ink": {
+          "model": "3D/ink/phone.glb",
+          "preview": "3D/ink/phone.png"
+        },
+        "coast": {
+          "model": "3D/coast/phone.glb",
+          "preview": "3D/coast/phone.png"
+        },
+        "plum": {
+          "model": "3D/plum/phone.glb",
+          "preview": "3D/plum/phone.png"
+        },
+        "cobalt": {
+          "model": "3D/cobalt/phone.glb",
+          "preview": "3D/cobalt/phone.png"
+        },
+        "slate": {
+          "model": "3D/slate/phone.glb",
+          "preview": "3D/slate/phone.png"
+        },
+        "porcelain": {
+          "model": "3D/porcelain/phone.glb",
+          "preview": "3D/porcelain/phone.png"
+        },
+        "sandpine": {
+          "model": "3D/sandpine/phone.glb",
+          "preview": "3D/sandpine/phone.png"
+        },
+        "violet": {
+          "model": "3D/violet/phone.glb",
+          "preview": "3D/violet/phone.png"
+        }
+      }
+    },
+    {
+      "id": "usbc",
+      "name": "USB-C 线",
+      "uses": "分清线端、连接设备",
+      "parts": "线身、护套、金属插头、插头内舌",
+      "projection": "前右方正交视图；GLB 可改角度和部件位置。",
+      "appearance": "主体和重点继承色板；金属和液体保留辨识色。",
+      "framing": "方形透明裁切，主体占最长边约 82%。",
+      "source": "glb",
+      "tokens": {
+        "upAxis": "+Y",
+        "viewFrom": [
+          2.6,
+          1.7,
+          4.5
+        ],
+        "keyLightFrom": [
+          -0.55,
+          0.85,
+          0.7
+        ],
+        "frameUtilization": 0.82,
+        "previewWidthPx": 512,
+        "materialSource": "GLB materials[].pbrMetallicRoughness",
+        "alphaOutside": 0,
+        "anchors": {
+          "plug": [
+            0.714,
+            0.116
+          ]
+        }
+      },
+      "files": {
+        "model": "3D/usbc.glb",
+        "preview": "3D/usbc.png"
+      },
+      "variants": {
+        "atelier": {
+          "model": "3D/atelier/usbc.glb",
+          "preview": "3D/atelier/usbc.png"
+        },
+        "herb": {
+          "model": "3D/herb/usbc.glb",
+          "preview": "3D/herb/usbc.png"
+        },
+        "night": {
+          "model": "3D/night/usbc.glb",
+          "preview": "3D/night/usbc.png"
+        },
+        "ink": {
+          "model": "3D/ink/usbc.glb",
+          "preview": "3D/ink/usbc.png"
+        },
+        "coast": {
+          "model": "3D/coast/usbc.glb",
+          "preview": "3D/coast/usbc.png"
+        },
+        "plum": {
+          "model": "3D/plum/usbc.glb",
+          "preview": "3D/plum/usbc.png"
+        },
+        "cobalt": {
+          "model": "3D/cobalt/usbc.glb",
+          "preview": "3D/cobalt/usbc.png"
+        },
+        "slate": {
+          "model": "3D/slate/usbc.glb",
+          "preview": "3D/slate/usbc.png"
+        },
+        "porcelain": {
+          "model": "3D/porcelain/usbc.glb",
+          "preview": "3D/porcelain/usbc.png"
+        },
+        "sandpine": {
+          "model": "3D/sandpine/usbc.glb",
+          "preview": "3D/sandpine/usbc.png"
+        },
+        "violet": {
+          "model": "3D/violet/usbc.glb",
+          "preview": "3D/violet/usbc.png"
+        }
+      }
+    },
+    {
+      "id": "suitcase",
+      "name": "行李箱",
+      "uses": "出行收纳、拖行",
+      "parts": "箱壳、拉杆、轮组、竖向加强筋",
+      "projection": "前右方正交视图；GLB 可改角度和部件位置。",
+      "appearance": "主体和重点继承色板；金属和液体保留辨识色。",
+      "framing": "方形透明裁切，主体占最长边约 82%。",
+      "source": "glb",
+      "tokens": {
+        "upAxis": "+Y",
+        "viewFrom": [
+          2.6,
+          1.7,
+          4.5
+        ],
+        "keyLightFrom": [
+          -0.55,
+          0.85,
+          0.7
+        ],
+        "frameUtilization": 0.82,
+        "previewWidthPx": 512,
+        "materialSource": "GLB materials[].pbrMetallicRoughness",
+        "alphaOutside": 0,
+        "anchors": {
+          "handle": [
+            0.5,
+            0.13
+          ]
+        }
+      },
+      "files": {
+        "model": "3D/suitcase.glb",
+        "preview": "3D/suitcase.png"
+      },
+      "variants": {
+        "atelier": {
+          "model": "3D/atelier/suitcase.glb",
+          "preview": "3D/atelier/suitcase.png"
+        },
+        "herb": {
+          "model": "3D/herb/suitcase.glb",
+          "preview": "3D/herb/suitcase.png"
+        },
+        "night": {
+          "model": "3D/night/suitcase.glb",
+          "preview": "3D/night/suitcase.png"
+        },
+        "ink": {
+          "model": "3D/ink/suitcase.glb",
+          "preview": "3D/ink/suitcase.png"
+        },
+        "coast": {
+          "model": "3D/coast/suitcase.glb",
+          "preview": "3D/coast/suitcase.png"
+        },
+        "plum": {
+          "model": "3D/plum/suitcase.glb",
+          "preview": "3D/plum/suitcase.png"
+        },
+        "cobalt": {
+          "model": "3D/cobalt/suitcase.glb",
+          "preview": "3D/cobalt/suitcase.png"
+        },
+        "slate": {
+          "model": "3D/slate/suitcase.glb",
+          "preview": "3D/slate/suitcase.png"
+        },
+        "porcelain": {
+          "model": "3D/porcelain/suitcase.glb",
+          "preview": "3D/porcelain/suitcase.png"
+        },
+        "sandpine": {
+          "model": "3D/sandpine/suitcase.glb",
+          "preview": "3D/sandpine/suitcase.png"
+        },
+        "violet": {
+          "model": "3D/violet/suitcase.glb",
+          "preview": "3D/violet/suitcase.png"
+        }
+      }
+    },
+    {
+      "id": "bottle",
+      "name": "水瓶",
+      "uses": "拧开、装水、携带",
+      "parts": "瓶身、瓶肩、防滑瓶盖",
+      "projection": "前右方正交视图；GLB 可改角度和部件位置。",
+      "appearance": "主体和重点继承色板；金属和液体保留辨识色。",
+      "framing": "方形透明裁切，主体占最长边约 82%。",
+      "source": "glb",
+      "tokens": {
+        "upAxis": "+Y",
+        "viewFrom": [
+          2.6,
+          1.7,
+          4.5
+        ],
+        "keyLightFrom": [
+          -0.55,
+          0.85,
+          0.7
+        ],
+        "frameUtilization": 0.82,
+        "previewWidthPx": 512,
+        "materialSource": "GLB materials[].pbrMetallicRoughness",
+        "alphaOutside": 0,
+        "anchors": {
+          "cap": [
+            0.5,
+            0.169
+          ]
+        }
+      },
+      "files": {
+        "model": "3D/bottle.glb",
+        "preview": "3D/bottle.png"
+      },
+      "variants": {
+        "atelier": {
+          "model": "3D/atelier/bottle.glb",
+          "preview": "3D/atelier/bottle.png"
+        },
+        "herb": {
+          "model": "3D/herb/bottle.glb",
+          "preview": "3D/herb/bottle.png"
+        },
+        "night": {
+          "model": "3D/night/bottle.glb",
+          "preview": "3D/night/bottle.png"
+        },
+        "ink": {
+          "model": "3D/ink/bottle.glb",
+          "preview": "3D/ink/bottle.png"
+        },
+        "coast": {
+          "model": "3D/coast/bottle.glb",
+          "preview": "3D/coast/bottle.png"
+        },
+        "plum": {
+          "model": "3D/plum/bottle.glb",
+          "preview": "3D/plum/bottle.png"
+        },
+        "cobalt": {
+          "model": "3D/cobalt/bottle.glb",
+          "preview": "3D/cobalt/bottle.png"
+        },
+        "slate": {
+          "model": "3D/slate/bottle.glb",
+          "preview": "3D/slate/bottle.png"
+        },
+        "porcelain": {
+          "model": "3D/porcelain/bottle.glb",
+          "preview": "3D/porcelain/bottle.png"
+        },
+        "sandpine": {
+          "model": "3D/sandpine/bottle.glb",
+          "preview": "3D/sandpine/bottle.png"
+        },
+        "violet": {
+          "model": "3D/violet/bottle.glb",
+          "preview": "3D/violet/bottle.png"
+        }
+      }
+    },
+    {
+      "id": "remote",
+      "name": "遥控器",
+      "uses": "遥控操作与指示按键",
+      "parts": "方向盘、电源键、按键组",
+      "projection": "前右方正交视图；GLB 可改角度和部件位置。",
+      "appearance": "主体和重点继承色板；金属和液体保留辨识色。",
+      "framing": "方形透明裁切，主体占最长边约 82%。",
+      "source": "glb",
+      "tokens": {
+        "upAxis": "+Y",
+        "viewFrom": [
+          2.6,
+          1.7,
+          4.5
+        ],
+        "keyLightFrom": [
+          -0.55,
+          0.85,
+          0.7
+        ],
+        "frameUtilization": 0.82,
+        "previewWidthPx": 512,
+        "materialSource": "GLB materials[].pbrMetallicRoughness",
+        "alphaOutside": 0,
+        "anchors": {
+          "power": [
+            0.408,
+            0.221
+          ]
+        }
+      },
+      "files": {
+        "model": "3D/remote.glb",
+        "preview": "3D/remote.png"
+      },
+      "variants": {
+        "atelier": {
+          "model": "3D/atelier/remote.glb",
+          "preview": "3D/atelier/remote.png"
+        },
+        "herb": {
+          "model": "3D/herb/remote.glb",
+          "preview": "3D/herb/remote.png"
+        },
+        "night": {
+          "model": "3D/night/remote.glb",
+          "preview": "3D/night/remote.png"
+        },
+        "ink": {
+          "model": "3D/ink/remote.glb",
+          "preview": "3D/ink/remote.png"
+        },
+        "coast": {
+          "model": "3D/coast/remote.glb",
+          "preview": "3D/coast/remote.png"
+        },
+        "plum": {
+          "model": "3D/plum/remote.glb",
+          "preview": "3D/plum/remote.png"
+        },
+        "cobalt": {
+          "model": "3D/cobalt/remote.glb",
+          "preview": "3D/cobalt/remote.png"
+        },
+        "slate": {
+          "model": "3D/slate/remote.glb",
+          "preview": "3D/slate/remote.png"
+        },
+        "porcelain": {
+          "model": "3D/porcelain/remote.glb",
+          "preview": "3D/porcelain/remote.png"
+        },
+        "sandpine": {
+          "model": "3D/sandpine/remote.glb",
+          "preview": "3D/sandpine/remote.png"
+        },
+        "violet": {
+          "model": "3D/violet/remote.glb",
+          "preview": "3D/violet/remote.png"
+        }
+      }
+    },
+    {
+      "id": "drawer",
+      "name": "抽屉",
+      "uses": "抽拉、分层整理",
+      "parts": "柜体侧板、抽屉底板、前板与把手",
+      "projection": "前右方正交视图；GLB 可改角度和部件位置。",
+      "appearance": "主体和重点继承色板；金属和液体保留辨识色。",
+      "framing": "方形透明裁切，主体占最长边约 82%。",
+      "source": "glb",
+      "tokens": {
+        "upAxis": "+Y",
+        "viewFrom": [
+          2.6,
+          1.7,
+          4.5
+        ],
+        "keyLightFrom": [
+          -0.55,
+          0.85,
+          0.7
+        ],
+        "frameUtilization": 0.82,
+        "previewWidthPx": 512,
+        "materialSource": "GLB materials[].pbrMetallicRoughness",
+        "alphaOutside": 0,
+        "anchors": {
+          "handle": [
+            0.311,
+            0.666
+          ]
+        }
+      },
+      "files": {
+        "model": "3D/drawer.glb",
+        "preview": "3D/drawer.png"
+      },
+      "variants": {
+        "atelier": {
+          "model": "3D/atelier/drawer.glb",
+          "preview": "3D/atelier/drawer.png"
+        },
+        "herb": {
+          "model": "3D/herb/drawer.glb",
+          "preview": "3D/herb/drawer.png"
+        },
+        "night": {
+          "model": "3D/night/drawer.glb",
+          "preview": "3D/night/drawer.png"
+        },
+        "ink": {
+          "model": "3D/ink/drawer.glb",
+          "preview": "3D/ink/drawer.png"
+        },
+        "coast": {
+          "model": "3D/coast/drawer.glb",
+          "preview": "3D/coast/drawer.png"
+        },
+        "plum": {
+          "model": "3D/plum/drawer.glb",
+          "preview": "3D/plum/drawer.png"
+        },
+        "cobalt": {
+          "model": "3D/cobalt/drawer.glb",
+          "preview": "3D/cobalt/drawer.png"
+        },
+        "slate": {
+          "model": "3D/slate/drawer.glb",
+          "preview": "3D/slate/drawer.png"
+        },
+        "porcelain": {
+          "model": "3D/porcelain/drawer.glb",
+          "preview": "3D/porcelain/drawer.png"
+        },
+        "sandpine": {
+          "model": "3D/sandpine/drawer.glb",
+          "preview": "3D/sandpine/drawer.png"
+        },
+        "violet": {
+          "model": "3D/violet/drawer.glb",
+          "preview": "3D/violet/drawer.png"
+        }
+      }
+    },
+    {
+      "id": "pump",
+      "name": "按压泵瓶",
+      "uses": "按压取液、清洁护理",
+      "parts": "瓶体、泵杆、按压头与出液嘴",
+      "projection": "前右方正交视图；GLB 可改角度和部件位置。",
+      "appearance": "主体和重点继承色板；金属和液体保留辨识色。",
+      "framing": "方形透明裁切，主体占最长边约 82%。",
+      "source": "glb",
+      "tokens": {
+        "upAxis": "+Y",
+        "viewFrom": [
+          2.6,
+          1.7,
+          4.5
+        ],
+        "keyLightFrom": [
+          -0.55,
+          0.85,
+          0.7
+        ],
+        "frameUtilization": 0.82,
+        "previewWidthPx": 512,
+        "materialSource": "GLB materials[].pbrMetallicRoughness",
+        "alphaOutside": 0,
+        "anchors": {
+          "spout": [
+            0.654,
+            0.19
+          ]
+        }
+      },
+      "files": {
+        "model": "3D/pump.glb",
+        "preview": "3D/pump.png"
+      },
+      "variants": {
+        "atelier": {
+          "model": "3D/atelier/pump.glb",
+          "preview": "3D/atelier/pump.png"
+        },
+        "herb": {
+          "model": "3D/herb/pump.glb",
+          "preview": "3D/herb/pump.png"
+        },
+        "night": {
+          "model": "3D/night/pump.glb",
+          "preview": "3D/night/pump.png"
+        },
+        "ink": {
+          "model": "3D/ink/pump.glb",
+          "preview": "3D/ink/pump.png"
+        },
+        "coast": {
+          "model": "3D/coast/pump.glb",
+          "preview": "3D/coast/pump.png"
+        },
+        "plum": {
+          "model": "3D/plum/pump.glb",
+          "preview": "3D/plum/pump.png"
+        },
+        "cobalt": {
+          "model": "3D/cobalt/pump.glb",
+          "preview": "3D/cobalt/pump.png"
+        },
+        "slate": {
+          "model": "3D/slate/pump.glb",
+          "preview": "3D/slate/pump.png"
+        },
+        "porcelain": {
+          "model": "3D/porcelain/pump.glb",
+          "preview": "3D/porcelain/pump.png"
+        },
+        "sandpine": {
+          "model": "3D/sandpine/pump.glb",
+          "preview": "3D/sandpine/pump.png"
+        },
+        "violet": {
+          "model": "3D/violet/pump.glb",
+          "preview": "3D/violet/pump.png"
         }
       }
     }
@@ -628,6 +1802,18 @@
         "slate": {
           "vector": "贴纸/slate/arrow.svg",
           "preview": "贴纸/slate/arrow.png"
+        },
+        "porcelain": {
+          "vector": "贴纸/porcelain/arrow.svg",
+          "preview": "贴纸/porcelain/arrow.png"
+        },
+        "sandpine": {
+          "vector": "贴纸/sandpine/arrow.svg",
+          "preview": "贴纸/sandpine/arrow.png"
+        },
+        "violet": {
+          "vector": "贴纸/violet/arrow.svg",
+          "preview": "贴纸/violet/arrow.png"
         }
       }
     },
@@ -686,6 +1872,18 @@
         "slate": {
           "vector": "贴纸/slate/ring.svg",
           "preview": "贴纸/slate/ring.png"
+        },
+        "porcelain": {
+          "vector": "贴纸/porcelain/ring.svg",
+          "preview": "贴纸/porcelain/ring.png"
+        },
+        "sandpine": {
+          "vector": "贴纸/sandpine/ring.svg",
+          "preview": "贴纸/sandpine/ring.png"
+        },
+        "violet": {
+          "vector": "贴纸/violet/ring.svg",
+          "preview": "贴纸/violet/ring.png"
         }
       }
     },
@@ -744,6 +1942,18 @@
         "slate": {
           "vector": "贴纸/slate/check.svg",
           "preview": "贴纸/slate/check.png"
+        },
+        "porcelain": {
+          "vector": "贴纸/porcelain/check.svg",
+          "preview": "贴纸/porcelain/check.png"
+        },
+        "sandpine": {
+          "vector": "贴纸/sandpine/check.svg",
+          "preview": "贴纸/sandpine/check.png"
+        },
+        "violet": {
+          "vector": "贴纸/violet/check.svg",
+          "preview": "贴纸/violet/check.png"
         }
       }
     },
@@ -802,6 +2012,18 @@
         "slate": {
           "vector": "贴纸/slate/tab.svg",
           "preview": "贴纸/slate/tab.png"
+        },
+        "porcelain": {
+          "vector": "贴纸/porcelain/tab.svg",
+          "preview": "贴纸/porcelain/tab.png"
+        },
+        "sandpine": {
+          "vector": "贴纸/sandpine/tab.svg",
+          "preview": "贴纸/sandpine/tab.png"
+        },
+        "violet": {
+          "vector": "贴纸/violet/tab.svg",
+          "preview": "贴纸/violet/tab.png"
         }
       }
     },
@@ -860,6 +2082,18 @@
         "slate": {
           "vector": "贴纸/slate/bubble.svg",
           "preview": "贴纸/slate/bubble.png"
+        },
+        "porcelain": {
+          "vector": "贴纸/porcelain/bubble.svg",
+          "preview": "贴纸/porcelain/bubble.png"
+        },
+        "sandpine": {
+          "vector": "贴纸/sandpine/bubble.svg",
+          "preview": "贴纸/sandpine/bubble.png"
+        },
+        "violet": {
+          "vector": "贴纸/violet/bubble.svg",
+          "preview": "贴纸/violet/bubble.png"
         }
       }
     },
@@ -918,6 +2152,18 @@
         "slate": {
           "vector": "贴纸/slate/spark.svg",
           "preview": "贴纸/slate/spark.png"
+        },
+        "porcelain": {
+          "vector": "贴纸/porcelain/spark.svg",
+          "preview": "贴纸/porcelain/spark.png"
+        },
+        "sandpine": {
+          "vector": "贴纸/sandpine/spark.svg",
+          "preview": "贴纸/sandpine/spark.png"
+        },
+        "violet": {
+          "vector": "贴纸/violet/spark.svg",
+          "preview": "贴纸/violet/spark.png"
         }
       }
     },
@@ -976,6 +2222,18 @@
         "slate": {
           "vector": "贴纸/slate/bracket.svg",
           "preview": "贴纸/slate/bracket.png"
+        },
+        "porcelain": {
+          "vector": "贴纸/porcelain/bracket.svg",
+          "preview": "贴纸/porcelain/bracket.png"
+        },
+        "sandpine": {
+          "vector": "贴纸/sandpine/bracket.svg",
+          "preview": "贴纸/sandpine/bracket.png"
+        },
+        "violet": {
+          "vector": "贴纸/violet/bracket.svg",
+          "preview": "贴纸/violet/bracket.png"
         }
       }
     },
@@ -1034,6 +2292,1202 @@
         "slate": {
           "vector": "贴纸/slate/tape.svg",
           "preview": "贴纸/slate/tape.png"
+        },
+        "porcelain": {
+          "vector": "贴纸/porcelain/tape.svg",
+          "preview": "贴纸/porcelain/tape.png"
+        },
+        "sandpine": {
+          "vector": "贴纸/sandpine/tape.svg",
+          "preview": "贴纸/sandpine/tape.png"
+        },
+        "violet": {
+          "vector": "贴纸/violet/tape.svg",
+          "preview": "贴纸/violet/tape.png"
+        }
+      }
+    },
+    {
+      "id": "pin",
+      "name": "定位针",
+      "uses": "定位",
+      "shape": "定位针，定位",
+      "edge": "针尖对齐目的地或物体位置",
+      "source": "pictograms",
+      "tokens": {
+        "viewBox": [
+          0,
+          0,
+          192,
+          128
+        ],
+        "strokeLinejoin": "round",
+        "strokeLinecap": "round",
+        "svgPaints": "see source SVG for per-path fills and weights",
+        "alphaOutside": 0,
+        "anchor": [
+          96,
+          109
+        ]
+      },
+      "files": {
+        "vector": "贴纸/pin.svg",
+        "preview": "贴纸/pin.png"
+      },
+      "variants": {
+        "atelier": {
+          "vector": "贴纸/atelier/pin.svg",
+          "preview": "贴纸/atelier/pin.png"
+        },
+        "herb": {
+          "vector": "贴纸/herb/pin.svg",
+          "preview": "贴纸/herb/pin.png"
+        },
+        "night": {
+          "vector": "贴纸/night/pin.svg",
+          "preview": "贴纸/night/pin.png"
+        },
+        "ink": {
+          "vector": "贴纸/ink/pin.svg",
+          "preview": "贴纸/ink/pin.png"
+        },
+        "coast": {
+          "vector": "贴纸/coast/pin.svg",
+          "preview": "贴纸/coast/pin.png"
+        },
+        "plum": {
+          "vector": "贴纸/plum/pin.svg",
+          "preview": "贴纸/plum/pin.png"
+        },
+        "cobalt": {
+          "vector": "贴纸/cobalt/pin.svg",
+          "preview": "贴纸/cobalt/pin.png"
+        },
+        "slate": {
+          "vector": "贴纸/slate/pin.svg",
+          "preview": "贴纸/slate/pin.png"
+        },
+        "porcelain": {
+          "vector": "贴纸/porcelain/pin.svg",
+          "preview": "贴纸/porcelain/pin.png"
+        },
+        "sandpine": {
+          "vector": "贴纸/sandpine/pin.svg",
+          "preview": "贴纸/sandpine/pin.png"
+        },
+        "violet": {
+          "vector": "贴纸/violet/pin.svg",
+          "preview": "贴纸/violet/pin.png"
+        }
+      }
+    },
+    {
+      "id": "loupe",
+      "name": "放大窗",
+      "uses": "看细节",
+      "shape": "放大窗，看细节",
+      "edge": "镜片中心对齐待观察的细节",
+      "source": "pictograms",
+      "tokens": {
+        "viewBox": [
+          0,
+          0,
+          192,
+          128
+        ],
+        "strokeLinejoin": "round",
+        "strokeLinecap": "round",
+        "svgPaints": "see source SVG for per-path fills and weights",
+        "alphaOutside": 0,
+        "anchor": [
+          79,
+          51
+        ]
+      },
+      "files": {
+        "vector": "贴纸/loupe.svg",
+        "preview": "贴纸/loupe.png"
+      },
+      "variants": {
+        "atelier": {
+          "vector": "贴纸/atelier/loupe.svg",
+          "preview": "贴纸/atelier/loupe.png"
+        },
+        "herb": {
+          "vector": "贴纸/herb/loupe.svg",
+          "preview": "贴纸/herb/loupe.png"
+        },
+        "night": {
+          "vector": "贴纸/night/loupe.svg",
+          "preview": "贴纸/night/loupe.png"
+        },
+        "ink": {
+          "vector": "贴纸/ink/loupe.svg",
+          "preview": "贴纸/ink/loupe.png"
+        },
+        "coast": {
+          "vector": "贴纸/coast/loupe.svg",
+          "preview": "贴纸/coast/loupe.png"
+        },
+        "plum": {
+          "vector": "贴纸/plum/loupe.svg",
+          "preview": "贴纸/plum/loupe.png"
+        },
+        "cobalt": {
+          "vector": "贴纸/cobalt/loupe.svg",
+          "preview": "贴纸/cobalt/loupe.png"
+        },
+        "slate": {
+          "vector": "贴纸/slate/loupe.svg",
+          "preview": "贴纸/slate/loupe.png"
+        },
+        "porcelain": {
+          "vector": "贴纸/porcelain/loupe.svg",
+          "preview": "贴纸/porcelain/loupe.png"
+        },
+        "sandpine": {
+          "vector": "贴纸/sandpine/loupe.svg",
+          "preview": "贴纸/sandpine/loupe.png"
+        },
+        "violet": {
+          "vector": "贴纸/violet/loupe.svg",
+          "preview": "贴纸/violet/loupe.png"
+        }
+      }
+    },
+    {
+      "id": "focus",
+      "name": "四角取景框",
+      "uses": "框出范围",
+      "shape": "四角取景框，框出范围",
+      "edge": "四个角包围主体，中心完全透明",
+      "source": "pictograms",
+      "tokens": {
+        "viewBox": [
+          0,
+          0,
+          192,
+          128
+        ],
+        "strokeLinejoin": "round",
+        "strokeLinecap": "round",
+        "svgPaints": "see source SVG for per-path fills and weights",
+        "alphaOutside": 0,
+        "anchor": [
+          96,
+          64
+        ]
+      },
+      "files": {
+        "vector": "贴纸/focus.svg",
+        "preview": "贴纸/focus.png"
+      },
+      "variants": {
+        "atelier": {
+          "vector": "贴纸/atelier/focus.svg",
+          "preview": "贴纸/atelier/focus.png"
+        },
+        "herb": {
+          "vector": "贴纸/herb/focus.svg",
+          "preview": "贴纸/herb/focus.png"
+        },
+        "night": {
+          "vector": "贴纸/night/focus.svg",
+          "preview": "贴纸/night/focus.png"
+        },
+        "ink": {
+          "vector": "贴纸/ink/focus.svg",
+          "preview": "贴纸/ink/focus.png"
+        },
+        "coast": {
+          "vector": "贴纸/coast/focus.svg",
+          "preview": "贴纸/coast/focus.png"
+        },
+        "plum": {
+          "vector": "贴纸/plum/focus.svg",
+          "preview": "贴纸/plum/focus.png"
+        },
+        "cobalt": {
+          "vector": "贴纸/cobalt/focus.svg",
+          "preview": "贴纸/cobalt/focus.png"
+        },
+        "slate": {
+          "vector": "贴纸/slate/focus.svg",
+          "preview": "贴纸/slate/focus.png"
+        },
+        "porcelain": {
+          "vector": "贴纸/porcelain/focus.svg",
+          "preview": "贴纸/porcelain/focus.png"
+        },
+        "sandpine": {
+          "vector": "贴纸/sandpine/focus.svg",
+          "preview": "贴纸/sandpine/focus.png"
+        },
+        "violet": {
+          "vector": "贴纸/violet/focus.svg",
+          "preview": "贴纸/violet/focus.png"
+        }
+      }
+    },
+    {
+      "id": "leader",
+      "name": "端点引线",
+      "uses": "指部位",
+      "shape": "端点引线，指部位",
+      "edge": "圆点端贴在部件上，横线端靠近文字",
+      "source": "pictograms",
+      "tokens": {
+        "viewBox": [
+          0,
+          0,
+          192,
+          128
+        ],
+        "strokeLinejoin": "round",
+        "strokeLinecap": "round",
+        "svgPaints": "see source SVG for per-path fills and weights",
+        "alphaOutside": 0,
+        "anchor": [
+          32,
+          93
+        ]
+      },
+      "files": {
+        "vector": "贴纸/leader.svg",
+        "preview": "贴纸/leader.png"
+      },
+      "variants": {
+        "atelier": {
+          "vector": "贴纸/atelier/leader.svg",
+          "preview": "贴纸/atelier/leader.png"
+        },
+        "herb": {
+          "vector": "贴纸/herb/leader.svg",
+          "preview": "贴纸/herb/leader.png"
+        },
+        "night": {
+          "vector": "贴纸/night/leader.svg",
+          "preview": "贴纸/night/leader.png"
+        },
+        "ink": {
+          "vector": "贴纸/ink/leader.svg",
+          "preview": "贴纸/ink/leader.png"
+        },
+        "coast": {
+          "vector": "贴纸/coast/leader.svg",
+          "preview": "贴纸/coast/leader.png"
+        },
+        "plum": {
+          "vector": "贴纸/plum/leader.svg",
+          "preview": "贴纸/plum/leader.png"
+        },
+        "cobalt": {
+          "vector": "贴纸/cobalt/leader.svg",
+          "preview": "贴纸/cobalt/leader.png"
+        },
+        "slate": {
+          "vector": "贴纸/slate/leader.svg",
+          "preview": "贴纸/slate/leader.png"
+        },
+        "porcelain": {
+          "vector": "贴纸/porcelain/leader.svg",
+          "preview": "贴纸/porcelain/leader.png"
+        },
+        "sandpine": {
+          "vector": "贴纸/sandpine/leader.svg",
+          "preview": "贴纸/sandpine/leader.png"
+        },
+        "violet": {
+          "vector": "贴纸/violet/leader.svg",
+          "preview": "贴纸/violet/leader.png"
+        }
+      }
+    },
+    {
+      "id": "tap",
+      "name": "指尖轻点",
+      "uses": "按键",
+      "shape": "指尖轻点，按键",
+      "edge": "指尖与按钮中心相接，点按光圈朝外",
+      "source": "pictograms",
+      "tokens": {
+        "viewBox": [
+          0,
+          0,
+          192,
+          128
+        ],
+        "strokeLinejoin": "round",
+        "strokeLinecap": "round",
+        "svgPaints": "see source SVG for per-path fills and weights",
+        "alphaOutside": 0,
+        "anchor": [
+          82,
+          39
+        ]
+      },
+      "files": {
+        "vector": "贴纸/tap.svg",
+        "preview": "贴纸/tap.png"
+      },
+      "variants": {
+        "atelier": {
+          "vector": "贴纸/atelier/tap.svg",
+          "preview": "贴纸/atelier/tap.png"
+        },
+        "herb": {
+          "vector": "贴纸/herb/tap.svg",
+          "preview": "贴纸/herb/tap.png"
+        },
+        "night": {
+          "vector": "贴纸/night/tap.svg",
+          "preview": "贴纸/night/tap.png"
+        },
+        "ink": {
+          "vector": "贴纸/ink/tap.svg",
+          "preview": "贴纸/ink/tap.png"
+        },
+        "coast": {
+          "vector": "贴纸/coast/tap.svg",
+          "preview": "贴纸/coast/tap.png"
+        },
+        "plum": {
+          "vector": "贴纸/plum/tap.svg",
+          "preview": "贴纸/plum/tap.png"
+        },
+        "cobalt": {
+          "vector": "贴纸/cobalt/tap.svg",
+          "preview": "贴纸/cobalt/tap.png"
+        },
+        "slate": {
+          "vector": "贴纸/slate/tap.svg",
+          "preview": "贴纸/slate/tap.png"
+        },
+        "porcelain": {
+          "vector": "贴纸/porcelain/tap.svg",
+          "preview": "贴纸/porcelain/tap.png"
+        },
+        "sandpine": {
+          "vector": "贴纸/sandpine/tap.svg",
+          "preview": "贴纸/sandpine/tap.png"
+        },
+        "violet": {
+          "vector": "贴纸/violet/tap.svg",
+          "preview": "贴纸/violet/tap.png"
+        }
+      }
+    },
+    {
+      "id": "dragtrail",
+      "name": "拖动轨迹",
+      "uses": "拖移",
+      "shape": "拖动轨迹，拖移",
+      "edge": "圆点对应起点，箭头对应手势终点",
+      "source": "pictograms",
+      "tokens": {
+        "viewBox": [
+          0,
+          0,
+          192,
+          128
+        ],
+        "strokeLinejoin": "round",
+        "strokeLinecap": "round",
+        "svgPaints": "see source SVG for per-path fills and weights",
+        "alphaOutside": 0,
+        "anchor": [
+          153,
+          35
+        ]
+      },
+      "files": {
+        "vector": "贴纸/dragtrail.svg",
+        "preview": "贴纸/dragtrail.png"
+      },
+      "variants": {
+        "atelier": {
+          "vector": "贴纸/atelier/dragtrail.svg",
+          "preview": "贴纸/atelier/dragtrail.png"
+        },
+        "herb": {
+          "vector": "贴纸/herb/dragtrail.svg",
+          "preview": "贴纸/herb/dragtrail.png"
+        },
+        "night": {
+          "vector": "贴纸/night/dragtrail.svg",
+          "preview": "贴纸/night/dragtrail.png"
+        },
+        "ink": {
+          "vector": "贴纸/ink/dragtrail.svg",
+          "preview": "贴纸/ink/dragtrail.png"
+        },
+        "coast": {
+          "vector": "贴纸/coast/dragtrail.svg",
+          "preview": "贴纸/coast/dragtrail.png"
+        },
+        "plum": {
+          "vector": "贴纸/plum/dragtrail.svg",
+          "preview": "贴纸/plum/dragtrail.png"
+        },
+        "cobalt": {
+          "vector": "贴纸/cobalt/dragtrail.svg",
+          "preview": "贴纸/cobalt/dragtrail.png"
+        },
+        "slate": {
+          "vector": "贴纸/slate/dragtrail.svg",
+          "preview": "贴纸/slate/dragtrail.png"
+        },
+        "porcelain": {
+          "vector": "贴纸/porcelain/dragtrail.svg",
+          "preview": "贴纸/porcelain/dragtrail.png"
+        },
+        "sandpine": {
+          "vector": "贴纸/sandpine/dragtrail.svg",
+          "preview": "贴纸/sandpine/dragtrail.png"
+        },
+        "violet": {
+          "vector": "贴纸/violet/dragtrail.svg",
+          "preview": "贴纸/violet/dragtrail.png"
+        }
+      }
+    },
+    {
+      "id": "rotatearc",
+      "name": "旋转弧",
+      "uses": "旋转",
+      "shape": "旋转弧，旋转",
+      "edge": "弧线圆心压在转轴，箭头给出旋转方向",
+      "source": "pictograms",
+      "tokens": {
+        "viewBox": [
+          0,
+          0,
+          192,
+          128
+        ],
+        "strokeLinejoin": "round",
+        "strokeLinecap": "round",
+        "svgPaints": "see source SVG for per-path fills and weights",
+        "alphaOutside": 0,
+        "anchor": [
+          98,
+          66
+        ]
+      },
+      "files": {
+        "vector": "贴纸/rotatearc.svg",
+        "preview": "贴纸/rotatearc.png"
+      },
+      "variants": {
+        "atelier": {
+          "vector": "贴纸/atelier/rotatearc.svg",
+          "preview": "贴纸/atelier/rotatearc.png"
+        },
+        "herb": {
+          "vector": "贴纸/herb/rotatearc.svg",
+          "preview": "贴纸/herb/rotatearc.png"
+        },
+        "night": {
+          "vector": "贴纸/night/rotatearc.svg",
+          "preview": "贴纸/night/rotatearc.png"
+        },
+        "ink": {
+          "vector": "贴纸/ink/rotatearc.svg",
+          "preview": "贴纸/ink/rotatearc.png"
+        },
+        "coast": {
+          "vector": "贴纸/coast/rotatearc.svg",
+          "preview": "贴纸/coast/rotatearc.png"
+        },
+        "plum": {
+          "vector": "贴纸/plum/rotatearc.svg",
+          "preview": "贴纸/plum/rotatearc.png"
+        },
+        "cobalt": {
+          "vector": "贴纸/cobalt/rotatearc.svg",
+          "preview": "贴纸/cobalt/rotatearc.png"
+        },
+        "slate": {
+          "vector": "贴纸/slate/rotatearc.svg",
+          "preview": "贴纸/slate/rotatearc.png"
+        },
+        "porcelain": {
+          "vector": "贴纸/porcelain/rotatearc.svg",
+          "preview": "贴纸/porcelain/rotatearc.png"
+        },
+        "sandpine": {
+          "vector": "贴纸/sandpine/rotatearc.svg",
+          "preview": "贴纸/sandpine/rotatearc.png"
+        },
+        "violet": {
+          "vector": "贴纸/violet/rotatearc.svg",
+          "preview": "贴纸/violet/rotatearc.png"
+        }
+      }
+    },
+    {
+      "id": "stepnum",
+      "name": "步骤号",
+      "uses": "分步骤",
+      "shape": "步骤号，分步骤",
+      "edge": "序号可在 SVG 里改，圆章对齐当前一步",
+      "source": "pictograms",
+      "tokens": {
+        "viewBox": [
+          0,
+          0,
+          192,
+          128
+        ],
+        "strokeLinejoin": "round",
+        "strokeLinecap": "round",
+        "svgPaints": "see source SVG for per-path fills and weights",
+        "alphaOutside": 0,
+        "anchor": [
+          94,
+          65
+        ]
+      },
+      "files": {
+        "vector": "贴纸/stepnum.svg",
+        "preview": "贴纸/stepnum.png"
+      },
+      "variants": {
+        "atelier": {
+          "vector": "贴纸/atelier/stepnum.svg",
+          "preview": "贴纸/atelier/stepnum.png"
+        },
+        "herb": {
+          "vector": "贴纸/herb/stepnum.svg",
+          "preview": "贴纸/herb/stepnum.png"
+        },
+        "night": {
+          "vector": "贴纸/night/stepnum.svg",
+          "preview": "贴纸/night/stepnum.png"
+        },
+        "ink": {
+          "vector": "贴纸/ink/stepnum.svg",
+          "preview": "贴纸/ink/stepnum.png"
+        },
+        "coast": {
+          "vector": "贴纸/coast/stepnum.svg",
+          "preview": "贴纸/coast/stepnum.png"
+        },
+        "plum": {
+          "vector": "贴纸/plum/stepnum.svg",
+          "preview": "贴纸/plum/stepnum.png"
+        },
+        "cobalt": {
+          "vector": "贴纸/cobalt/stepnum.svg",
+          "preview": "贴纸/cobalt/stepnum.png"
+        },
+        "slate": {
+          "vector": "贴纸/slate/stepnum.svg",
+          "preview": "贴纸/slate/stepnum.png"
+        },
+        "porcelain": {
+          "vector": "贴纸/porcelain/stepnum.svg",
+          "preview": "贴纸/porcelain/stepnum.png"
+        },
+        "sandpine": {
+          "vector": "贴纸/sandpine/stepnum.svg",
+          "preview": "贴纸/sandpine/stepnum.png"
+        },
+        "violet": {
+          "vector": "贴纸/violet/stepnum.svg",
+          "preview": "贴纸/violet/stepnum.png"
+        }
+      }
+    },
+    {
+      "id": "dimension",
+      "name": "尺寸线",
+      "uses": "比较长度",
+      "shape": "尺寸线，比较长度",
+      "edge": "两条短端线贴住需要比较的边界",
+      "source": "pictograms",
+      "tokens": {
+        "viewBox": [
+          0,
+          0,
+          192,
+          128
+        ],
+        "strokeLinejoin": "round",
+        "strokeLinecap": "round",
+        "svgPaints": "see source SVG for per-path fills and weights",
+        "alphaOutside": 0,
+        "anchor": [
+          29,
+          66
+        ]
+      },
+      "files": {
+        "vector": "贴纸/dimension.svg",
+        "preview": "贴纸/dimension.png"
+      },
+      "variants": {
+        "atelier": {
+          "vector": "贴纸/atelier/dimension.svg",
+          "preview": "贴纸/atelier/dimension.png"
+        },
+        "herb": {
+          "vector": "贴纸/herb/dimension.svg",
+          "preview": "贴纸/herb/dimension.png"
+        },
+        "night": {
+          "vector": "贴纸/night/dimension.svg",
+          "preview": "贴纸/night/dimension.png"
+        },
+        "ink": {
+          "vector": "贴纸/ink/dimension.svg",
+          "preview": "贴纸/ink/dimension.png"
+        },
+        "coast": {
+          "vector": "贴纸/coast/dimension.svg",
+          "preview": "贴纸/coast/dimension.png"
+        },
+        "plum": {
+          "vector": "贴纸/plum/dimension.svg",
+          "preview": "贴纸/plum/dimension.png"
+        },
+        "cobalt": {
+          "vector": "贴纸/cobalt/dimension.svg",
+          "preview": "贴纸/cobalt/dimension.png"
+        },
+        "slate": {
+          "vector": "贴纸/slate/dimension.svg",
+          "preview": "贴纸/slate/dimension.png"
+        },
+        "porcelain": {
+          "vector": "贴纸/porcelain/dimension.svg",
+          "preview": "贴纸/porcelain/dimension.png"
+        },
+        "sandpine": {
+          "vector": "贴纸/sandpine/dimension.svg",
+          "preview": "贴纸/sandpine/dimension.png"
+        },
+        "violet": {
+          "vector": "贴纸/violet/dimension.svg",
+          "preview": "贴纸/violet/dimension.png"
+        }
+      }
+    },
+    {
+      "id": "level",
+      "name": "液位线",
+      "uses": "读刻度",
+      "shape": "液位线，读刻度",
+      "edge": "横线压在液面，两端三角对齐读数位置",
+      "source": "pictograms",
+      "tokens": {
+        "viewBox": [
+          0,
+          0,
+          192,
+          128
+        ],
+        "strokeLinejoin": "round",
+        "strokeLinecap": "round",
+        "svgPaints": "see source SVG for per-path fills and weights",
+        "alphaOutside": 0,
+        "anchor": [
+          96,
+          68
+        ]
+      },
+      "files": {
+        "vector": "贴纸/level.svg",
+        "preview": "贴纸/level.png"
+      },
+      "variants": {
+        "atelier": {
+          "vector": "贴纸/atelier/level.svg",
+          "preview": "贴纸/atelier/level.png"
+        },
+        "herb": {
+          "vector": "贴纸/herb/level.svg",
+          "preview": "贴纸/herb/level.png"
+        },
+        "night": {
+          "vector": "贴纸/night/level.svg",
+          "preview": "贴纸/night/level.png"
+        },
+        "ink": {
+          "vector": "贴纸/ink/level.svg",
+          "preview": "贴纸/ink/level.png"
+        },
+        "coast": {
+          "vector": "贴纸/coast/level.svg",
+          "preview": "贴纸/coast/level.png"
+        },
+        "plum": {
+          "vector": "贴纸/plum/level.svg",
+          "preview": "贴纸/plum/level.png"
+        },
+        "cobalt": {
+          "vector": "贴纸/cobalt/level.svg",
+          "preview": "贴纸/cobalt/level.png"
+        },
+        "slate": {
+          "vector": "贴纸/slate/level.svg",
+          "preview": "贴纸/slate/level.png"
+        },
+        "porcelain": {
+          "vector": "贴纸/porcelain/level.svg",
+          "preview": "贴纸/porcelain/level.png"
+        },
+        "sandpine": {
+          "vector": "贴纸/sandpine/level.svg",
+          "preview": "贴纸/sandpine/level.png"
+        },
+        "violet": {
+          "vector": "贴纸/violet/level.svg",
+          "preview": "贴纸/violet/level.png"
+        }
+      }
+    },
+    {
+      "id": "beforeafter",
+      "name": "前后标签",
+      "uses": "看变化",
+      "shape": "前后标签，看变化",
+      "edge": "左右标签分别放在两种状态上",
+      "source": "pictograms",
+      "tokens": {
+        "viewBox": [
+          0,
+          0,
+          192,
+          128
+        ],
+        "strokeLinejoin": "round",
+        "strokeLinecap": "round",
+        "svgPaints": "see source SVG for per-path fills and weights",
+        "alphaOutside": 0,
+        "anchor": [
+          95,
+          63
+        ]
+      },
+      "files": {
+        "vector": "贴纸/beforeafter.svg",
+        "preview": "贴纸/beforeafter.png"
+      },
+      "variants": {
+        "atelier": {
+          "vector": "贴纸/atelier/beforeafter.svg",
+          "preview": "贴纸/atelier/beforeafter.png"
+        },
+        "herb": {
+          "vector": "贴纸/herb/beforeafter.svg",
+          "preview": "贴纸/herb/beforeafter.png"
+        },
+        "night": {
+          "vector": "贴纸/night/beforeafter.svg",
+          "preview": "贴纸/night/beforeafter.png"
+        },
+        "ink": {
+          "vector": "贴纸/ink/beforeafter.svg",
+          "preview": "贴纸/ink/beforeafter.png"
+        },
+        "coast": {
+          "vector": "贴纸/coast/beforeafter.svg",
+          "preview": "贴纸/coast/beforeafter.png"
+        },
+        "plum": {
+          "vector": "贴纸/plum/beforeafter.svg",
+          "preview": "贴纸/plum/beforeafter.png"
+        },
+        "cobalt": {
+          "vector": "贴纸/cobalt/beforeafter.svg",
+          "preview": "贴纸/cobalt/beforeafter.png"
+        },
+        "slate": {
+          "vector": "贴纸/slate/beforeafter.svg",
+          "preview": "贴纸/slate/beforeafter.png"
+        },
+        "porcelain": {
+          "vector": "贴纸/porcelain/beforeafter.svg",
+          "preview": "贴纸/porcelain/beforeafter.png"
+        },
+        "sandpine": {
+          "vector": "贴纸/sandpine/beforeafter.svg",
+          "preview": "贴纸/sandpine/beforeafter.png"
+        },
+        "violet": {
+          "vector": "贴纸/violet/beforeafter.svg",
+          "preview": "贴纸/violet/beforeafter.png"
+        }
+      }
+    },
+    {
+      "id": "diffband",
+      "name": "差异高亮带",
+      "uses": "圈变化",
+      "shape": "差异高亮带，圈变化",
+      "edge": "半透明色带只盖住不同的那一行",
+      "source": "pictograms",
+      "tokens": {
+        "viewBox": [
+          0,
+          0,
+          192,
+          128
+        ],
+        "strokeLinejoin": "round",
+        "strokeLinecap": "round",
+        "svgPaints": "see source SVG for per-path fills and weights",
+        "alphaOutside": 0,
+        "anchor": [
+          93,
+          64
+        ]
+      },
+      "files": {
+        "vector": "贴纸/diffband.svg",
+        "preview": "贴纸/diffband.png"
+      },
+      "variants": {
+        "atelier": {
+          "vector": "贴纸/atelier/diffband.svg",
+          "preview": "贴纸/atelier/diffband.png"
+        },
+        "herb": {
+          "vector": "贴纸/herb/diffband.svg",
+          "preview": "贴纸/herb/diffband.png"
+        },
+        "night": {
+          "vector": "贴纸/night/diffband.svg",
+          "preview": "贴纸/night/diffband.png"
+        },
+        "ink": {
+          "vector": "贴纸/ink/diffband.svg",
+          "preview": "贴纸/ink/diffband.png"
+        },
+        "coast": {
+          "vector": "贴纸/coast/diffband.svg",
+          "preview": "贴纸/coast/diffband.png"
+        },
+        "plum": {
+          "vector": "贴纸/plum/diffband.svg",
+          "preview": "贴纸/plum/diffband.png"
+        },
+        "cobalt": {
+          "vector": "贴纸/cobalt/diffband.svg",
+          "preview": "贴纸/cobalt/diffband.png"
+        },
+        "slate": {
+          "vector": "贴纸/slate/diffband.svg",
+          "preview": "贴纸/slate/diffband.png"
+        },
+        "porcelain": {
+          "vector": "贴纸/porcelain/diffband.svg",
+          "preview": "贴纸/porcelain/diffband.png"
+        },
+        "sandpine": {
+          "vector": "贴纸/sandpine/diffband.svg",
+          "preview": "贴纸/sandpine/diffband.png"
+        },
+        "violet": {
+          "vector": "贴纸/violet/diffband.svg",
+          "preview": "贴纸/violet/diffband.png"
+        }
+      }
+    },
+    {
+      "id": "caution",
+      "name": "注意角标",
+      "uses": "提醒",
+      "shape": "注意角标，提醒",
+      "edge": "尖角朝向注意点，叠放在留白处",
+      "source": "pictograms",
+      "tokens": {
+        "viewBox": [
+          0,
+          0,
+          192,
+          128
+        ],
+        "strokeLinejoin": "round",
+        "strokeLinecap": "round",
+        "svgPaints": "see source SVG for per-path fills and weights",
+        "alphaOutside": 0,
+        "anchor": [
+          94,
+          90
+        ]
+      },
+      "files": {
+        "vector": "贴纸/caution.svg",
+        "preview": "贴纸/caution.png"
+      },
+      "variants": {
+        "atelier": {
+          "vector": "贴纸/atelier/caution.svg",
+          "preview": "贴纸/atelier/caution.png"
+        },
+        "herb": {
+          "vector": "贴纸/herb/caution.svg",
+          "preview": "贴纸/herb/caution.png"
+        },
+        "night": {
+          "vector": "贴纸/night/caution.svg",
+          "preview": "贴纸/night/caution.png"
+        },
+        "ink": {
+          "vector": "贴纸/ink/caution.svg",
+          "preview": "贴纸/ink/caution.png"
+        },
+        "coast": {
+          "vector": "贴纸/coast/caution.svg",
+          "preview": "贴纸/coast/caution.png"
+        },
+        "plum": {
+          "vector": "贴纸/plum/caution.svg",
+          "preview": "贴纸/plum/caution.png"
+        },
+        "cobalt": {
+          "vector": "贴纸/cobalt/caution.svg",
+          "preview": "贴纸/cobalt/caution.png"
+        },
+        "slate": {
+          "vector": "贴纸/slate/caution.svg",
+          "preview": "贴纸/slate/caution.png"
+        },
+        "porcelain": {
+          "vector": "贴纸/porcelain/caution.svg",
+          "preview": "贴纸/porcelain/caution.png"
+        },
+        "sandpine": {
+          "vector": "贴纸/sandpine/caution.svg",
+          "preview": "贴纸/sandpine/caution.png"
+        },
+        "violet": {
+          "vector": "贴纸/violet/caution.svg",
+          "preview": "贴纸/violet/caution.png"
+        }
+      }
+    },
+    {
+      "id": "wrong",
+      "name": "错误叉",
+      "uses": "纠错",
+      "shape": "错误叉，纠错",
+      "edge": "交叉中心压在错误项上",
+      "source": "pictograms",
+      "tokens": {
+        "viewBox": [
+          0,
+          0,
+          192,
+          128
+        ],
+        "strokeLinejoin": "round",
+        "strokeLinecap": "round",
+        "svgPaints": "see source SVG for per-path fills and weights",
+        "alphaOutside": 0,
+        "anchor": [
+          96,
+          64
+        ]
+      },
+      "files": {
+        "vector": "贴纸/wrong.svg",
+        "preview": "贴纸/wrong.png"
+      },
+      "variants": {
+        "atelier": {
+          "vector": "贴纸/atelier/wrong.svg",
+          "preview": "贴纸/atelier/wrong.png"
+        },
+        "herb": {
+          "vector": "贴纸/herb/wrong.svg",
+          "preview": "贴纸/herb/wrong.png"
+        },
+        "night": {
+          "vector": "贴纸/night/wrong.svg",
+          "preview": "贴纸/night/wrong.png"
+        },
+        "ink": {
+          "vector": "贴纸/ink/wrong.svg",
+          "preview": "贴纸/ink/wrong.png"
+        },
+        "coast": {
+          "vector": "贴纸/coast/wrong.svg",
+          "preview": "贴纸/coast/wrong.png"
+        },
+        "plum": {
+          "vector": "贴纸/plum/wrong.svg",
+          "preview": "贴纸/plum/wrong.png"
+        },
+        "cobalt": {
+          "vector": "贴纸/cobalt/wrong.svg",
+          "preview": "贴纸/cobalt/wrong.png"
+        },
+        "slate": {
+          "vector": "贴纸/slate/wrong.svg",
+          "preview": "贴纸/slate/wrong.png"
+        },
+        "porcelain": {
+          "vector": "贴纸/porcelain/wrong.svg",
+          "preview": "贴纸/porcelain/wrong.png"
+        },
+        "sandpine": {
+          "vector": "贴纸/sandpine/wrong.svg",
+          "preview": "贴纸/sandpine/wrong.png"
+        },
+        "violet": {
+          "vector": "贴纸/violet/wrong.svg",
+          "preview": "贴纸/violet/wrong.png"
+        }
+      }
+    },
+    {
+      "id": "mute",
+      "name": "静音标",
+      "uses": "关闭声音",
+      "shape": "静音标，关闭声音",
+      "edge": "喇叭附近的斜杠表示静音",
+      "source": "pictograms",
+      "tokens": {
+        "viewBox": [
+          0,
+          0,
+          192,
+          128
+        ],
+        "strokeLinejoin": "round",
+        "strokeLinecap": "round",
+        "svgPaints": "see source SVG for per-path fills and weights",
+        "alphaOutside": 0,
+        "anchor": [
+          91,
+          64
+        ]
+      },
+      "files": {
+        "vector": "贴纸/mute.svg",
+        "preview": "贴纸/mute.png"
+      },
+      "variants": {
+        "atelier": {
+          "vector": "贴纸/atelier/mute.svg",
+          "preview": "贴纸/atelier/mute.png"
+        },
+        "herb": {
+          "vector": "贴纸/herb/mute.svg",
+          "preview": "贴纸/herb/mute.png"
+        },
+        "night": {
+          "vector": "贴纸/night/mute.svg",
+          "preview": "贴纸/night/mute.png"
+        },
+        "ink": {
+          "vector": "贴纸/ink/mute.svg",
+          "preview": "贴纸/ink/mute.png"
+        },
+        "coast": {
+          "vector": "贴纸/coast/mute.svg",
+          "preview": "贴纸/coast/mute.png"
+        },
+        "plum": {
+          "vector": "贴纸/plum/mute.svg",
+          "preview": "贴纸/plum/mute.png"
+        },
+        "cobalt": {
+          "vector": "贴纸/cobalt/mute.svg",
+          "preview": "贴纸/cobalt/mute.png"
+        },
+        "slate": {
+          "vector": "贴纸/slate/mute.svg",
+          "preview": "贴纸/slate/mute.png"
+        },
+        "porcelain": {
+          "vector": "贴纸/porcelain/mute.svg",
+          "preview": "贴纸/porcelain/mute.png"
+        },
+        "sandpine": {
+          "vector": "贴纸/sandpine/mute.svg",
+          "preview": "贴纸/sandpine/mute.png"
+        },
+        "violet": {
+          "vector": "贴纸/violet/mute.svg",
+          "preview": "贴纸/violet/mute.png"
+        }
+      }
+    },
+    {
+      "id": "notetag",
+      "name": "可改字便签",
+      "uses": "短注释",
+      "shape": "可改字便签，短注释",
+      "edge": "替换 SVG 文字，折角放在空白的一侧",
+      "source": "pictograms",
+      "tokens": {
+        "viewBox": [
+          0,
+          0,
+          192,
+          128
+        ],
+        "strokeLinejoin": "round",
+        "strokeLinecap": "round",
+        "svgPaints": "see source SVG for per-path fills and weights",
+        "alphaOutside": 0,
+        "anchor": [
+          35,
+          93
+        ]
+      },
+      "files": {
+        "vector": "贴纸/notetag.svg",
+        "preview": "贴纸/notetag.png"
+      },
+      "variants": {
+        "atelier": {
+          "vector": "贴纸/atelier/notetag.svg",
+          "preview": "贴纸/atelier/notetag.png"
+        },
+        "herb": {
+          "vector": "贴纸/herb/notetag.svg",
+          "preview": "贴纸/herb/notetag.png"
+        },
+        "night": {
+          "vector": "贴纸/night/notetag.svg",
+          "preview": "贴纸/night/notetag.png"
+        },
+        "ink": {
+          "vector": "贴纸/ink/notetag.svg",
+          "preview": "贴纸/ink/notetag.png"
+        },
+        "coast": {
+          "vector": "贴纸/coast/notetag.svg",
+          "preview": "贴纸/coast/notetag.png"
+        },
+        "plum": {
+          "vector": "贴纸/plum/notetag.svg",
+          "preview": "贴纸/plum/notetag.png"
+        },
+        "cobalt": {
+          "vector": "贴纸/cobalt/notetag.svg",
+          "preview": "贴纸/cobalt/notetag.png"
+        },
+        "slate": {
+          "vector": "贴纸/slate/notetag.svg",
+          "preview": "贴纸/slate/notetag.png"
+        },
+        "porcelain": {
+          "vector": "贴纸/porcelain/notetag.svg",
+          "preview": "贴纸/porcelain/notetag.png"
+        },
+        "sandpine": {
+          "vector": "贴纸/sandpine/notetag.svg",
+          "preview": "贴纸/sandpine/notetag.png"
+        },
+        "violet": {
+          "vector": "贴纸/violet/notetag.svg",
+          "preview": "贴纸/violet/notetag.png"
         }
       }
     }

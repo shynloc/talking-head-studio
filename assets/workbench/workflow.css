@@ -118,3 +118,12 @@ input::placeholder,textarea::placeholder {color:#705c47;opacity:1;}
 .caption-desk #caption-warning:empty, .caption-desk [hidden], #proof-play[hidden] { display:none; }
 .caption-pair { display:grid; gap:.65rem; grid-template-columns:repeat(2,minmax(0,1fr)); }
 .caption-pair input { width:100%; }
+
+#cut-review { display:grid; gap:.8rem; }
+#cut-video { width:100%; max-height:47vh; background:#171614; border-radius:14px; }
+.cut-heading { display:flex; align-items:baseline; flex-wrap:wrap; gap:.8rem; }
+#cut-state { color:var(--blue,#153bb4); font-weight:600; }
+#cut-review .action-row { margin:0; }
+#cut-review .cut-nav button { font-size:.9em; }
+#cut-confirm { justify-self:end; }
+#cut-review [hidden] { display:none; }

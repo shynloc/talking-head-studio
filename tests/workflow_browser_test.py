@@ -11,12 +11,12 @@ from pathlib import Path
 from playwright.sync_api import expect, sync_playwright
 
 
-def make_video(folder):
+def make_video(folder,pause=True):
     audio = folder / '录音样例.wav'
     rate = 16000
     with wave.open(str(audio), 'wb') as file:
         file.setparams((1, 2, rate, 0, 'NONE', 'not compressed'))
-        frames = [round(8500 * math.sin(2 * math.pi * 330 * i / rate)) if i < .7 * rate or i > 2.4 * rate else 0
+        frames = [round(8500 * math.sin(2 * math.pi * 330 * i / rate)) if not pause or i < .7 * rate or i > 2.4 * rate else 0
                   for i in range(3 * rate)]
         file.writeframes(struct.pack(f'<{len(frames)}h', *frames))
     video = folder / '已有 视频.mp4'
@@ -73,25 +73,19 @@ def main():
         assert '今天先介绍这个小技巧。' in page.locator('#page-text').input_value()
         checks.append('cancelled import creates no project and an existing manuscript becomes editable cue pages')
 
-        def start_with_video():
+        def start_with_video(mode='raw'):
             page.locator('[data-v2="home"]').click()
             page.locator('[data-v2="video-new"]').click()
             expect(page.locator('#dialog-title')).to_have_text('导入录制')
+            page.locator('#recording-use').select_option(mode)
             with page.expect_file_chooser() as chooser:
                 page.locator('#video-file').click()
             chooser.value.set_files([video,caption])
-            expect(page.locator('[data-workflow="find-pauses"]')).to_be_visible(timeout=20000)
-            expect(page.locator('[data-workflow="keep-recording"]')).to_be_visible()
-            expect(page.locator('[data-tl="collapse"]')).to_have_attribute('aria-expanded', 'false')
-
         start_with_video()
+        page.locator('[data-workflow="review-cuts"]').click()
         page.screenshot(path=str(args.out / '01-视频选择.png'))
-        page.locator('[data-workflow="find-pauses"]').click()
-        expect(page.locator('[data-workflow="approve-rough"]')).to_be_visible(timeout=25000)
-        assert page.locator('.cut-row.removed').count() >= 1
-        page.locator('[data-workflow="play-rough"]').click()
-        page.wait_for_function("document.querySelector('#player').currentTime > 0")
-        page.locator('[data-workflow="approve-rough"]').click()
+        page.wait_for_function("document.querySelector('#cut-video').currentTime > 0")
+        page.locator('#cut-confirm').click()
         expect(page.locator('#finish-confirm')).to_be_visible(timeout=45000)
         page.locator('#finish-confirm').click()
         with page.expect_download() as raw_download:
@@ -104,7 +98,9 @@ def main():
         checks.append('raw recording, automatic rough cut, imported captions, preview and shorter exported MP4')
 
         start_with_video()
-        page.locator('[data-workflow="keep-recording"]').click()
+        page.locator('[data-workflow="review-cuts"]').click()
+        page.locator('#cut-restore').click()
+        page.locator('#cut-confirm').click()
         expect(page.locator('#finish-confirm')).to_be_visible(timeout=45000)
         page.locator('#finish-edit').click()
         page.reload()
@@ -142,6 +138,14 @@ def main():
         assert any(track['codec_type'] == 'video' and (track['width'], track['height']) == (270, 360) for track in tracks)
         assert any(track['codec_type'] == 'audio' for track in tracks)
         checks.append('already-edited video keeps its confirmation after subtitle import and exports from the guided preview')
+        page.locator('#close-dialog').click()
+        continuous = args.out/'无长停顿'
+        continuous.mkdir(exist_ok=True)
+        video = make_video(continuous,pause=False)
+        start_with_video()
+        expect(page.locator('#finish-confirm')).to_be_visible(timeout=45000)
+        assert page.evaluate("P.approvals.rough.kind==='no_cuts' && P.rough.media_id===P.source_id && P.captions.length===2")
+        checks.append('raw video with no long pause opens caption preview directly and reuses the original file')
         browser.close()
     assert not errors, errors
     result = {'status': 'PASS', 'checks': checks}

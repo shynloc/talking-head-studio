@@ -171,7 +171,13 @@ class Jobs:
         if action=='inspect_frames':return media.inspect_frames(store,pid,report)
         if action=='analyze_cuts':
             work=folder/'analysis'/uid('cuts');work.mkdir(parents=True)
-            result=media.rough_candidates(p,work,report);store.patch(pid,result,'粗剪候选分析');return {'cuts':len(result['edl']),'repeats':len(result['repeat_suggestions'])}
+            result=media.rough_candidates(p,work,report)
+            with LOCK:
+                current = store.load(pid)
+                if current['source_id'] != p['source_id'] or current['edl'] != p['edl']:
+                    raise Conflict('视频或剪辑清单已更改，请重新查找停顿。')
+                store.patch(pid,result,'粗剪候选分析')
+            return {'cuts':len(result['edl']),'repeats':len(result['repeat_suggestions'])}
         if action=='render_rough':return media.render_rough(store,pid,report)
         if action=='skip_rough':return media.render_rough(store,pid,report,skip=True)
         if action=='approve_rough':

@@ -23,10 +23,10 @@ description: 使用本地口播导演工作台，从文章、语音或定稿制�
 ## 三个阶段
 
 1. **稿件与录制。** 把内容按口播主题分成易读且完整的提词页，区分成品展示、演示、停顿和口播。为导演提示和制作标记保留页面或句子关联，字幕以实际录音为准。用 `prompt_export` 生成便携提词页。跟读需要先验证系统采集和本地语音模型。
-2. **粗剪。** 使用 `transcribe` 获取实际口播，或用 `import_transcript` 导入用户已有时间戳。工作台「帮我去掉长停顿」用 `prepare_rough` 串起分析和剪后试听。逐项处理时可单独运行 `analyze_cuts`，结合转写和试听选择要保留的区间。保护有意停顿和演示。运行 `render_rough` 后给用户试看，记录真实确认。已有粗剪使用 `skip_rough`。
+2. **粗剪。** 使用 `transcribe` 获取实际口播，或用 `import_transcript` 导入用户已有时间戳。导入原始录像用 `first_preview` 的 `entry=import, use_as=raw`。返回 `next=cuts` 时让用户在「连看这几处」里看剪后、对照原片及恢复停顿；保存后即时回看。用户确认后用 `entry=use_cuts` 提交当前 `source_id` 和完整 `edl`，继续打开字幕预览。没有剪点时自动进入字幕。逐项处理时可单独运行 `analyze_cuts`，结合转写和试听选择要保留的区间。保护有意停顿和演示。运行 `render_rough` 后给用户试看，记录真实确认。已有粗剪使用 `skip_rough`。
 3. **精剪。** 已有时间戳时使用 `plan` 生成字幕与时间线建议；从录像自动加字幕可用 `auto_captions`，已有字幕文件可用 `captions_from_file`，根据录制素材检查构图、句子锚点、字幕时序和画幅。透明 PNG 可借助 `gif` 生成轻动效，已有图片、视频和音频可用 `add_asset` 导入。流程动画由内嵌的 HTML Creator Studio 帧函数驱动。生图与产品图检索取决于宿主工具。
 
-录前的画面备注在字幕旁可试看。使用 `note_preview` 前选择保留的实际字幕和素材，试片独立于成片预览。对不确定的句子等待用户选位置。已剪视频只加字幕时，在工作台一起选入视频和可选的 SRT/VTT，等待首句预览。Agent 可提交 first_preview，传 entry=import、path 和可选的 subtitle_path。原始录像先试听粗剪，用户确认后用 entry=approve、source_id、rough_id 进入相同流程。返回 setup 或 tools 时先征得下载同意，再按提示继续。使用已有模型或字幕无需人工重复发起转写。工作台按实际长静音分段识别，按语义边界排字幕。预览里可按疑点试听剪后原声、连续校字及批量校正相同名称。修改随项目保存。使用 caption_proof 对修改后的全片一次生成试看并连播修改处，用户确认后保存同一份视频。调整画面仍按当前成片时间定位。
+录前的画面备注在字幕旁可试看。使用 `note_preview` 前选择保留的实际字幕和素材，试片独立于成片预览。对不确定的句子等待用户选位置。已剪视频只加字幕时，在工作台一起选入视频和可选的 SRT/VTT，等待首句预览。Agent 可提交 first_preview，传 entry=import、path 和可选的 subtitle_path。已有渲染好的粗剪也支持在用户确认后用 entry=approve、source_id、rough_id 进入相同流程。返回 setup 或 tools 时先征得下载同意，再按提示继续。使用已有模型或字幕无需人工重复发起转写。工作台按实际长静音分段识别，按语义边界排字幕。预览里可按疑点试听剪后原声、连续校字及批量校正相同名称。修改随项目保存。使用 caption_proof 对修改后的全片一次生成试看并连播修改处，用户确认后保存同一份视频。调整画面仍按当前成片时间定位。
 
 点「看成片效果」准备当前预览。用「试看动画与音效」检查素材放进口播后的效果，或运行 `timeline_sample`（参数 `start` 和 `duration`）渲染一小段。确认预览后由用户选择出片方式。动作 `confirm_timeline_final`、`editor_package`、`chatcut_package` 与 `jianying_reviewed_export` 使用当前样片的 `sample_id` 和时间线 `hash`，结果覆盖完整时间线。素材、字幕或剪点变化后重新生成预览。
 

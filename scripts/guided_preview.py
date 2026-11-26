@@ -1,5 +1,5 @@
 """Prepare the first playable captioned sample for a selected recording."""
-from core import rough_current, source
+from core import Conflict, LOCK, rough_current, source
 from jobs import doctor
 from timeline_render import review_state
 
@@ -9,11 +9,16 @@ MODEL_ORDER = ('base', 'small', 'medium', 'turbo', 'tiny', 'large')
 def prepare(jobs, pid, args, report):
     store = jobs.store
     entry = args.get('entry')
-    if entry not in ('import', 'approve', 'keep', 'resume'):
+    if entry not in ('import', 'approve', 'keep', 'resume', 'find_cuts', 'use_cuts'):
         raise ValueError('请选择要预览的视频。')
 
+    progress = 0
     def run(action, options, low, high):
-        return jobs.action(pid, action, options, lambda n, msg: report(low + n * (high - low), msg))
+        def update(n, message):
+            nonlocal progress
+            progress = max(progress, low + n * (high - low))
+            report(progress, message)
+        return jobs.action(pid, action, options, update)
 
     if entry == 'import':
         options = {k:args[k] for k in ('path','subtitle_path','use_as') if k in args}
@@ -24,7 +29,9 @@ def prepare(jobs, pid, args, report):
                 return {'next':'tools','options':options,'source_id':store.load(pid).get('source_id')}
             run('prepare_video_tools', {}, 0, .06)
         item = run('import_media', options, .06, .08)
-        if options['use_as'] != 'captions':
+        if options['use_as'] == 'raw' and item.get('video'):
+            entry = 'find_cuts'
+        elif options['use_as'] != 'captions':
             return {'next':'editor' if item.get('ready_for_captions') else 'recording','source_id':item['id']}
         if not item.get('video'):
             return {'next':'recording', 'source_id':item['id']}
@@ -39,6 +46,28 @@ def prepare(jobs, pid, args, report):
         if entry == 'keep':
             run('skip_rough', {}, 0, .05)
 
+    if entry in ('find_cuts', 'use_cuts'):
+        source_id = item['id'] if args['entry'] == 'import' else args['source_id']
+        if entry == 'find_cuts':
+            run('analyze_cuts', {}, .08, .17)
+        p = store.load(pid)
+        expected = p['edl'] if entry == 'find_cuts' else args.get('edl')
+        def check_selection(project):
+            if project['source_id'] != source_id or project['edl'] != expected:
+                raise Conflict('停顿选择已更新，请重新打开剪后预览。')
+        check_selection(p)
+        if entry == 'find_cuts' and any(not row['keep'] for row in expected):
+            return {'next':'cuts', 'source_id':source_id}
+        if not rough_current(p):
+            run('render_rough', {}, .17, .32)
+        with LOCK:
+            p = store.load(pid)
+            check_selection(p)
+            if entry == 'find_cuts':
+                p['approvals']['rough'] = {'kind':'no_cuts', 'source_id':source_id}
+                store.save(p, label='没有需要缩短的停顿，沿用原片')
+            else:
+                run('approve_rough', {}, .32, .33)
     p = store.load(pid)
     result = {'source_id':p['source_id']}
     if not rough_current(p) or not p['approvals'].get('rough'):
@@ -64,7 +93,7 @@ def prepare(jobs, pid, args, report):
         if not recognition['segments']:
             return dict(result, next='subtitles', message='没有识别到说话声。')
     state = review_state(store.load(pid))
-    if replacing or entry in ('approve','keep') or not p['captions'] or state['state'] == 'align':
+    if replacing or entry in ('approve','keep','use_cuts','find_cuts') or not p['captions'] or state['state'] == 'align':
         report(.64, '正在把字幕对到剪后画面')
         run('plan', {}, .64, .7)
         state = review_state(store.load(pid))

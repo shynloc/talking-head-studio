@@ -34,7 +34,7 @@ async function importRecordingFiles(files, fresh, use_as) {
 }
 
 function importRecording(args) {
-  return (args.use_as === 'captions' || !doctorInfo.tools.ffmpeg || !doctorInfo.tools.ffprobe) ? startFirstPreview({entry:'import', ...args}) : act('import_media',args);
+  return (['raw','captions'].includes(args.use_as) || !doctorInfo.tools.ffmpeg || !doctorInfo.tools.ffprobe) ? startFirstPreview({entry:'import', ...args}) : act('import_media',args);
 }
 
 async function startFirstPreview(args) {
@@ -75,6 +75,7 @@ async function presentFirstPreview(pid, list) {
       return;
     }
     if (result.next==='editor') { goToWorkflowStage(3,'captions'); return; }
+    if (result.next==='cuts') { goToWorkflowStage(2); return; }
     if (result.next==='recording') { goToWorkflowStage(2); return; }
     if (job.status!=='done' && (!P.approvals.rough || !P.rough)) {
       goToWorkflowStage(2);

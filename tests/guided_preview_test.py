@@ -16,6 +16,52 @@ def inspect_video(path):
     return video['width'], video['height'], float(meta['format']['duration'])
 
 
+def check_cut_review(page,out,expect_two):
+    open_review = page.locator('[data-workflow=review-cuts]')
+    expect(open_review).to_be_visible(timeout=120000)
+    rows = page.evaluate('P.edl.filter(c=>!c.keep)')
+    count = len(rows)
+    assert count>0 and (not expect_two or count==2)
+    assert page.evaluate('!P.rough && !P.approvals.rough && !P.captions.length')
+    open_review.click()
+    def in_range(low,high):
+        page.wait_for_function('([a,b])=>{let v=document.querySelector("#cut-video");return v && !v.seeking && !v.paused && v.currentTime>a && v.currentTime<b}',arg=[low,high],timeout=30000)
+    if expect_two:
+        first,last=rows
+        in_range(first['end'],first['end']+1.6)
+        expect(page.locator('#cut-count')).to_have_text('第 2 处，共 2 处',timeout=15000)
+        in_range(last['end'],last['end']+1.6)
+        page.locator('#cut-compare').click()
+        in_range(last['start']+.05,last['end'])
+        page.locator('#cut-compare').click()
+        in_range(last['end'],last['end']+1.6)
+        page.locator('#cut-restore').click()
+        in_range(last['start']+.05,last['end'])
+        page.locator('#cut-restore').click()
+        in_range(last['end'],last['end']+1.6)
+        page.locator('#cut-prev').click()
+        page.locator('#cut-restore').click()
+        in_range(first['start']+.03,first['end'])
+        page.screenshot(path=str(out/'raw-恢复停顿.png'))
+        page.locator('#close-dialog').click()
+        page.wait_for_function('!dirty && !saving')
+        page.reload()
+        expect(open_review).to_be_visible()
+        open_review.click()
+        expect(page.locator('#cut-state')).to_have_text('已恢复原停顿')
+        page.locator('#cut-full').click()
+        in_range(first['start']+.03,first['end'])
+        expect(page.locator('#cut-count')).to_have_text('完整剪后视频')
+        page.locator('#cut-full').click()
+    else:
+        page.wait_for_function('document.querySelector("#cut-video")?.currentTime>0')
+    assert page.evaluate('!P.rough && !P.media.some(m=>m.kind==="rough") && !P.approvals.rough')
+    kept=page.evaluate('P.edl')
+    removed=sum(r['end']-r['start'] for r in kept if not r['keep'])
+    page.locator('#cut-confirm').click()
+    return {'candidates':rows,'selection':kept,'seconds_removed':removed,'rough_renders_before_confirmation':0}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--url', required=True)
@@ -39,12 +85,7 @@ def main():
                 page.locator('#video-file').click()
             picker.value.set_files(args.video)
             if mode == 'raw':
-                page.locator('[data-workflow=find-pauses]').click(timeout=45000)
-                page.locator('[data-workflow=play-rough]').click(timeout=120000)
-                page.wait_for_function("document.querySelector('#player').currentTime>0")
-                assert not page.evaluate('P.approvals.rough || P.captions.length')
-                assert page.locator('.cut-row.removed').count()>0
-                page.locator('[data-workflow=approve-rough]').click()
+                review = check_cut_review(page,args.out,expect_two=args.proofread)
             else:
                 page.wait_for_function("P && localStorage.getItem('studio-preview-task-'+P.id)",timeout=60000)
                 page.reload()
@@ -56,6 +97,9 @@ def main():
             state = page.evaluate("api('/api/v2/finish?id='+P.id)")
             jobs = page.evaluate("api('/api/jobs?id='+P.id)")
             guided = [j['result'] for j in jobs if j['action']=='first_preview' and j['status']=='done']
+            if mode=='raw':
+                assert [g.get('next') for g in guided].count('cuts')==1
+            guided = [g for g in guided if g.get('next')=='review']
             assert len(guided)==1 and guided[0]['recognition']['segments']>0
             assert guided[0]['sample_id']==state['sample']['id']
             t = state['caption_spans'][0]['start']
@@ -79,6 +123,15 @@ def main():
             if args.proofread:check_final(page,dest,correction,args.out,mode)
             evidence['routes'][mode]=dict(corrections=correction,project=page.evaluate('P.id'),recognition=guided[0]['recognition'],
                 subtitles=state['caption_spans'],preview=state['sample'],duration=duration,width=w,height=h)
+            if mode=='raw':
+                rendered=page.evaluate('P.media.filter(m=>m.kind==="rough").length')
+                assert rendered==1
+                review['rough_renders_after_confirmation']=rendered
+                evidence['routes'][mode]['cut_review']=review
+                assert abs(duration - (total-review['seconds_removed'])) < .15
+            else:
+                assert not page.locator('#cut-review').count()
+                assert all(j['action']!='prepare_rough' for j in jobs)
             print(mode, duration, guided[0]['recognition'], flush=True)
         assert not errors, errors
         browser.close()

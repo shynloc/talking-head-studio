@@ -2,7 +2,7 @@
 
 从稿件、提词和录制计划开始，把一条口播做成可发布的视频。你可以使用完整的三阶段流程，也可以从已有定稿或已经粗剪好的视频开始。
 
-工作台与 Skill 版本为 **V3.9.0**。Windows 安装包和 macOS 磁盘映像包含首次启动所需的 Python 安装程序。已安装 Python 的创作者也可使用通用 Skill ZIP。
+工作台与 Skill 版本为 **V3.10.0**。Windows 安装包和 macOS 磁盘映像包含首次启动所需的 Python 安装程序。已安装 Python 的创作者也可使用通用 Skill ZIP。
 
 [下载安装包与 Skill](https://github.com/shynloc/talking-head-studio/releases/latest)
 
@@ -99,11 +99,11 @@ Whisper 用于录制后的转写。提词器的实时跟读使用另一套本地
 
 ### 2. 整理视频
 
-原始录像选「帮我去掉长停顿」。听原片或剪后版本，可逐处保留，满意后点「用这版做字幕」。已有剪好的视频选「直接用这个视频」，直接进入下一步。录音文件可以识别成文字后转为提词页。
+原始录像选「原始录像，帮我剪掉长停顿」。点「连看这几处」依次观看停顿前后的画面和原声。点「看这段原片」对照，点「恢复这处停顿」立即重看，也可以撤销。想看完整效果就点「从头看整版」。满意后点一次「用这版，继续加字幕」。没有需要缩短的停顿时会直接打开字幕预览。录音文件可以识别成文字后转为提词页。
 
 ### 3. 字幕与导出
 
-选「已经剪好，只加字幕」并放入视频，或在试听粗剪后点「用这版做字幕」，工作台会识别实际口播并直接打开有字幕的短预览。识别时避开明显的长静音，自动断句结合标点、停顿和上下句长度。导入的 SRT/VTT 保留原有分句。逐句试听、改字，在「这里加画面」中选择放图片、放演示、强调文字或加声音。需要拖动位置和调整多轨时再展开「精细调整」。
+选「已经剪好，只加字幕」并放入视频，或在看完剪后效果后点「用这版，继续加字幕」，工作台会识别实际口播并直接打开有字幕的短预览。识别时避开明显的长静音，自动断句结合标点、停顿和上下句长度。导入的 SRT/VTT 保留原有分句。逐句试听、改字，在「这里加画面」中选择放图片、放演示、强调文字或加声音。需要拖动位置和调整多轨时再展开「精细调整」。
 
 点「看成片效果」自动准备当前预览，已有有效预览可直接播放。「换一段预览」可以指定位置。「导出完整 MP4」保存完整视频，「用剪辑软件继续」展开外部剪辑入口。
 
@@ -172,6 +172,10 @@ Codex 用户还可点「连接 Codex 原对话」，把连接指令粘贴到项�
 
 先检查跟读模型是否安装，然后在「麦克风与语音测试」里选择实际使用的设备并试读一句。若内嵌浏览器无法采集，改用 Edge 或 Chrome 打开工作台的本机网址。长段稿件可手动定位或翻页。
 
+### 剪短的地方太急，怎样改回来？
+
+在「连看」里点「看这段原片」，会从同一处停顿前开始播放，方便对照说话和演示动作。点「恢复这处停顿」就能马上看保留后的效果；点「撤销恢复」再试短版。选择会保存在项目里。回看全部改动后，点一次「用这版，继续加字幕」即可。
+
 ### 为何不能直接点「导出成片」？
 
 点「看成片效果」会自动准备当前预览。改过剪点时，就地更新剪辑预览并试听。遇到待补画面时，可以选择文件，也可以在本次导出中略过。满意后点「导出完整 MP4」。
@@ -197,6 +201,8 @@ Codex 用户还可点「连接 Codex 原对话」，把连接指令粘贴到项�
 先在同一台电脑打开 ChatCut 桌面版，并连接 WorkBuddy 的本机 ChatCut 工具。在工作台的预览后选「用 ChatCut 继续剪」，选择 WorkBuddy，把任务卡粘贴回原对话。WorkBuddy 领取后读取本机素材与时间线，完成后可把 ChatCut 项目名和 ID 写回待办。如果缺少本机 ChatCut 工具，可保留待办和素材包，连接后再试。 [ChatCut 官方 WorkBuddy 指南](https://chatcut.io/workbuddy)
 
 ### 这次实测了哪些电脑和功能？
+
+V3.10 在 Windows 浏览器里用同一条 26 秒口播连看了两处剪点，对照原片、恢复停顿并撤销，再保留第一处停顿。校对字幕后导出 22.03 秒。已剪视频直接进入字幕预览，导出 26.00 秒。两份成片均为原画幅 480 × 640。
 
 V3.9 在 Windows 浏览器用同一份录制验证了两条路径的疑点试听、片头到片尾连续改字、同名词替换与撤销、刷新后继续以及一次集中试看。原片里「以上是我的初代贾维斯」整句从 13.35 秒显示到 16.15 秒。剪掉长停顿后，同一句出现在 8.65–11.45 秒。
 
@@ -238,6 +244,6 @@ Windows 与 Apple 芯片 macOS 可以用完整工程 ZIP 互相迁移，并从�
 
 ### 如何重新制作系统安装包？
 
-从已提交的发行源码运行 `python scripts/package_release.py --output dist`，再运行 `python packaging/build_installers.py windows --archive dist/talking-head-studio-v3.9.0.zip --out native`。Mac 构建时将平台参数改为 `macos`。构建器使用 Python 官方安装程序及固定 SHA-256。Mac 应用包含 Intel 和 Apple 芯片可执行文件。[Python 安装程序来源](https://www.python.org/downloads/release/python-31314/)
+从已提交的发行源码运行 `python scripts/package_release.py --output dist`，再运行 `python packaging/build_installers.py windows --archive dist/talking-head-studio-v3.10.0.zip --out native`。Mac 构建时将平台参数改为 `macos`。构建器使用 Python 官方安装程序及固定 SHA-256。Mac 应用包含 Intel 和 Apple 芯片可执行文件。[Python 安装程序来源](https://www.python.org/downloads/release/python-31314/)
 
 有 Developer ID 的发布者可在 Mac 钥匙串中配置签名身份和 notarytool 配置，构建时提供 `--identity` 与 `--notary-profile`。发布流程会分别签署应用和磁盘映像，等待 Apple 接受并附加公证票据。GitHub Actions 可通过仓库 Secrets 配置相同流程。[Apple 公证说明](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)

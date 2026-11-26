@@ -14,19 +14,17 @@ function recordingStep() {
   if (P.approvals.rough && P.rough && P.rough_current !== false) {
     return ['视频已准备好', '接下来可以加字幕、插入画面，或者直接预览导出。', '去字幕与导出', 'captions'];
   }
-  if (P.rough && P.rough_current !== false) {
-    const cuts = P.edl.filter(cut => !cut.keep);
-    const removed = cuts.reduce((total, cut) => total + cut.end - cut.start, 0);
-    const summary = cuts.length ? `剪去 ${cuts.length} 处停顿，约 ${removed.toFixed(1)} 秒。` : '这版保留了全部内容。';
-    return ['听一遍剪后的效果', summary + '可以逐处保留，原视频仍在。', '用这版做字幕', 'approve-rough',
-      [['听剪后', 'play-rough'], ['听原片', 'play-source']]];
+  const points = reviewableCuts(P.edl);
+  if (points.length) {
+    const cuts = points.filter(cut => !cut.keep);
+    const seconds = cuts.reduce((total, cut) => total + cut.end - cut.start, 0);
+    return [cuts.length ? `缩短了 ${cuts.length} 处停顿，共 ${seconds.toFixed(1)} 秒` : '已恢复所有停顿',
+      '连续播放每处改动前后的画面和原声。想多停一会儿，可以把那处停顿恢复。',
+      `连看这 ${points.length} 处`, 'review-cuts', [['用这版，继续加字幕', 'use-cuts']]];
   }
-  if (P.edl.length > 1 || P.edl.some(cut => cut.reason !== '完整原片')) {
-    const count = P.edl.filter(cut => !cut.keep).length;
-    return ['看看要保留哪些片段', count
-      ? `已标记 ${count} 处可能要剪掉的片段。要保留某一段，在下方把它勾上。`
-      : '目前每段都保留。可以直接生成预览，也可以在下方手动调整。',
-    '生成整理后的预览', 'render-rough', [['重新查找长停顿', 'find-pauses']]];
+  if (P.rough || P.edl.length > 1 || P.edl.some(cut => cut.reason !== '完整原片')) {
+    return ['保留当前画面', '按当前选择继续校字幕，也可以回看原片。', '用这版，继续加字幕', 'use-cuts',
+      [['看原片', 'play-source']]];
   }
   return ['这条视频还需要剪吗？', '如果还有长停顿，可以先查找，让工作台标出来给你检查。',
     '帮我去掉长停顿', 'find-pauses', [['直接用这个视频', 'keep-recording']]];
@@ -142,26 +140,25 @@ document.addEventListener('click', async event => {
         await startFirstPreview({entry:'resume',source_id:P.source_id});
         break;
       case 'find-pauses':
-        await act('prepare_rough');
+        await startFirstPreview({entry:'find_cuts',source_id:P.source_id});
+        break;
+      case 'review-cuts':
+        openCutReview();
+        break;
+      case 'use-cuts':
+        await confirmCutSelection();
         break;
       case 'keep-recording':
         await startFirstPreview({entry:'keep',source_id:P.source_id});
         break;
-      case 'render-rough':
-        await act('render_rough');
-        break;
-      case 'play-source':
-      case 'play-rough': {
-        previewMode = action === 'play-source' ? 'source' : 'rough';
+      case 'play-source': {
+        previewMode = 'source';
         render();
         const video = $('#player');
         video?.focus();
         await video?.play();
         break;
       }
-      case 'approve-rough':
-        await startFirstPreview({entry:'approve',source_id:P.source_id,rough_id:P.rough.media_id});
-        break;
       case 'caption-file':
         chooseFile('caption-file', '.srt,.vtt,.json');
         break;

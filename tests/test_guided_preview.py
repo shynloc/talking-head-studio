@@ -48,6 +48,23 @@ class GuidedPreview(unittest.TestCase):
         with self.assertRaises(ValueError): self.resume(source_id='old-file')
         self.jobs.action.assert_not_called()
 
+    def test_stale_cut_selection_cannot_be_approved(self):
+        with self.assertRaises(core.Conflict):
+            self.resume(entry='use_cuts',edl=[{'start':0,'end':22,'keep':True}])
+        self.jobs.action.assert_not_called()
+
+    def test_analysis_returns_review_only_for_removed_intervals(self):
+        self.project['edl'] = [{'start':0,'end':20,'keep':True},{'start':20,'end':24,'keep':False}]
+        self.assertEqual(self.resume(entry='find_cuts')['next'],'cuts')
+        self.assertEqual([c.args[1] for c in self.jobs.action.call_args_list],['analyze_cuts'])
+
+    def test_no_cuts_continues_without_an_extra_confirmation(self):
+        self.project['media'][0]['audio'] = False
+        self.assertEqual(self.resume(entry='find_cuts')['next'],'subtitles')
+        self.assertEqual([c.args[1] for c in self.jobs.action.call_args_list],['analyze_cuts'])
+
+        self.assertEqual(self.project['approvals']['rough']['kind'],'no_cuts')
+
     def test_vtt_short_times_and_invalid_or_outside_cue(self):
         sidecar=self.folder/'take.vtt'
         sidecar.write_text('WEBVTT\n\n00:02.100 --> 00:03.850 align:start\n保留此句。\n',encoding='utf8')

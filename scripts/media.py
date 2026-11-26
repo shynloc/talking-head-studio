@@ -53,7 +53,7 @@ def import_media(store, pid, path, source_video=True, subtitle_path=None):
         if source_video:
             if p.get('source_id') and p.get('timeline',{}).get('mode')=='actual':
                 p['timeline']['needs_alignment']=True
-            p.update(source_id=item['id'], transcript=transcript, edl=[], previous_rough=None, rough=None, captions=[], scenes=[], approvals={})
+            p.update(source_id=item['id'], transcript=transcript, edl=[], proxy_id=None, previous_rough=None, rough=None, captions=[], scenes=[], approvals={})
             p['edl'] = [{'id': uid('cut'), 'start': 0, 'end': meta['duration'], 'keep': True, 'reason': '完整原片', 'protected': False}]
         store.save(p, label='导入原始媒体')
     return item
@@ -172,6 +172,10 @@ def rough_candidates(p, work, report):
         reason = next((r for x,y,r in deleted if x <= (a+b)/2 < y), None)
         protected = any(g['start'] <= (a+b)/2 < g['end'] for g in guards)
         edl.append({'id':uid('cut'),'start':a,'end':b,'keep':not reason or protected,'reason':reason or ('保护片段' if protected else '有效内容／自然停顿'),'protected':protected})
+    # Silence alone cannot justify discarding the entire recording.
+    if not any(row['keep'] for row in edl):
+        for row in edl:
+            row.update(keep=True, reason='保留整段无声画面')
     suggestions=[]
     segments=p.get('transcript',[])
     for i,a in enumerate(segments):
@@ -201,6 +205,15 @@ def render_rough(store,pid,report,skip=False):
         store.patch(pid,{'edl':edl,'rough':rough,'approvals':{'rough':{'at':now(),'kind':'already_cut'}}},'确认已粗剪输入')
         return rough
     validate_edl(p['edl'],src['duration']);mapping=time_map(p['edl'])
+    if all(row['keep'] for row in p['edl']):
+        with LOCK:
+            current = store.load(pid)
+            if current['source_id'] != src['id'] or current['edl'] != p['edl']:
+                raise Conflict('视频或停顿选择已更改，请重新查看。')
+            rough = {'media_id':src['id'], 'path':src['path'], 'duration':src['duration'],
+                     'mapping':mapping, 'edl_hash':edl_digest(p['edl'])}
+            store.patch(pid, {'rough':rough, 'approvals':{}}, '复用完整原片')
+            return rough
     work=store.folder(pid)/'renders'/uid('rough');work.mkdir(parents=True)
     out=work/'rough.mp4';filters=[];labels=[]
     for i,m in enumerate(mapping):

@@ -53,6 +53,9 @@ class Jobs:
 
     def action(self,pid,action,args,report):
         store=self.store;p=store.load(pid);folder=store.folder(pid)
+        if action == 'caption_proof':
+            from caption_review import proof
+            return proof(self, pid, args, report)
         if action == 'first_preview':
             from guided_preview import prepare
             return prepare(self, pid, args, report)
@@ -69,7 +72,9 @@ class Jobs:
                 state = timeline_render.require_sample(p, args.get('sample_id'), args.get('hash'))
                 p['approvals']['timeline'] = {'hash': state['hash'], 'sample_id': state['sample']['id'], 'at': now(), 'actor': 'user'}
                 store.save(p, label='用户确认当前样片并导出成片')
-            return timeline_render.render(store, pid, report, final=True)
+            from caption_review import export_reviewed_copy
+            reviewed = export_reviewed_copy(store,pid,state,report)
+            return reviewed or timeline_render.render(store, pid, report, final=True)
         if action in ('editor_package', 'chatcut_package'):
             import editor_delivery
             target = 'chatcut' if action == 'chatcut_package' else 'portable'

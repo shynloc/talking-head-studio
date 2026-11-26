@@ -24,13 +24,12 @@ function bindPreviewEdits(review,state) {
     review.replay=false;
     video.play().catch(()=>{video.focus();update();});
   }
-  captionButton.onclick=()=>openEditor(false);
-  if(visualButton)visualButton.onclick=()=>openEditor(true);
+  captionButton.onclick=()=>openCaptionDesk(review,state,currentCaption(at())?.id);
+  if(visualButton)visualButton.onclick=()=>openEditor();
 
-  function openEditor(visual) {
+  function openEditor() {
     video.pause();
     const time=at(), cap=currentCaption(time);
-    if(!visual&&!cap)return;
     const clips=P.timeline.clips.filter(c=>['title','sticker','pip'].includes(c.track) && c.enabled!==false &&
       !P.timeline.tracks[c.track]?.muted && c.start<=time && time<c.start+c.duration);
     form.hidden=false;toolbar.hidden=true;
@@ -38,15 +37,14 @@ function bindPreviewEdits(review,state) {
     const exports=$('#finish-panel details');
     alternatives.hidden=true;exports.hidden=true;
     const payload={id:P.id,sample_id:state.sample.id,hash:state.hash,time,caption_id:cap?.id};
-    form.innerHTML=visual?`<label>要改的画面<select id="preview-clip">${clips.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}<option value="">在这里加画面</option></select></label>
+    form.innerHTML=`<label>要改的画面<select id="preview-clip">${clips.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}<option value="">在这里加画面</option></select></label>
       <label>画面内容<select id="preview-asset"><option value="">显示文字</option>${P.assets.filter(a=>pictureTypes.includes(a.type)).map(a=>`<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('')}</select></label>
       <label>或从电脑选图片、视频<input type="file" id="preview-file" accept="image/*,video/*"></label>
-      <label>文字或素材名称<input id="preview-text"></label>`:
-      `<label>这句字幕<textarea id="preview-text" rows="2">${esc(cap.text)}</textarea></label>`;
+      <label>文字或素材名称<input id="preview-text"></label>`;
     form.insertAdjacentHTML('beforeend',`<div class="action-row"><button id="preview-save" class="key">保存并从这里试看</button>
-      ${visual?'<button id="preview-hide" class="ghost">移除这个画面</button>':''}
+      <button id="preview-hide" class="ghost">移除这个画面</button>
       <button id="preview-cancel" class="ghost">取消</button></div><p id="preview-message" role="status"></p>`);
-    if(visual) {
+    {
       const choose=$('#preview-clip');
       choose.onchange=()=>{
         const clip=clips.find(c=>c.id===choose.value);
@@ -61,9 +59,9 @@ function bindPreviewEdits(review,state) {
     $('#preview-text').focus();
     $('#preview-cancel').onclick=()=>{
       form.hidden=true;form.replaceChildren();alternatives.hidden=false;exports.hidden=false;update();
-      (visual?visualButton:captionButton).focus();
+      visualButton.focus();
     };
-    $('#preview-save').onclick=()=>submit(visual?'visual':'caption');
+    $('#preview-save').onclick=()=>submit('visual');
     async function submit(operation) {
       const message=$('#preview-message');
       for(const control of form.querySelectorAll('button'))control.disabled=true;

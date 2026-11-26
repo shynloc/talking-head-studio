@@ -54,25 +54,42 @@ def review_state(p):
                 return {'id': item['id'], 'start': qa.get('sample_start'), 'duration': qa.get('duration')}
         return None
 
+    from caption_review import info
+    spans = [] if tl['tracks'].get('caption',{}).get('muted') else caption_map(p,audition=True)
     return {'state': 'ready', 'hash': fingerprint, 'sample': latest('timeline_sample'),
             'final': latest('timeline_final'), 'duration': sum(c['duration'] for c in main),
-            'caption_spans': [] if tl['tracks'].get('caption',{}).get('muted') else caption_map(p),
+            'caption_spans': spans, 'caption_review':info(p,spans),
             'approved': p['approvals'].get('timeline', {}).get('hash') == fingerprint,
             'has_previous_sample': any(e['kind'] == 'timeline_sample' for e in p['exports'])}
 
-def caption_map(p):
-    """Rebase caption intersections using source coordinates after timeline inserts/reorders."""
-    from core import inverse_time
+def caption_map(p, audition=False):
+    """Intersect kept source ranges with the main track, also mapping audition to the rough file."""
     if not p.get('rough'):return []
+    pieces=[]
+    for clip in p['timeline']['clips']:
+        if clip.get('track')!='main' or clip.get('source_id')!=p['source_id'] or clip.get('asset_id'):continue
+        lo=clip.get('source_in',0)
+        for m in p['rough']['mapping']:
+            a=max(lo,m['source_start']); b=min(lo+clip['duration'],m['source_end'])
+            if b-a<.001:continue
+            rough=m['start']+a-m['source_start']; position=clip['start']+a-lo
+            pieces.append((position,rough,b-a))
+    runs=[]
+    for pos,rough,length in sorted(pieces):
+        if runs and abs(pos-runs[-1][0]-runs[-1][2])<.002 and abs(rough-runs[-1][1]-runs[-1][2])<.002:
+            runs[-1][2]+=length
+        else:
+            runs.append([pos,rough,length])
     result=[]
-    for cap in p['captions']:
-        a=inverse_time(cap['start'],p['rough']['mapping']);b=inverse_time(cap['end'],p['rough']['mapping'],end=True)
-        if a is None or b is None:continue
-        for clip in p['timeline']['clips']:
-            if clip['track']!='main' or clip.get('source_id')!=p['source_id']:continue
-            lo=clip.get('source_in',0);hi=lo+clip['duration'];x,y=max(lo,a),min(hi,b)
-            if y>x+.02:result.append({**cap,'start':clip['start']+x-lo,'end':clip['start']+y-lo})
+    for pos,rough,length in runs:
+        for cap in p['captions']:
+            a=max(rough,cap['start']); b=min(rough+length,cap['end'])
+            if b<=a+.02:continue
+            span=dict(cap,start=pos+a-rough,end=pos+b-rough)
+            if audition:span.update(listen_start=max(rough,a-.42),listen_end=min(rough+length,b+.42))
+            result.append(span)
     return sorted(result,key=lambda c:c['start'])
+
 
 def require_sample(p, sample_id, fingerprint):
     state = review_state(p)

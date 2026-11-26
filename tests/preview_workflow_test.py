@@ -92,7 +92,7 @@ def main():
         page.locator('#preview-caption').click()
         updated=target+'。'
         page.locator('#preview-text').fill(updated)
-        page.locator('#preview-save').click()
+        page.locator('#caption-proof').click()
         expect(page.locator('#finish-confirm')).to_be_visible(timeout=90000)
         pause_on_sentence()
         page.locator('#preview-visual').click()

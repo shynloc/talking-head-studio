@@ -91,6 +91,32 @@ def extract_document(path):
         return '\n'.join(s.text for slide in Presentation(path).slides for s in slide.shapes if s.has_text_frame)
     raise ValueError('支持 TXT、Markdown、DOCX、PDF、PPTX；音视频请使用转写按钮')
 
+def silence_ranges(output, duration):
+    raw, start = [], None
+    for m in re.finditer(r'silence_(start|end): ([0-9.]+)', output):
+        kind, sec = m.group(1), float(m.group(2))
+        if kind == 'start': start = sec
+        elif start is not None:
+            raw.append((start,sec)); start = None
+    if start is not None: raw.append((start,duration))
+    return raw
+
+
+def recognition_ranges(item, work):
+    log = work / 'recognition-pauses.log'
+    run(['ffmpeg','-hide_banner','-i',item['path'],'-vn','-af','silencedetect=noise=-40dB:d=1.25','-f','null','-'],log)
+    duration = item['duration']
+    spans = []
+    start = 0
+    for a,b in silence_ranges(log.read_text(encoding='utf8',errors='replace'),duration):
+        if a-start > .12:
+            spans.extend([start,min(duration,a+.12)])
+        start = max(0,b-.12)
+    if duration-start > .13:
+        spans.extend([start,duration])
+    return spans
+
+
 def transcribe(store, pid, report, model_name='medium', allow_download=False, media_id=None):
     p = store.load(pid); item = next((m for m in p['media'] if m['id'] == (media_id or p['source_id'])), None)
     if not item or not item.get('audio'): raise ValueError('输入没有可转写的声音')
@@ -104,8 +130,9 @@ def transcribe(store, pid, report, model_name='medium', allow_download=False, me
     model = whisper.load_model(model_name, device=device)
     report(.2, f'正在转写（{model_name} / {device}），保留实际口播内容')
     script_terms=sorted(set(re.findall(r'[A-Za-z][A-Za-z0-9+./-]{1,30}', '\n'.join(pg['text'] for pg in p['pages']))))
+    ranges = recognition_ranges(item, store.folder(pid))
     result = model.transcribe(item['path'], language='zh', word_timestamps=True, fp16=device=='cuda',
-        initial_prompt='中文口播，保留实际说出的内容。术语：' + p['settings'].get('terms','')+'、'.join(script_terms), verbose=False)
+        initial_prompt='中文口播，保留实际说出的内容。术语：' + p['settings'].get('terms','')+'、'.join(script_terms), verbose=False, clip_timestamps=ranges) if ranges else {'segments':[], 'text':''}
     segments = [{'id': uid('seg'), 'start': s['start'], 'end': s['end'], 'text': s['text'], 'words': s.get('words',[])} for s in result['segments']]
     del model
     if device == 'cuda': torch.cuda.empty_cache()
@@ -129,13 +156,7 @@ def rough_candidates(p, work, report):
         run(['ffmpeg','-hide_banner','-i',src['path'],'-af',f"silencedetect=noise={float(cfg['silence_db'])}dB:d={float(cfg['silence_seconds'])}",'-f','null','-'], log)
         output = log.read_text(encoding='utf-8',errors='replace')
     else: output = ''
-    raw, start = [], None
-    for m in re.finditer(r'silence_(start|end): ([0-9.]+)', output):
-        kind, sec = m.group(1), float(m.group(2))
-        if kind == 'start': start = sec
-        elif start is not None:
-            raw.append((start,sec)); start = None
-    if start is not None: raw.append((start,duration))
+    raw = silence_ranges(output, duration)
     deleted=[]; guards=[r for r in p['edl'] if r.get('protected')]
     for a,b in raw:
         trim = float(cfg['keep_pause'])/2

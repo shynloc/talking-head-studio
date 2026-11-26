@@ -179,6 +179,9 @@ function finishSampleReview(review, state) {
   if (!finishPanel(review, `<h3>试看预览并确认</h3>
     <p>播放时可以暂停改字。满意后点「导出完整 MP4」。</p>${range}
     <video class="finish-video" controls playsinline preload="metadata" src="${finishURL(review,sample.id)}" aria-label="当前时间线样片"></video>
+    <div class="action-row" id="caption-review-actions">
+      ${state.caption_spans.length?`<button class="ghost" id="caption-desk-open">${Object.keys(state.caption_review.issues).length?'有 '+Object.keys(state.caption_review.issues).length+' 处建议听一下':'校对字幕'}</button>`:''}
+      <button class="ghost" id="proof-play" hidden>连看改过的几句</button></div>
     <div id="preview-edit-tools"><div id="preview-line" class="preview-line"></div><div class="action-row">
       <button class="ghost" id="preview-caption">改这句字幕</button>
       ${P.settings.caption_only?'':'<button class="ghost" id="preview-visual">调整这里的画面</button>'}</div></div>
@@ -207,7 +210,9 @@ function finishSampleReview(review, state) {
     finishSampleForm(review,state,true);
   };
   $('#finish-edit').onclick = closeDialog;
+  if($('#caption-desk-open'))$('#caption-desk-open').onclick=()=>openCaptionDesk(review,state);
   bindPreviewEdits(review,state);
+  bindCorrectionPlayback(review,state,$('#finish-panel video'));
 }
 
 const finishDeliveries = {
@@ -245,7 +250,7 @@ function finishDelivery(review, job) {
 }
 
 async function watchFinishJob(review, job) {
-  const dialogTitle = job.action === 'timeline_sample' ? '正在生成样片'
+  const dialogTitle = job.action === 'caption_proof' ? '正在生成改完的预览' : job.action === 'timeline_sample' ? '正在生成样片'
     : ['timeline_final','confirm_timeline_final'].includes(job.action) ? '正在导出成片' : finishDeliveries[job.action]?.busy ?? '等待当前任务结束';
   if (!finishPanel(review, `<h3>${dialogTitle}</h3><progress id="finish-progress" max="1" value="0"></progress>
       <p id="finish-progress-text" role="status"></p><p class="hint">关闭窗口后任务会继续，可随时重新打开查看。</p>`)) return;
@@ -256,7 +261,7 @@ async function watchFinishJob(review, job) {
     if (job.status === 'done') {
       if (finishDeliveries[job.action]) { finishDelivery(review,job); return; }
       review.showFinal = ['timeline_final','confirm_timeline_final'].includes(job.action);
-      if (['render_rough','approve_rough'].includes(job.action)) {
+      if (['render_rough','approve_rough','caption_proof'].includes(job.action)) {
         const updated=await api('/api/project?id='+review.projectId);
         if(!finishPanelActive(review))return;
         P=updated;render();
@@ -297,6 +302,7 @@ async function refreshFinishReview(review, inspectJobs = true) {
     return refreshFinishReview(review,false);
   }
   if (state.state !== 'ready') return finishPreparation(review,state);
+  if (!state.sample && state.caption_review.pending.length && state.caption_spans.length) return openCaptionDesk(review,state);
   if (review.selectRange || !state.sample) {
     review.selectRange=false;
     if(review.startedSample)return finishSampleForm(review,state,!!state.sample);
@@ -314,7 +320,7 @@ async function submitFinishJob(review, action, args) {
     await save();
     if (!finishPanelActive(review)) return;
     const job = await api('/api/action',{project_id:review.projectId,action,args});
-    if(['timeline_sample','confirm_timeline_final'].includes(action))localStorage.setItem('studio-review-'+review.projectId,job.id);
+    if(['timeline_sample','confirm_timeline_final','caption_proof'].includes(action))localStorage.setItem('studio-review-'+review.projectId,job.id);
     await watchFinishJob(review,job);
   } catch (error) { finishError(review,error); }
 }

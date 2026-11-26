@@ -110,3 +110,11 @@ input::placeholder,textarea::placeholder {color:#705c47;opacity:1;}
 .recording-drop { margin: 1em 0; padding: 1em; border: 2px dashed #c18254; border-radius: 14px; }
 .recording-drop.over { border-color: #002fa7; background: #f1f1ff; }
 .recording-drop .hint { margin: .75em 0 0; }
+
+.caption-desk { border:0; margin:0; padding:0; min-width:0; display:grid; gap:.7rem; }
+.caption-desk label { font-weight:650; }
+.caption-desk textarea { min-height:4.8em; font-size:1.15rem; line-height:1.5; }
+.caption-desk small { color:#354e78; min-height:1em; }
+.caption-desk #caption-warning:empty, .caption-desk [hidden], #proof-play[hidden] { display:none; }
+.caption-pair { display:grid; gap:.65rem; grid-template-columns:repeat(2,minmax(0,1fr)); }
+.caption-pair input { width:100%; }

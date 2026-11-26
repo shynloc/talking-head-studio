@@ -23,6 +23,9 @@ def get(server,path,q):
 
 def post(server,path,d):
     ms=server.manuscripts;store=server.store
+    if path=='/api/v2/caption-review':
+        from caption_review import apply
+        return apply(store,d['id'],d)
     if path=='/api/v2/preview-edit':
         from preview_edits import edit
         return edit(store,d['id'],d)

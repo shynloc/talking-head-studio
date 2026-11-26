@@ -2,7 +2,7 @@
 
 从稿件、提词和录制计划开始，把一条口播做成可发布的视频。你可以使用完整的三阶段流程，也可以从已有定稿或已经粗剪好的视频开始。
 
-工作台与 Skill 版本为 **V3.8.0**。Windows 安装包和 macOS 磁盘映像包含首次启动所需的 Python 安装程序。已安装 Python 的创作者也可使用通用 Skill ZIP。
+工作台与 Skill 版本为 **V3.9.0**。Windows 安装包和 macOS 磁盘映像包含首次启动所需的 Python 安装程序。已安装 Python 的创作者也可使用通用 Skill ZIP。
 
 [下载安装包与 Skill](https://github.com/shynloc/talking-head-studio/releases/latest)
 
@@ -103,7 +103,7 @@ Whisper 用于录制后的转写。提词器的实时跟读使用另一套本地
 
 ### 3. 字幕与导出
 
-选「已经剪好，只加字幕」并放入视频，或在试听粗剪后点「用这版做字幕」，工作台会识别实际口播并直接打开有字幕的短预览。逐句试听、改字，在「这里加画面」中选择放图片、放演示、强调文字或加声音。需要拖动位置和调整多轨时再展开「精细调整」。
+选「已经剪好，只加字幕」并放入视频，或在试听粗剪后点「用这版做字幕」，工作台会识别实际口播并直接打开有字幕的短预览。识别时避开明显的长静音，自动断句结合标点、停顿和上下句长度。导入的 SRT/VTT 保留原有分句。逐句试听、改字，在「这里加画面」中选择放图片、放演示、强调文字或加声音。需要拖动位置和调整多轨时再展开「精细调整」。
 
 点「看成片效果」自动准备当前预览，已有有效预览可直接播放。「换一段预览」可以指定位置。「导出完整 MP4」保存完整视频，「用剪辑软件继续」展开外部剪辑入口。
 
@@ -198,6 +198,8 @@ Codex 用户还可点「连接 Codex 原对话」，把连接指令粘贴到项�
 
 ### 这次实测了哪些电脑和功能？
 
+V3.9 在 Windows 浏览器用同一份录制验证了两条路径的疑点试听、片头到片尾连续改字、同名词替换与撤销、刷新后继续以及一次集中试看。原片里「以上是我的初代贾维斯」整句从 13.35 秒显示到 16.15 秒。剪掉长停顿后，同一句出现在 8.65–11.45 秒。
+
 V3.8 在 Windows 浏览器用同一段 26 秒中文口播走完两条路径。只加字幕保留 26.00 秒；原始录像在试听确认后剪去停顿，导出 21.30 秒。两次都用本机 Whisper medium 识别，在首句附近打开 10 秒预览，点一次导出并下载完整 MP4。两份成片均通过音视频完整解码。
 
 V3.7 的 Windows 浏览器验收用了真实口播节选和配套字幕。由录前备注先试文字、再把 PNG 做成动图，只在采用后写入时间线。随后生成从中段开始的短预览，改当前字幕、替换画面并导出；同一段视频也从「已经剪好，只加字幕」直接导出。两份 MP4 均已完整解码。
@@ -213,7 +215,7 @@ Windows 与 Apple 芯片 macOS 可以用完整工程 ZIP 互相迁移，并从�
 
 ### 怎样从正在看的那句话开始改？
 
-在「看成片效果」中暂停。点「改这句字幕」改字，或用「调整这里的画面」替换、移除或加入图片、视频和强调文字。保存后工作台从这句话之前重新生成短预览。在无字幕的空隙可以调整画面，播放到说话处即可改字。
+预览中的「有几处建议听一下」可直接听剪后对应的口播。选择一句，听原声、改错字，或确认原文后继续；下拉框也可跳到全片任意一句。改字会自动保存。多处名称写法相同时可点「统一改一个名称」，核对匹配的句子后一起改，也可以撤销。点「改完了，一起试看」会一次生成带新字幕的完整预览，连播修改处，还可切回连续播放。满意后点「导出完整 MP4」，工作台保存刚看过的完整视频。画面仍可从暂停位置单独调整。
 
 ### 录制前留的画面备注在哪里？
 
@@ -236,6 +238,6 @@ Windows 与 Apple 芯片 macOS 可以用完整工程 ZIP 互相迁移，并从�
 
 ### 如何重新制作系统安装包？
 
-从已提交的发行源码运行 `python scripts/package_release.py --output dist`，再运行 `python packaging/build_installers.py windows --archive dist/talking-head-studio-v3.8.0.zip --out native`。Mac 构建时将平台参数改为 `macos`。构建器使用 Python 官方安装程序及固定 SHA-256。Mac 应用包含 Intel 和 Apple 芯片可执行文件。[Python 安装程序来源](https://www.python.org/downloads/release/python-31314/)
+从已提交的发行源码运行 `python scripts/package_release.py --output dist`，再运行 `python packaging/build_installers.py windows --archive dist/talking-head-studio-v3.9.0.zip --out native`。Mac 构建时将平台参数改为 `macos`。构建器使用 Python 官方安装程序及固定 SHA-256。Mac 应用包含 Intel 和 Apple 芯片可执行文件。[Python 安装程序来源](https://www.python.org/downloads/release/python-31314/)
 
 有 Developer ID 的发布者可在 Mac 钥匙串中配置签名身份和 notarytool 配置，构建时提供 `--identity` 与 `--notary-profile`。发布流程会分别签署应用和磁盘映像，等待 Apple 接受并附加公证票据。GitHub Actions 可通过仓库 Secrets 配置相同流程。[Apple 公证说明](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)

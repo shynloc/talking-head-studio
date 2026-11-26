@@ -21,6 +21,7 @@ def main():
     parser.add_argument('--url', required=True)
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--video', type=Path, required=True, help='A recording longer than 10 seconds with a long pause')
+    parser.add_argument('--proofread',action='store_true',help='Check V3.9 caption corrections on the 26-second regression recording')
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
     w,h,total = inspect_video(args.video)
@@ -63,6 +64,10 @@ def main():
             expect(page.locator('#finish-panel')).to_contain_text('完整视频')
             assert not state['approved']
             page.screenshot(path=str(args.out/(mode+'-preview.png')))
+            correction={}
+            if args.proofread:
+                from caption_desk_flow import correct_recording, check_final
+                correction=correct_recording(page,state,args.out,mode)
             with page.expect_download(timeout=180000) as saved:
                 page.locator('#finish-confirm').click()
             dest = args.out/('已剪视频加字幕.mp4' if mode=='captions' else '原始录像粗剪加字幕.mp4')
@@ -71,7 +76,8 @@ def main():
             assert (width,height)==(w,h) and abs(duration-state['duration'])<.15
             assert (abs(duration-total)<.15 if mode=='captions' else duration<total-.3)
             subprocess.run(['ffmpeg','-nostdin','-v','error','-xerror','-i',str(dest),'-f','null','-'],check=True)
-            evidence['routes'][mode]=dict(project=page.evaluate('P.id'),recognition=guided[0]['recognition'],
+            if args.proofread:check_final(page,dest,correction,args.out,mode)
+            evidence['routes'][mode]=dict(corrections=correction,project=page.evaluate('P.id'),recognition=guided[0]['recognition'],
                 subtitles=state['caption_spans'],preview=state['sample'],duration=duration,width=w,height=h)
             print(mode, duration, guided[0]['recognition'], flush=True)
         assert not errors, errors

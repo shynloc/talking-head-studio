@@ -27,7 +27,7 @@ load=async function(id,initialStage){
 };
 closeDialog=function(){clearInterval(draftPoll);draftPoll=null;mdGeneration++;const closingEditor=mdEditor;mdEditor=null;clearTimeout(closingEditor?._save);if(closingEditor?._ready)closingEditor.destroy();else if(closingEditor)closingEditor._disposed=true;if(micTester){micTester.stop();micTester=null;}$('#dialog').classList.remove('manuscript-dialog');legacyClose();};
 $('#close-dialog').onclick=()=>safeClose();$('#dialog').addEventListener('cancel',e=>{e.preventDefault();safeClose()});
-async function safeClose(){if(mdEditor&&manuscript&&manuscript.status!=='running')try{await saveManuscript()}catch(e){toast(e.message,true);return;}closeDialog();}
+async function safeClose(){if(finishReview?.flushCaptions)try{await finishReview.flushCaptions()}catch(e){toast(e.message,true);return;}if(mdEditor&&manuscript&&manuscript.status!=='running')try{await saveManuscript()}catch(e){toast(e.message,true);return;}closeDialog();}
 function refreshAnnotations(){const doc=new DOMParser().parseFromString(stageOne(),'text/html');const next=doc.querySelector('.annotations');if(next&&$('.annotations')){next.open=$('.annotations').open;$('.annotations').replaceWith(next);}syncTimeline();renderTimeline();const metrics=$$('.hero-metrics .metric strong');if(metrics[2])metrics[2].textContent=P.pages.reduce((n,p)=>n+p.tags.length,0);}
 async function dashboard(){
   homeMode=true;

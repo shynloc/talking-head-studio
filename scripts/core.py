@@ -3,7 +3,7 @@ from __future__ import annotations
 import copy, difflib, hashlib, json, math, os, re, threading, time, uuid
 from pathlib import Path
 
-VERSION = '3.8.0'
+VERSION = '3.9.0'
 ROOT = Path(__file__).resolve().parents[1]
 LOCK = threading.RLock()
 
@@ -248,7 +248,8 @@ def mapped_words(p):
     mapping = time_map(p['edl']); result = []
     for seg in p['transcript']:
         words = seg.get('words') or []
-        if not words:
+        estimated = not words
+        if estimated:
             chars = list(seg['text']); n = max(len(chars), 1)
             words = [{'word': c, 'start': seg['start'] + i * (seg['end'] - seg['start']) / n,
                       'end': seg['start'] + (i + 1) * (seg['end'] - seg['start']) / n} for i, c in enumerate(chars)]
@@ -258,37 +259,37 @@ def mapped_words(p):
             overlaps=[(min(w['end'],m['source_end'])-max(w['start'],m['source_start']),m) for m in mapping]
             if not overlaps:continue
             length,m=max(overlaps,key=lambda x:x[0])
-            if length>0:
+            point = w['start']==w['end']
+            if point:
+                m=next((r for r in mapping if r['source_start']<=w['start']<r['source_end']),None)
+                if m is None and mapping and w['start']==mapping[-1]['source_end'] and mapping[-1]['source_end']==p['edl'][-1]['end']:
+                    m=mapping[-1]
+            if length>0 or (point and m):
                 result.append({'text': w.get('word', w.get('text', '')), 'start': max(w['start'], m['source_start']) - m['source_start'] + m['start'],
                     'end': min(w['end'], m['source_end']) - m['source_start'] + m['start'], 'segment_id': seg['id'],
-                    'word_id': f"{seg['id']}:{wi}"})
+                    'word_id': f"{seg['id']}:{wi}", 'probability': w.get('probability'), 'estimated':estimated})
     return result
 
 def build_captions(p):
-    words = mapped_words(p); captions, buf = [], []
+    from caption_phrasing import groups, display_text, review_reason
+    captions = []
+    previous = {c['id']:c for c in p.get('captions',[])}
     imported = {s['id'] for s in p['transcript'] if s.get('subtitle_cue')}
-    def flush():
-        if not buf: return
-        text = ''.join(w['text'] for w in buf).strip()
-        if text:
-            capid='cap_'+digest([w['word_id'] for w in buf])[:12]
-            previous=next((c for c in p.get('captions',[]) if c['id']==capid),{})
-            captions.append({'id': capid, 'text': previous.get('text',text), 'original_text':text,'word_ids':[w['word_id'] for w in buf],
-                'start': round(buf[0]['start'], 3),'end': round(buf[-1]['end'] if buf[0]['segment_id'] in imported else max(buf[-1]['end'], buf[0]['start'] + .1), 3), **match_script(p, text)})
-        buf.clear()
-    for w in words:
-        if w['segment_id'] in imported:
-            if buf and buf[-1]['segment_id'] != w['segment_id']:
-                flush()
-            buf.append(w)
+    for group in groups(mapped_words(p), imported, previous.values()):
+        cue = group[0]['segment_id'] in imported
+        text = ''.join(w['text'] for w in group).strip() if cue else display_text(group)
+        if not text:
             continue
-        if buf and buf[-1]['segment_id'] in imported:
-            flush()
-        if buf and (len(''.join(x['text'] for x in buf)) + len(w['text']) > 26 or w['end'] - buf[0]['start'] > 5 or w['start'] - buf[-1]['end'] > .65):
-            flush()
-        buf.append(w)
-        if re.search(r'[。！？!?；;]$', w['text']) or (re.search(r'[，,]$', w['text']) and len(''.join(x['text'] for x in buf))>=5): flush()
-    flush()
+        ids = [w['word_id'] for w in group]
+        capid = 'cap_'+digest(ids)[:12]
+        start, end = group[0]['start'], group[-1]['end']
+        cap = {'id':capid, 'text':previous.get(capid,{}).get('text',text), 'original_text':text,
+               'word_ids':ids, 'start':round(start,3), 'end':round(end if cue else max(end,start+.1),3),
+               **match_script(p,text)}
+        reason = '' if cue else review_reason(group)
+        if reason:
+            cap['listen_reason'] = reason
+        captions.append(cap)
     for i, c in enumerate(captions):
         if c['word_ids'][0].rsplit(':',1)[0] in imported:
             continue

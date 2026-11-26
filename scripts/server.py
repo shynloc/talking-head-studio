@@ -16,6 +16,8 @@ import agent_api
 
 
 class WorkbenchServer(ThreadingHTTPServer):
+    request_queue_size = 64
+
     def server_bind(self):
         # The address is already a numeric loopback. HTTPServer's default
         # reverse hostname lookup can delay startup on a new network.

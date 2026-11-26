@@ -141,7 +141,7 @@ def stage_run(args, fresh, api):
 
 def old_checkout(folder):
     folder.mkdir()
-    code = subprocess.check_output(['git', 'archive', '--format=zip', '2328644'], cwd=ROOT)
+    code = subprocess.check_output(['git', 'archive', '--format=zip', '898ef50'], cwd=ROOT)
     import io
     with ZipFile(io.BytesIO(code)) as archive:
         archive.extractall(folder)
@@ -157,7 +157,7 @@ def seed_previous(fixture, source):
         complete(before, project['id'], 'script', {'text': '请保留这段稿件。'})
         return url, before('/api/project?id=' + project['id'])
     shutil.copytree(source, fixture.app)
-    (fixture.app / '.studio-install').write_text('3.7.0\n', encoding='utf-8')
+    (fixture.app / '.studio-install').write_text('3.8.0\n', encoding='utf-8')
     seed = (
         'import json,sys; sys.path.insert(0,sys.argv[1]); '
         'from core import Store,default_project,script_pages; '

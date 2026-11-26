@@ -1,4 +1,4 @@
-const BLUE = '#2044c5',
+let BLUE = '#2044c5',
   INK = '#262727',
   ORANGE = '#f1843d',
   CREAM = '#fff5df',
@@ -735,6 +735,9 @@ function titleLayer(g, opts, t, ids, y, solo, plate) {
 }
 
 function draw(canvas, t, ids = [], subject = '', solo = false, settings = {}) {
+  const palette = settings.colors || {}
+  BLUE=palette.accent || '#2044c5'; INK=palette.text || '#262727'; ORANGE=palette.object || '#f1843d'
+  CREAM=palette.surface || '#fff5df'; MINT=settings.colors ? palette.object : '#83b09a'
   const g = canvas.getContext('2d', { willReadFrequently: true })
   g.setTransform(1, 0, 0, 1, 0, 0)
   g.clearRect(0, 0, canvas.width, canvas.height)

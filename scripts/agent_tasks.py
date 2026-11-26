@@ -11,6 +11,7 @@ from core import Conflict, digest, now, uid, write_json
 
 from agent_hosts import AGENTS
 import motion_recommend as motion
+import motion_samples as samples
 
 
 def text_value(value, label, limit):
@@ -72,7 +73,7 @@ class AgentTasks:
         if not detail:
             public.pop('result', None)
             public.pop('recommendations', None)
-        if task.get('kind')=='motion':
+        if task.get('kind') in ('motion','production'):
             return public
         if detail and task['status'] == 'ready':
             try:
@@ -88,7 +89,7 @@ class AgentTasks:
         with self.lock:
             tasks = [json.loads(path.read_text(encoding='utf-8')) for path in self.root.glob('handoff_*.json')]
             return [self._public(task, detail=False) for task in sorted(tasks, key=lambda x: x['updated'], reverse=True)
-                    if (not project_id or task['project_id'] == project_id) and (not agent or task['agent'] == agent) and (agent or task.get('kind')!='motion')]
+                    if (not project_id or task['project_id'] == project_id) and (not agent or task['agent'] == agent) and (agent or task.get('kind') not in ('motion','production'))]
 
     def get(self, task_id):
         with self.lock:
@@ -166,7 +167,7 @@ class AgentTasks:
         agent = data.get("agent", "codex")
         if agent not in ("codex", "workbuddy", "service"):
             raise ValueError("请选择可用助手。")
-        context = motion.snapshot(data.get("text"), data.get("sentences"))
+        context = motion.snapshot(data.get("text"), data.get("sentences"), data.get("visual"))
         request = text_value(data.get("request_id"), "提交编号", 80)
         with self.lock:
             for path in self.root.glob("handoff_*.json"):
@@ -196,10 +197,115 @@ class AgentTasks:
                 service.pool.submit(self._model_motion, task["id"], context, service)
             return self._public(task)
 
+    def production(self, data, *, parent=None):
+        workspace = data["workspace"]
+        if not re.fullmatch(r"motion_[0-9a-f]{32}", workspace):
+            raise ValueError("无效的素材工作区。")
+        agent = data.get("agent", "codex")
+        if agent not in ("codex", "workbuddy", "service"):
+            raise ValueError("未知助手。")
+        lines = data["sentences"]
+        i = data["sentence"]
+        if type(i) != int or not 0 <= i < len(lines):
+            raise ValueError("原句编号无效。")
+        visual = samples.selection(data.get("visual"))
+        route = data["route"]
+        if route not in ("library", "imagegen", "html", "gif"):
+            raise ValueError("请选择制作方式。")
+        context = {
+            "sentence": i,
+            "quote": lines[i],
+            "manuscript": data["text"],
+            "producer": route,
+            "title": text_value(data["title"], "标题", 90),
+            "brief": text_value(data["brief"], "画面说明", 2000),
+            "visual": visual,
+            "visualBrief": samples.brief(visual),
+            "seconds": data.get("seconds", 3),
+        }
+        if type(context["seconds"]) != int or not 1 <= context["seconds"] <= 12:
+            raise ValueError("时长无效。")
+        rid = text_value(data.get("request_id"), "提交编号", 100)
+        key = "handoff_" + digest([workspace, parent, rid, i])[:12]
+        with self.lock:
+            if self._path(key).exists():
+                job = self._get(key)
+                if job.get("context_hash") != digest(context):
+                    raise Conflict("原句或风格已变化。")
+                return self._public(job)
+            job = {
+                "id": key,
+                "kind": "production",
+                "parent": parent,
+                "project_id": workspace,
+                "project_title": "口播素材制作",
+                "agent": "codex" if agent == "service" else agent,
+                "request_id": rid,
+                "context_hash": digest(context),
+                "context": context,
+                "producer": route,
+                "sentence": i,
+                "status": "waiting",
+                "created": now(),
+                "delivery": "manual",
+                "instruction": "依照本句 brief 和 visualBrief，用指定工具现做透明素材。通过 sample_tool.py deliver 提交真实文件；不得只交文字。",
+            }
+            if route == "library":
+                job.update(
+                    sample=samples.from_library(self.store.root, visual), status="ready"
+                )
+            self._save(job)
+            return self._public(job)
+
+    def planned(self, task, rows):
+        ctx = task["context"]
+        for row in rows:
+            if row.get("route", "catalog") != "catalog":
+                job = self.production(
+                    dict(
+                        row,
+                        workspace=task["project_id"],
+                        agent=task["agent"],
+                        text=ctx["manuscript"],
+                        sentences=ctx["sentences"],
+                        request_id=task["id"],
+                    ),
+                    parent=task["id"],
+                )
+                row["job"] = job["id"]
+                if job.get("sample"):
+                    row["sample"] = job["sample"]
+        return rows
+
+    def check_delivery(self, key, agent, receipt):
+        with self.lock:
+            job = self._get(key)
+            if (
+                job.get("kind") != "production"
+                or job["agent"] != agent
+                or job["status"] not in ("claimed", "ready")
+                or not job.get("claim")
+                or not isinstance(receipt, str)
+                or not secrets.compare_digest(receipt, job["claim"])
+            ):
+                raise Conflict("请使用这句制作待办的有效领取凭证。")
+            return job
+
+    def finish_delivery(self, key, agent, receipt, sample):
+        with self.lock:
+            job = self.check_delivery(key, agent, receipt)
+            if (job["producer"] == "imagegen") != (sample["kind"] == "image"):
+                raise ValueError("主文件类型与本句的制作任务不符。")
+            if job["status"] == "ready" and job["sample"]["id"] != sample["id"]:
+                raise Conflict("这版已经交付。换效果请从原句卡制作新版。")
+            job.update(status="ready", sample=sample)
+            self._save(job)
+            return self._public(job)
+
     def _model_motion(self, task_id, context, service):
         try:
             result = service.model_reply(motion.INSTRUCTION, json.dumps(context, ensure_ascii=False))
-            rows = motion.recommendations(context, result)
+            rows = self.planned(self._get(task_id),motion.recommendations(context, result))
             update = {"status": "ready", "result": result, "recommendations": rows}
         except Exception as exc:
             update = {"status": "failed", "error": str(exc)[:450]}
@@ -226,6 +332,7 @@ class AgentTasks:
         result = text_value(data.get('result'), '处理结果', 120000)
         with self.lock:
             task = self._get(data['id'])
+            if task.get('kind')=='production':raise ValueError('请提交真实媒体文件。')
             receipt = data.get('receipt')
             claim = task.get('claim')
             if task['agent'] != agent or not claim or not isinstance(receipt, str) or not secrets.compare_digest(receipt, claim):
@@ -235,7 +342,7 @@ class AgentTasks:
             if task['status'] != 'claimed':
                 raise Conflict('这条待办已有结果。')
             if task.get('kind')=='motion':
-                task['recommendations']=motion.recommendations(task['context'],result)
+                task['recommendations']=self.planned(task,motion.recommendations(task['context'],result))
             task.update(status='ready', result=result)
             self._save(task)
             return self._public(task)
@@ -244,12 +351,13 @@ class AgentTasks:
         result = text_value(data.get('result'), '处理结果', 120000)
         with self.lock:
             task = self._get(data['id'])
+            if task.get('kind')=='production':raise ValueError('请提交真实媒体文件。')
             if task.get('agent')=='service':
                 raise Conflict('此请求由模型服务处理。')
             if task['status'] == 'ready' or task['delivery'] == 'sending':
                 raise Conflict('待办已有结果或正在投递，请刷新后查看。')
             if task.get('kind')=='motion':
-                task['recommendations']=motion.recommendations(task['context'],result)
+                task['recommendations']=self.planned(task,motion.recommendations(task['context'],result))
             task.pop('claim', None)
             task.update(status='ready', result=result, manual_result=True)
             self._save(task)
@@ -275,7 +383,7 @@ class AgentTasks:
                 return self._public(task)
             task['delivery'] = 'sending'
             self._save(task)
-            card_task = self._public(task) if task.get('kind') == 'motion' else task
+            card_task = self._public(task) if task.get('kind') in ('motion','production') else task
             self.pool.submit(self._dispatch, task_id, binding, make_card(card_task))
             return self._public(task)
 

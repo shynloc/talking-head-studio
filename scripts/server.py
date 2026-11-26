@@ -14,6 +14,8 @@ from speech_live import LiveSpeech
 import v2_api
 import agent_api
 import motion_package
+import motion_samples
+import tempfile
 
 
 class WorkbenchServer(ThreadingHTTPServer):
@@ -43,6 +45,9 @@ class Handler(BaseHTTPRequestHandler):
         if not self.valid_host():return self.respond(403,{'error':'仅允许本机访问'})
         url=urllib.parse.urlparse(self.path);path=url.path;query=urllib.parse.parse_qs(url.query)
         try:
+            if path.startswith('/motion-media/'):
+                _,_,sample,name=path.split('/')
+                return self.send_file(motion_samples.preview_file(self.server.store.root,sample,name))
             if path.startswith('/motion-download/'):
                 name = path.removeprefix('/motion-download/')
                 return self.send_file(motion_package.download(self.server.store.root, name), download=True)
@@ -101,6 +106,26 @@ class Handler(BaseHTTPRequestHandler):
 
     def handle_post(self):
         try:
+            if self.path.startswith('/api/motion/deliver?') or self.path == '/api/motion/restore':
+                limit=motion_samples.LIMIT if 'deliver?' in self.path else motion_package.MAX_BYTES
+                size=int(self.headers.get('Content-Length',0))
+                if not 0<size<=limit:raise ValueError('素材包为空或太大。')
+                delivery='deliver?' in self.path
+                if delivery:
+                    query=urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                    claim=(query['id'][0],query['agent'][0],self.headers.get('X-Studio-Receipt'))
+                    self.server.agent_tasks.check_delivery(*claim)
+                with tempfile.TemporaryFile() as bundle:
+                    while size:
+                        block=self.rfile.read(min(1048576,size))
+                        if not block:raise ValueError('素材上传中断。')
+                        bundle.write(block);size-=len(block)
+                    bundle.seek(0)
+                    root=self.server.store.root
+                    if delivery:
+                        sample=motion_samples.receive(root,bundle)
+                        return self.respond(200,self.server.agent_tasks.finish_delivery(*claim,sample))
+                    return self.respond(200,motion_package.restore(root,bundle))
             if self.path == '/api/motion/export':
                 return self.respond(200, motion_package.export(self.server.store.root, self.rfile, int(self.headers.get('Content-Length', 0))))
             if self.path.startswith('/api/upload?'):return self.upload()
@@ -124,6 +149,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(200,{'status':'draft_ready','task_id':task['id']})
             if self.path=='/api/action':return self.respond(202,self.server.jobs.submit(data['project_id'],data['action'],data.get('args',{})))
             return self.respond(404,{'error':'未知接口'})
+        except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):return
         except Conflict as e:self.respond(409,{'error':str(e)})
         except Exception as e:self.respond(400,{'error':str(e)})
 

@@ -143,6 +143,7 @@ function createItem(line) {
     title: (parts.find((s) => s.length > 2) || text).slice(0, 32),
     ids: [...ids],
     theme: 'neutral',
+    visual: clone(state.visual || {}),
     a: states?.[1] || '之前',
     b: states?.[2] || '之后',
     labels: [0, 1, 2].map((v) => parts[v]?.slice(0, 12) || ['第一步', '第二步', '第三步'][v]),
@@ -162,6 +163,7 @@ function paint(canvas, item, f, imgs) {
     b: item.b,
     labels: item.labels,
     values: item.values,
+    colors: VISUAL.palettes.find(p => p.id === item.visual?.palettes)?.colors,
     ...imgs,
   })
 }
@@ -270,6 +272,7 @@ async function selectLine(line) {
     Object.values(state.edits).find((x) => x.quote === line.quote && x.offset === line.offset) ||
     state.items.find((x) => x.quote === line.quote && x.offset === line.offset)
   const same = state.draft && state.draft.quote === line.quote && state.draft.offset === line.offset
+  if (existing?.sample) return revisitSample(existing)
   await openItem(same ? state.draft : existing || createItem(line))
 }
 function fieldValue(id, val) {
@@ -394,8 +397,13 @@ async function approve() {
   const d = state.draft
   if (!d?.ids.length) return
   stop()
+  const old=state.items.find(i=>i.id===d.id)
   putReviewed(d, frame, images)
   const reviewPage = state.editFromReview === d.id
+  if (reviewPage) {
+    const row = state.review?.rows.find(r => r.item.id === d.id)
+    if (row) Object.assign(row, {item:clone(d), candidate:false, job:null, previous:old ? clone(old) : row.previous})
+  }
   if (!reviewPage) state.packFromScript = false
   state.editFromReview = ''
   $('approve').disabled = true
@@ -433,7 +441,8 @@ function showPack() {
       copy,
       button('改这款', 'quiet', () => {
         state.editFromReview = ''
-        openItem(state.edits[item.id] || item).catch(issue)
+        if (item.sample) revisitSample(item)
+        else openItem(state.edits[item.id] || item).catch(issue)
       }),
       button('移除', 'link', () => {
         state.items = state.items.filter((x) => x.id !== item.id)

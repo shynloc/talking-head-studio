@@ -9,6 +9,9 @@ def handoff_command(args):
     client = AgentClient(args.url, getattr(args, 'agent', 'codex'))
     if args.command == 'agent-motion-desk':
         return client.motion_desk(os.environ.get('CODEX_THREAD_ID', ''))
+    if args.command == 'agent-deliver':
+        from sample_tool import deliver
+        return deliver(args)
     if args.command == 'agent-config':
         return {'mcpServers':{'talking-head-studio':{'command':sys.executable,
             'args':['-X','utf8',str(Path(__file__).with_name('agent_mcp.py').resolve()),'--agent',args.agent,'--url',args.url]}}}
@@ -38,6 +41,8 @@ def main():
     claim=sub.add_parser('agent-claim');claim.add_argument('id');claim.add_argument('--agent', choices=tuple(AGENTS), required=True)
     result=sub.add_parser('agent-complete');result.add_argument('id');result.add_argument('--agent', choices=tuple(AGENTS), required=True)
     result.add_argument('--receipt', required=True);result.add_argument('--file', required=True)
+    delivery=sub.add_parser('agent-deliver');delivery.add_argument('task');delivery.add_argument('--agent',choices=('workbuddy','codex'),required=True)
+    delivery.add_argument('--receipt',required=True);delivery.add_argument('--media',type=Path,required=True);delivery.add_argument('--source',type=Path,action='append',default=[])
     bind=sub.add_parser('agent-bind');bind.add_argument('project');bind.add_argument('--replace', action='store_true')
     args=p.parse_args()
     if args.command.startswith('agent-'):

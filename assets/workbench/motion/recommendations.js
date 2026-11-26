@@ -107,7 +107,20 @@ function buildRows(plans, units, previous = []) {
       if (plan[field] !== undefined) item[field] = clone(plan[field])
     item.poster = Math.round((countFrames(item) - 1) * 0.55)
     item.id = saved?.id || before?.item.id || item.id
-    return { item, reason: plan.reason, sentence: plan.sentence }
+    item.visual = clone(plan.visual || state.visual || {})
+    item.producer = plan.route || 'catalog'
+    if (item.producer !== 'catalog') item.ids = []
+    if (plan.job) item.productionTask = plan.job
+    if (plan.sample) item.sample = plan.sample
+    return {
+      item,
+      reason: plan.reason,
+      sentence: plan.sentence,
+      brief: plan.brief,
+      job: plan.job,
+      candidate: !!saved && !!plan.job && saved.sample?.id !== plan.sample?.id,
+      previous: before?.previous,
+    }
   })
 }
 function resetReview() {
@@ -137,6 +150,7 @@ function manuscriptChanged() {
 function initReview() {
   state.motionWorkspace ||= storageKey === 'workspace' ? 'motion_' + key().replaceAll('-', '') : storageKey
   state.motionAgent ||= 'codex'
+  showStyle()
   $('agent-mode').value = state.motionAgent
   if (storageKey !== 'workspace') $('agent-mode').options[0].text = 'Codex · 此链接的原对话'
   if (state.script && state.review?.text !== state.script) resetReview()
@@ -207,46 +221,43 @@ function renderReview() {
       : '目前没有必须配画面的句子，可以保留口播，也可以从全部原句里补选。'
     list.append(empty)
   }
+  observeProduction(r)
   $('undo-skip').hidden = !r.rows.some((row) => r.skipped.includes(row.sentence))
 }
 function addPick(list, review, row) {
-  const item = state.items.find((x) => x.id === row.item.id) || row.item
+  const saved = state.items.find((x) => x.id === row.item.id)
+  const item = (row.candidate ? row.item : saved) || row.item
+  const adopted = !!saved && !row.candidate
   const card = document.createElement('article')
   card.className = 'paper review-card'
   card.dataset.sentence = row.sentence
   const visual = document.createElement('div')
   visual.className = 'pick-stage check'
-  const canvas = document.createElement('canvas')
-  canvas.width = 720
-  canvas.height = 270
-  canvas.setAttribute('aria-label', item.title + '透明小样')
-  let imgs = {},
-    animation = 0
-  const still = () => paint(canvas, item, item.poster, imgs)
-  still()
-  if (Object.keys(item.files || {}).length)
-    loadImages(item)
-      .then((result) => {
-        imgs = result
-        if (canvas.isConnected) still()
-      })
-      .catch(issue)
-  const replay = button('▶ 试看 ' + item.seconds + ' 秒', 'watch', () => {
-    cancelAnimationFrame(animation)
-    const start = performance.now()
-    const tick = (now) => {
-      if (!canvas.isConnected || state.page !== 'script') return
-      const f = Math.floor(((now - start) * FPS) / 1000)
-      if (f >= countFrames(item)) {
-        still()
-        return
-      }
-      paint(canvas, item, f, imgs)
-      animation = requestAnimationFrame(tick)
-    }
-    animation = requestAnimationFrame(tick)
-  })
-  visual.append(canvas, replay)
+  if (item.producer && item.producer !== 'catalog') sampleStage(visual, item, row)
+  else {
+    const canvas = document.createElement('canvas')
+    canvas.width = 720
+    canvas.height = 270
+    canvas.setAttribute('aria-label', item.title + '透明小样')
+    let imgs = {}
+    const still = () => paint(canvas, item, item.poster, imgs)
+    still()
+    if (Object.keys(item.files || {}).length)
+      loadImages(item)
+        .then((result) => {
+          imgs = result
+          if (canvas.isConnected) still()
+        })
+        .catch(issue)
+    playerControls(
+      visual,
+      countFrames(item),
+      item.poster,
+      (f) => paint(canvas, item, f, imgs),
+      '▶ 试看 ' + item.seconds + ' 秒',
+    )
+    visual.prepend(canvas)
+  }
   const copy = document.createElement('div')
   copy.className = 'pick-copy'
   const quote = document.createElement('h3')
@@ -260,19 +271,22 @@ function addPick(list, review, row) {
   recipe.textContent = recipeNote + item.ids.map((id) => TERM[id].name).join(' · ')
   const actions = document.createElement('div')
   actions.className = 'pick-actions'
-  const adopted = chosen(item)
+  const ready = !item.producer || item.producer === 'catalog' || !!item.sample
   const accept = button(
-    adopted ? '已采用 · 撤销' : '采用',
+    adopted ? '已采用 · 撤销' : saved ? '采用新版' : '采用',
     'accept ' + (adopted ? 'quiet' : 'primary'),
     async () => {
       try {
         accept.disabled = true
         const loaded = await loadImages(item)
         if (state.review !== review || !card.isConnected) return
+        if (!adopted && saved) row.previous = clone(saved)
         if (adopted) {
           state.items = state.items.filter((x) => x.id !== item.id)
           state.download = ''
-        } else putReviewed(clone(item), item.poster, loaded)
+        } else if (item.sample) acceptSample(item)
+        else putReviewed(clone(item), item.poster, loaded)
+        row.candidate = false
         save()
         renderReview()
       } catch (e) {
@@ -281,20 +295,15 @@ function addPick(list, review, row) {
       }
     },
   )
+  accept.disabled = !ready
+  if (item.producer && item.producer !== 'catalog')
+    recipe.textContent = routeNames[item.producer] + (item.sample ? ' · 已就绪' : ' · 制作中')
   accept.setAttribute('aria-pressed', String(adopted))
   actions.append(
     accept,
-    button('换效果', 'quiet change-effect', async () => {
-      try {
-        state.editFromReview = item.id
-        await openItem(state.edits[item.id] || item)
-        $('open-library').click()
-      } catch (e) {
-        issue(e)
-      }
-    }),
+    button('换效果', 'quiet change-effect', () => chooseEffect(review, row, item)),
     button('跳过', 'link skip', () => {
-      if (adopted) {
+      if (saved) {
         state.items = state.items.filter((x) => x.id !== item.id)
         state.download = ''
       }
@@ -303,6 +312,43 @@ function addPick(list, review, row) {
       renderReview()
     }),
   )
+  if (saved && row.candidate)
+    actions.append(
+      button('保留已用版', 'link', () => {
+        row.candidate = false
+        save()
+        renderReview()
+      }),
+    )
+  if (saved && !row.candidate && differentVersion(saved, row.item))
+    actions.append(
+      button('看新版', 'link', () => {
+        row.candidate = true
+        save()
+        renderReview()
+      }),
+    )
+  if (row.previous && adopted)
+    actions.append(
+      button('恢复上一版', 'link', () => {
+        const idx = state.items.findIndex((x) => x.id === item.id)
+        const previous = row.previous
+        row.previous = clone(item)
+        state.items[idx] = clone(previous)
+        row.item = clone(previous)
+        row.job = null
+        row.candidate = false
+        if (previous.sample) delete state.edits[item.id]
+        else state.edits[item.id] = clone(previous)
+        state.download = ''
+        save()
+        renderReview()
+      }),
+    )
+  if (referenceFrame) {
+    visual.classList.add('has-reference')
+    visual.style.backgroundImage = 'url(' + referenceFrame + ')'
+  }
   copy.append(quote, why, recipe, actions)
   card.append(visual, copy)
   list.append(card)
@@ -401,6 +447,7 @@ async function startReview() {
       request_id: r.requestId,
       agent: r.agent,
       text: r.text,
+      visual: state.visual || {},
       sentences: lines(r.text).map((x) => x.quote),
     })
     consumeTask(r, task)

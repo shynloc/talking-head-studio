@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>只做口播素材 · 口播导演工作台</title>
-    <link rel="stylesheet" href="studio.css" />
+    <link rel="stylesheet" href="studio.css" /><link rel="stylesheet" href="production.css" />
   </head>
   <body>
     <header>
@@ -22,13 +22,14 @@
             <p>贴入整篇稿子，先看推荐理由和透明小样。喜欢的可以一起带走。</p>
           </div>
           <button id="restore" class="quiet">打开已有搭配</button
-          ><input id="restore-file" type="file" hidden accept=".json,application/json" />
+          ><input id="restore-file" type="file" hidden accept=".zip,.json,application/json" />
         </div>
         <div class="paper intake">
           <label for="manuscript">我的口播稿</label>
           <textarea disabled id="manuscript" rows="4" placeholder="把整篇稿子粘贴到这里……"></textarea>
           <div class="intake-actions">
             <button id="recommend" class="primary">推荐配画面的原句</button>
+            <button id="visual-open" class="quiet">挑整篇风格</button><small id="style-summary"></small>
             <label for="agent-mode">用哪位助手</label
             ><select id="agent-mode">
               <option value="codex">Codex 原对话</option>
@@ -36,6 +37,12 @@
               <option value="service">已配置的模型服务</option>
             </select>
           </div>
+          <details id="reference"><summary>用自己的画面试摆</summary>
+            <label>选择录像或背景图<input type="file" id="reference-file" accept="video/*,image/*"></label>
+            <video id="reference-video" controls muted playsinline hidden></video>
+            <button class="quiet" id="reference-use" hidden>用当前帧试摆</button>
+            <button class="link" id="reference-clear" hidden>还原透明底</button>
+          </details>
           <small id="service-note" hidden>选择此项后，稿件将发送到你在工作台设置的模型服务。</small>
         </div>
         <section id="review" aria-labelledby="review-title" hidden>
@@ -144,7 +151,7 @@
         <div class="heading">
           <div>
             <h1>我的<span>素材包</span></h1>
-            <p>解压后，把透明 MOV 放到口播视频上方的轨道，按原句对齐。</p>
+            <p>解压后，把透明图片或动画放到口播视频上方的轨道，按原句对齐。</p>
           </div>
           <button id="more" class="quiet">＋ 再选一句</button>
         </div>
@@ -157,6 +164,17 @@
       </section>
       <div id="notice" role="status" aria-live="polite"></div>
     </main>
+    <dialog id="visual-dialog" aria-labelledby="visual-title">
+      <div class="bar"><h2 id="visual-title">挑整篇风格</h2><button class="link" id="visual-close">取消</button></div>
+      <iframe title="网页风格、配色、3D 和贴纸预览" id="visual-picker"></iframe>
+      <div class="bar"><div><button id="favorite-save" class="link">记作常用搭配</button><button id="favorite-load" class="link" hidden>使用常用搭配</button><small id="favorite-status"></small></div><button class="primary" id="visual-apply">应用搭配</button></div>
+    </dialog>
+    <dialog id="effect-dialog" aria-labelledby="effect-title">
+      <div class="bar"><h2 id="effect-title">这句想怎么配？</h2><button class="link" id="effect-close">关闭</button></div>
+      <p id="effect-quote"></p><div id="route-options"></div>
+      <label for="production-note">想改哪里？（可选）</label><textarea id="production-note" rows="2" placeholder="例如，把操作分成两步，箭头指向旋钮"></textarea>
+      <button class="link" id="effect-style">只改这句的风格和配色</button><small id="effect-style-summary"></small><p role="status" id="effect-error"></p>
+    </dialog>
     <dialog id="lexicon" aria-labelledby="library-title">
       <div class="bar">
         <h2 id="library-title">通用动效词库</h2>

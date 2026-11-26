@@ -41,9 +41,15 @@ async function makePack() {
   back.inert = true
   try {
     const capability = await jsonResponse(await fetch('/api/motion/status', { cache: 'no-store' }))
-    if (!capability.ready) throw Error('导出 MOV 需要 FFmpeg。安装媒体工具后回到这里重试，已选素材会保留。')
+    if (!capability.ready && packItems().some((item) => !item.sample))
+      throw Error('导出 MOV 需要 FFmpeg。安装媒体工具后回到这里重试，已选素材会保留。')
     const entries = packItems().map(reviewedCopy),
-      header = new TextEncoder().encode(JSON.stringify({ format: FORMAT, items: entries }))
+      header = new TextEncoder().encode(
+        JSON.stringify({
+          format: entries.some((item) => item.sample) ? 'talking-head-motion/2' : FORMAT,
+          items: entries,
+        }),
+      )
     if (entries.length > 64 || header.byteLength > 32 * 1024 * 1024)
       throw Error('这个包的素材较多，请分批导出。')
     const chunks = [prefix(header.length), header]
@@ -52,6 +58,7 @@ async function makePack() {
     canvas.width = 960
     canvas.height = 360
     for (const [n, item] of entries.entries()) {
+      if (item.sample) continue
       const imgs = await loadImages(item),
         count = countFrames(item)
       for (let f = 0; f < count; f++) {
@@ -86,7 +93,7 @@ async function makePack() {
     $('download').href = response.url
     $('download').hidden = false
     $('download').click()
-    $('progress').textContent = response.count + ' 款已导出。解压后使用「透明动画」里的 MOV。'
+    $('progress').textContent = response.count + ' 款已导出。解压后，把透明图片和动画拖到视频上方。'
   } catch (e) {
     $('progress').textContent = e.message + ' 已选搭配保留，可再次导出。'
   } finally {
@@ -107,6 +114,24 @@ window.addEventListener('beforeunload', (event) => {
   }
 })
 function parseItem(raw) {
+  if (
+    raw?.sample &&
+    typeof raw.quote === 'string' &&
+    raw.quote.trim() &&
+    /^[a-f0-9]{64}$/.test(raw.sample.id)
+  ) {
+    return {
+      ...createItem({ quote: raw.quote, offset: raw.offset || 0 }),
+      title: String(raw.title),
+      producer: raw.producer,
+      productionTask: raw.productionTask,
+      ids: [],
+      sample: raw.sample,
+      visual: raw.visual || {},
+      seconds: raw.seconds || 3,
+      thumb: mediaUrl(raw.sample),
+    }
+  }
   if (
     !raw ||
     typeof raw.quote !== 'string' ||
@@ -134,6 +159,7 @@ function parseItem(raw) {
     item.labels = raw.labels.slice()
   if (Array.isArray(raw.values) && raw.values.length === 2 && raw.values.every(Number.isFinite))
     item.values = raw.values.slice()
+  item.visual = raw.visual || {}
   item.ids = raw.ids.slice()
   item.seconds = raw.seconds
   item.poster = raw.poster
@@ -150,11 +176,25 @@ $('restore').onclick = () => $('restore-file').click()
 $('restore-file').onchange = async (event) => {
   const file = event.target.files[0]
   if (!file) return
+  $('restore').disabled = true
+  $('restore').textContent = '正在打开素材包…'
+  tell('正在读取已采用的素材并准备透明预览。')
   try {
-    if (file.size > 32 * 1024 * 1024) throw Error('搭配文件太大，请选择素材包中的 JSON。')
-    const manifest = JSON.parse(await file.text())
+    const zipped = file.name.toLowerCase().endsWith('.zip')
+    if (file.size > (zipped ? 512 : 32) * 1024 * 1024) throw Error('素材包太大，请分批打开。')
+    let manifest
+    if (zipped) {
+      await session()
+      manifest = await jsonResponse(
+        await fetch('/api/motion/restore', {
+          method: 'POST',
+          headers: { 'X-Studio-Token': token, 'Content-Type': 'application/zip' },
+          body: file,
+        }),
+      )
+    } else manifest = JSON.parse(await file.text())
     if (
-      manifest.format !== FORMAT ||
+      ![FORMAT, 'talking-head-motion/2'].includes(manifest.format) ||
       !Array.isArray(manifest.items) ||
       !manifest.items.length ||
       manifest.items.length > 64
@@ -165,19 +205,33 @@ $('restore-file').onchange = async (event) => {
     canvas.width = 480
     canvas.height = 180
     for (const item of incoming) {
+      if (item.sample) {
+        if (!(await fetch(mediaUrl(item.sample))).ok) throw Error('这款素材来自另一台电脑，请打开完整 ZIP。')
+        continue
+      }
       paint(canvas, item, item.poster, await loadImages(item))
       item.thumb = canvas.toDataURL()
     }
     state.packFromScript = false
     state.items.push(...incoming)
     state.download = ''
-    if (!state.script.trim()) state.script = incoming.map((s) => s.quote).join('\n')
+    if (!state.script.trim()) {
+      let offset = 0
+      for (const item of incoming) {
+        item.offset = offset
+        offset += item.quote.length + 1
+      }
+      state.script = incoming.map((s) => s.quote).join('\n')
+      resetReview()
+    }
     nav('pack')
     tell('已加入 ' + incoming.length + ' 款。点「改这款」可以继续编辑。')
   } catch (e) {
     issue(e)
   } finally {
     $('restore-file').value = ''
+    $('restore').textContent = '打开已有搭配'
+    $('restore').disabled = false
   }
 }
 async function initMaterials() {

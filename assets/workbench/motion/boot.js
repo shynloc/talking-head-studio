@@ -3,7 +3,8 @@ async function startMaterialDesk() {
   const response = await fetch('catalog.json')
   if (!response.ok) throw Error('动效词库加载失败，请刷新页面。')
   window.DATA = await response.json()
-  for (const file of ['renderer.js', 'illustrations.js', 'studio.js', 'recommendations.js', 'pack.js']) {
+  window.VISUAL = await (await fetch('visual/catalog.json')).json()
+  for (const file of ['renderer.js', 'illustrations.js', 'studio.js', 'recommendations.js', 'production.js', 'pack.js']) {
     await new Promise((resolve, reject) => {
       const script = document.createElement('script')
       script.onload = resolve

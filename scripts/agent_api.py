@@ -28,6 +28,10 @@ def task_card(task, url):
     claim = command(url, 'agent-claim', task_id, '--agent', agent)
     complete = command(url, 'agent-complete', task_id, '--agent', agent,
                        '--receipt', 'RECEIPT', '--file', 'RESULT.txt')
+    if task.get('kind')=='production':
+        return (f"请在当前 {AGENTS[agent]} 对话制作这句口播小样。先领取待办，读取原句和画面要求。\n{claim}\n"
+                f"完成后运行 {command(url,'agent-deliver',task_id,'--agent',agent,'--receipt','RECEIPT','--media','FILE')}，"
+                "可重复添加 --source 源文件。需要演示或轻动作请使用 scripts/sample_tool.py。")
     card = (
         f'请在当前 {AGENTS[agent]} 对话继续口播导演工作台的待办 {task_id}。\n'
         f'若已连接工作台工具，先用 studio_claim_task 领取此编号，再用 studio_complete_task 写回结果。\n'
@@ -72,6 +76,13 @@ def post(server, path, data):
     url = f'http://127.0.0.1:{server.server_port}'
     if path == '/api/agents/destination':
         return {'value':project_destination(tasks, data['project_id'],agent_key(data['agent']),data['value'])}
+    if path == '/api/agents/production':
+        from motion_recommend import snapshot
+        snapshot(data.get('text'),data.get('sentences'),data.get('visual'))
+        job=tasks.production(data)
+        if job['status']=='waiting' and data.get('agent')=='codex':
+            return tasks.resume(job['id'],lambda t:task_card(t,url))
+        return job
     if path == '/api/agents/motion-desk':
         workspace = tasks.motion_desk(data.get('thread_id'))
         return {'url': f'{url}/motion/index.html?desk={workspace}'}

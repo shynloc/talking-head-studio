@@ -21,7 +21,7 @@ class AgentClient:
         path = self.url + '/api/agents/' + route
         if query:
             path += '?' + urlencode(query)
-        return request_json(path, payload, token, timeout=20 if route in ('bind', 'motion-desk') else 5)
+        return request_json(path, payload, token, timeout=20 if route in ('bind', 'motion-desk', 'complete') else 5)
 
     def list(self):
         return self._call('tasks', query={'agent': self.agent})

@@ -1,0 +1,1064 @@
+{
+  "schema": "visual-library/1",
+  "revision": 1,
+  "styles": [
+    {
+      "id": "field",
+      "name": "自然观察手册",
+      "summary": "把对象和特征摆在一起",
+      "uses": "植物、食材、生活观察",
+      "layout": "主体单独放在左侧，占 42%；右侧为标题和三条观察记录。",
+      "type": "中文宋体标题，黑体标签，标题约为正文的 1.8 倍。",
+      "detail": "标签用细引线；局部底板只落在文字下面。",
+      "overlay": "压缩为一个主体和一行标注；引线朝留白一侧。",
+      "when": "具备形态特征的主体",
+      "source": "grid",
+      "tokens": {
+        "paddingPx": 20,
+        "referenceWidthPx": 480,
+        "columns": "42% 1fr",
+        "gapPx": 13,
+        "dividerPx": 1,
+        "titleFamily": "宋体"
+      }
+    },
+    {
+      "id": "manual",
+      "name": "拆解说明书",
+      "summary": "把动作拆成可跟做的步骤",
+      "uses": "教程、维修、装配",
+      "layout": "左列放短标题，右列按垂直方向排三个等宽步骤；序号沿同一轴对齐。",
+      "type": "黑体标题，等宽序号；动词加粗。",
+      "detail": "每步只画一个动作，连接线细于轮廓。",
+      "overlay": "只保留当前步骤及其相邻步骤，其他随口播切入。",
+      "when": "连续操作",
+      "source": "grid",
+      "tokens": {
+        "paddingPx": 20,
+        "referenceWidthPx": 480,
+        "columns": "1fr 1fr",
+        "stepSeparatorPx": 1,
+        "numberFamily": "monospace",
+        "stepPaddingPx": 7
+      }
+    },
+    {
+      "id": "editorial",
+      "name": "杂志跨页",
+      "summary": "用一个大标题带出主角",
+      "uses": "人物、文化、旅行",
+      "layout": "顶部细横线；标题占上半部；主图与说明采用非对称双栏。",
+      "type": "中文衬线展示标题，左对齐，说明用黑体。",
+      "detail": "图注沿图边缘走，页内使用一条主分隔线。",
+      "overlay": "保留标题、主图和一条短图注；透明区域贯穿主体周围。",
+      "when": "单个物件或观点",
+      "source": "grid",
+      "tokens": {
+        "paddingPx": 20,
+        "referenceWidthPx": 480,
+        "columns": "1.2fr 1fr",
+        "headlineSpan": 2,
+        "topRulePx": 3,
+        "titleFamily": "宋体"
+      }
+    },
+    {
+      "id": "measure",
+      "name": "数据读数板",
+      "summary": "让两组数据容易比较",
+      "uses": "复盘、评测、实验",
+      "layout": "一条共同基线，上方放两个等大数字；比较标签贴近各自读数。",
+      "type": "等宽数字，单位缩至数值高度的 45%。",
+      "detail": "变化用强调色，基准值用低彩度。",
+      "overlay": "只含两个原文数值、单位和对应标签；外围透明。",
+      "when": "原文中可比较的数量",
+      "source": "grid",
+      "tokens": {
+        "paddingPx": 20,
+        "referenceWidthPx": 480,
+        "comparisonAxis": "horizontal",
+        "baselinePx": 3,
+        "digitFamily": "monospace",
+        "unitPx": 13
+      }
+    },
+    {
+      "id": "exhibit",
+      "name": "展品铭牌",
+      "summary": "让人先看展品，再读名字",
+      "uses": "展览、产品、手作",
+      "layout": "物件居中，四周宽留白；底部窄铭牌含名称和一句说明。",
+      "type": "用中黑体标题搭配较小宋体说明，铭牌左对齐。",
+      "detail": "只给铭牌边线，物件下方保留轻接触阴影。",
+      "overlay": "保留物件和小铭牌，缩放时铭牌跟随物件。",
+      "when": "值得辨认的物件",
+      "source": "grid",
+      "tokens": {
+        "paddingPx": 20,
+        "referenceWidthPx": 480,
+        "display": "centered subject over label",
+        "labelWidth": "78%",
+        "labelRulePx": 1,
+        "titlePx": 22
+      }
+    },
+    {
+      "id": "route",
+      "name": "路线导览",
+      "summary": "按空间顺序介绍地点",
+      "uses": "城市路线、展览、出行",
+      "layout": "三个站点沿折线排列；起点靠左、终点靠右；标题在路径外。",
+      "type": "黑体站名，按相同字号标注各站。",
+      "detail": "终点使用实心强调点，中途使用空心圆。",
+      "overlay": "只保留路线和地名，转折处避开脸和字幕。",
+      "when": "有顺序的空间路径",
+      "source": "grid",
+      "tokens": {
+        "paddingPx": 20,
+        "referenceWidthPx": 480,
+        "anchors": 3,
+        "path": "dashed",
+        "pathWidthPx": 2,
+        "nodeDiameterPx": 11,
+        "endNode": "filled"
+      }
+    }
+  ],
+  "palettes": [
+    {
+      "id": "atelier",
+      "name": "米橙与克莱因蓝",
+      "uses": "创作教程、公用默认",
+      "colors": {
+        "surface": "#F4EDDF",
+        "text": "#201E22",
+        "object": "#E8833E",
+        "accent": "#002FA7"
+      },
+      "rule": "米色承托文字，橙色标物件，蓝色只给当前重点。",
+      "distribution": "表面、主体、强调色可见面积参考 70 / 25 / 5；透明区不计。",
+      "source": "roles",
+      "tokens": {
+        "scope": "visible graphic only",
+        "areaTargets": {
+          "surface": 0.7,
+          "object": 0.25,
+          "accent": 0.05
+        },
+        "textOnSurfaceContrast": 14.19
+      }
+    },
+    {
+      "id": "herb",
+      "name": "鼠尾草与陶土",
+      "uses": "植物、手作、生活记录",
+      "colors": {
+        "surface": "#F0F2E7",
+        "text": "#243328",
+        "object": "#65846C",
+        "accent": "#A5412F"
+      },
+      "rule": "草绿色放主体，陶土色定位变化或提醒。",
+      "distribution": "表面、主体、强调色可见面积参考 70 / 25 / 5；透明区不计。",
+      "source": "roles",
+      "tokens": {
+        "scope": "visible graphic only",
+        "areaTargets": {
+          "surface": 0.7,
+          "object": 0.25,
+          "accent": 0.05
+        },
+        "textOnSurfaceContrast": 11.75
+      }
+    },
+    {
+      "id": "night",
+      "name": "夜航仪表",
+      "uses": "夜景、设备、深色界面",
+      "colors": {
+        "surface": "#152235",
+        "text": "#F1F6FB",
+        "object": "#77AFBC",
+        "accent": "#FFC766"
+      },
+      "rule": "雾蓝表达结构，琥珀色标当前读数。",
+      "distribution": "表面、主体、强调色可见面积参考 70 / 25 / 5；透明区不计。",
+      "source": "roles",
+      "tokens": {
+        "scope": "visible graphic only",
+        "areaTargets": {
+          "surface": 0.7,
+          "object": 0.25,
+          "accent": 0.05
+        },
+        "textOnSurfaceContrast": 14.72
+      }
+    },
+    {
+      "id": "ink",
+      "name": "报纸红铅",
+      "uses": "评论、书籍、历史",
+      "colors": {
+        "surface": "#F8F4E9",
+        "text": "#272522",
+        "object": "#706B62",
+        "accent": "#B42C38"
+      },
+      "rule": "灰黑承担大面积，赤红只用在校注和结论。",
+      "distribution": "表面、主体、强调色可见面积参考 70 / 25 / 5；透明区不计。",
+      "source": "roles",
+      "tokens": {
+        "scope": "visible graphic only",
+        "areaTargets": {
+          "surface": 0.7,
+          "object": 0.25,
+          "accent": 0.05
+        },
+        "textOnSurfaceContrast": 13.91
+      }
+    },
+    {
+      "id": "coast",
+      "name": "海盐与柑橘",
+      "uses": "出行、运动、路线",
+      "colors": {
+        "surface": "#ECF6F7",
+        "text": "#16343C",
+        "object": "#337482",
+        "accent": "#E88636"
+      },
+      "rule": "海蓝贯穿路径，橙色只标当前位置。",
+      "distribution": "表面、主体、强调色可见面积参考 70 / 25 / 5；透明区不计。",
+      "source": "roles",
+      "tokens": {
+        "scope": "visible graphic only",
+        "areaTargets": {
+          "surface": 0.7,
+          "object": 0.25,
+          "accent": 0.05
+        },
+        "textOnSurfaceContrast": 12.0
+      }
+    },
+    {
+      "id": "plum",
+      "name": "梅果与杏仁",
+      "uses": "饮食、香氛、人物",
+      "colors": {
+        "surface": "#FAEFE6",
+        "text": "#3E2538",
+        "object": "#965471",
+        "accent": "#D18B46"
+      },
+      "rule": "莓红托主体，杏色点出单个细节。",
+      "distribution": "表面、主体、强调色可见面积参考 70 / 25 / 5；透明区不计。",
+      "source": "roles",
+      "tokens": {
+        "scope": "visible graphic only",
+        "areaTargets": {
+          "surface": 0.7,
+          "object": 0.25,
+          "accent": 0.05
+        },
+        "textOnSurfaceContrast": 12.15
+      }
+    },
+    {
+      "id": "cobalt",
+      "name": "蓝图与荧光黄",
+      "uses": "结构拆解、工具测评",
+      "colors": {
+        "surface": "#14284A",
+        "text": "#F3F6F1",
+        "object": "#70A9E0",
+        "accent": "#E2ED69"
+      },
+      "rule": "浅蓝画轮廓，荧光黄标接触点。",
+      "distribution": "表面、主体、强调色可见面积参考 70 / 25 / 5；透明区不计。",
+      "source": "roles",
+      "tokens": {
+        "scope": "visible graphic only",
+        "areaTargets": {
+          "surface": 0.7,
+          "object": 0.25,
+          "accent": 0.05
+        },
+        "textOnSurfaceContrast": 13.45
+      }
+    },
+    {
+      "id": "slate",
+      "name": "石墨与冰蓝",
+      "uses": "摄影、数码、严肃解说",
+      "colors": {
+        "surface": "#EFF2F3",
+        "text": "#202B34",
+        "object": "#596874",
+        "accent": "#236997"
+      },
+      "rule": "石墨建立层次，冰蓝仅给引线和选中区域。",
+      "distribution": "表面、主体、强调色可见面积参考 70 / 25 / 5；透明区不计。",
+      "source": "roles",
+      "tokens": {
+        "scope": "visible graphic only",
+        "areaTargets": {
+          "surface": 0.7,
+          "object": 0.25,
+          "accent": 0.05
+        },
+        "textOnSurfaceContrast": 12.81
+      }
+    }
+  ],
+  "objects": [
+    {
+      "id": "pot",
+      "name": "盆栽幼苗",
+      "uses": "识别植株、表达生长",
+      "parts": "陶土盆、土面、茎与三片叶独立建模。",
+      "framing": "盆沿、茎叶轮廓分离；外观为通用示意。",
+      "projection": "正交，右前上方，四分之三视角。",
+      "appearance": "哑光产品模型；左前上方主光，柔和明暗交界。",
+      "files": {
+        "model": "3D/pot.glb",
+        "preview": "3D/pot.png"
+      },
+      "source": "glb",
+      "tokens": {
+        "upAxis": "+Y",
+        "viewFrom": [
+          2.6,
+          1.7,
+          4.5
+        ],
+        "keyLightFrom": [
+          -0.55,
+          0.85,
+          0.7
+        ],
+        "frameUtilization": 0.82,
+        "previewWidthPx": 512,
+        "materialSource": "GLB materials[].pbrMetallicRoughness",
+        "alphaOutside": 0
+      },
+      "variants": {
+        "atelier": {
+          "model": "3D/atelier/pot.glb",
+          "preview": "3D/atelier/pot.png"
+        },
+        "herb": {
+          "model": "3D/herb/pot.glb",
+          "preview": "3D/herb/pot.png"
+        },
+        "night": {
+          "model": "3D/night/pot.glb",
+          "preview": "3D/night/pot.png"
+        },
+        "ink": {
+          "model": "3D/ink/pot.glb",
+          "preview": "3D/ink/pot.png"
+        },
+        "coast": {
+          "model": "3D/coast/pot.glb",
+          "preview": "3D/coast/pot.png"
+        },
+        "plum": {
+          "model": "3D/plum/pot.glb",
+          "preview": "3D/plum/pot.png"
+        },
+        "cobalt": {
+          "model": "3D/cobalt/pot.glb",
+          "preview": "3D/cobalt/pot.png"
+        },
+        "slate": {
+          "model": "3D/slate/pot.glb",
+          "preview": "3D/slate/pot.png"
+        }
+      }
+    },
+    {
+      "id": "camera",
+      "name": "便携相机",
+      "uses": "设备辨认、摄影教程",
+      "parts": "机身、取景凸台、按钮和同心镜筒分件。",
+      "framing": "镜头朝前，四分之三视角保持圆形轮廓。",
+      "projection": "正交，右前上方，四分之三视角。",
+      "appearance": "哑光产品模型；左前上方主光，柔和明暗交界。",
+      "files": {
+        "model": "3D/camera.glb",
+        "preview": "3D/camera.png"
+      },
+      "source": "glb",
+      "tokens": {
+        "upAxis": "+Y",
+        "viewFrom": [
+          2.6,
+          1.7,
+          4.5
+        ],
+        "keyLightFrom": [
+          -0.55,
+          0.85,
+          0.7
+        ],
+        "frameUtilization": 0.82,
+        "previewWidthPx": 512,
+        "materialSource": "GLB materials[].pbrMetallicRoughness",
+        "alphaOutside": 0
+      },
+      "variants": {
+        "atelier": {
+          "model": "3D/atelier/camera.glb",
+          "preview": "3D/atelier/camera.png"
+        },
+        "herb": {
+          "model": "3D/herb/camera.glb",
+          "preview": "3D/herb/camera.png"
+        },
+        "night": {
+          "model": "3D/night/camera.glb",
+          "preview": "3D/night/camera.png"
+        },
+        "ink": {
+          "model": "3D/ink/camera.glb",
+          "preview": "3D/ink/camera.png"
+        },
+        "coast": {
+          "model": "3D/coast/camera.glb",
+          "preview": "3D/coast/camera.png"
+        },
+        "plum": {
+          "model": "3D/plum/camera.glb",
+          "preview": "3D/plum/camera.png"
+        },
+        "cobalt": {
+          "model": "3D/cobalt/camera.glb",
+          "preview": "3D/cobalt/camera.png"
+        },
+        "slate": {
+          "model": "3D/slate/camera.glb",
+          "preview": "3D/slate/camera.png"
+        }
+      }
+    },
+    {
+      "id": "lamp",
+      "name": "桌面阅读灯",
+      "uses": "光线方向、桌面布置",
+      "parts": "圆形底座、两节支架、锥形灯罩、灯面分件。",
+      "framing": "展示灯罩朝向和两个支点。",
+      "projection": "正交，右前上方，四分之三视角。",
+      "appearance": "哑光产品模型；左前上方主光，柔和明暗交界。",
+      "files": {
+        "model": "3D/lamp.glb",
+        "preview": "3D/lamp.png"
+      },
+      "source": "glb",
+      "tokens": {
+        "upAxis": "+Y",
+        "viewFrom": [
+          2.6,
+          1.7,
+          4.5
+        ],
+        "keyLightFrom": [
+          -0.55,
+          0.85,
+          0.7
+        ],
+        "frameUtilization": 0.82,
+        "previewWidthPx": 512,
+        "materialSource": "GLB materials[].pbrMetallicRoughness",
+        "alphaOutside": 0
+      },
+      "variants": {
+        "atelier": {
+          "model": "3D/atelier/lamp.glb",
+          "preview": "3D/atelier/lamp.png"
+        },
+        "herb": {
+          "model": "3D/herb/lamp.glb",
+          "preview": "3D/herb/lamp.png"
+        },
+        "night": {
+          "model": "3D/night/lamp.glb",
+          "preview": "3D/night/lamp.png"
+        },
+        "ink": {
+          "model": "3D/ink/lamp.glb",
+          "preview": "3D/ink/lamp.png"
+        },
+        "coast": {
+          "model": "3D/coast/lamp.glb",
+          "preview": "3D/coast/lamp.png"
+        },
+        "plum": {
+          "model": "3D/plum/lamp.glb",
+          "preview": "3D/plum/lamp.png"
+        },
+        "cobalt": {
+          "model": "3D/cobalt/lamp.glb",
+          "preview": "3D/cobalt/lamp.png"
+        },
+        "slate": {
+          "model": "3D/slate/lamp.glb",
+          "preview": "3D/slate/lamp.png"
+        }
+      }
+    },
+    {
+      "id": "box",
+      "name": "翻盖收纳箱",
+      "uses": "分类、储存、收纳演示",
+      "parts": "箱体、边角、后侧抬起的盖板和正面搭扣分件。",
+      "framing": "斜上方露出开口，盖与箱体之间留缝。",
+      "projection": "正交，右前上方，四分之三视角。",
+      "appearance": "哑光产品模型；左前上方主光，柔和明暗交界。",
+      "files": {
+        "model": "3D/box.glb",
+        "preview": "3D/box.png"
+      },
+      "source": "glb",
+      "tokens": {
+        "upAxis": "+Y",
+        "viewFrom": [
+          2.6,
+          1.7,
+          4.5
+        ],
+        "keyLightFrom": [
+          -0.55,
+          0.85,
+          0.7
+        ],
+        "frameUtilization": 0.82,
+        "previewWidthPx": 512,
+        "materialSource": "GLB materials[].pbrMetallicRoughness",
+        "alphaOutside": 0
+      },
+      "variants": {
+        "atelier": {
+          "model": "3D/atelier/box.glb",
+          "preview": "3D/atelier/box.png"
+        },
+        "herb": {
+          "model": "3D/herb/box.glb",
+          "preview": "3D/herb/box.png"
+        },
+        "night": {
+          "model": "3D/night/box.glb",
+          "preview": "3D/night/box.png"
+        },
+        "ink": {
+          "model": "3D/ink/box.glb",
+          "preview": "3D/ink/box.png"
+        },
+        "coast": {
+          "model": "3D/coast/box.glb",
+          "preview": "3D/coast/box.png"
+        },
+        "plum": {
+          "model": "3D/plum/box.glb",
+          "preview": "3D/plum/box.png"
+        },
+        "cobalt": {
+          "model": "3D/cobalt/box.glb",
+          "preview": "3D/cobalt/box.png"
+        },
+        "slate": {
+          "model": "3D/slate/box.glb",
+          "preview": "3D/slate/box.png"
+        }
+      }
+    }
+  ],
+  "stickers": [
+    {
+      "id": "arrow",
+      "name": "弯头指向",
+      "uses": "引导观众找一个细节",
+      "shape": "橙色宽弧箭身，蓝色实心箭头；箭尖朝右上。",
+      "edge": "画布 192 × 128，笔端圆润；主体外至少预留 8 像素。",
+      "files": {
+        "vector": "贴纸/arrow.svg",
+        "preview": "贴纸/arrow.png"
+      },
+      "source": "pictograms",
+      "tokens": {
+        "viewBox": [
+          0,
+          0,
+          192,
+          128
+        ],
+        "strokeLinejoin": "round",
+        "strokeLinecap": "round",
+        "svgPaints": "see source SVG for per-path fills and weights",
+        "alphaOutside": 0
+      },
+      "variants": {
+        "atelier": {
+          "vector": "贴纸/atelier/arrow.svg",
+          "preview": "贴纸/atelier/arrow.png"
+        },
+        "herb": {
+          "vector": "贴纸/herb/arrow.svg",
+          "preview": "贴纸/herb/arrow.png"
+        },
+        "night": {
+          "vector": "贴纸/night/arrow.svg",
+          "preview": "贴纸/night/arrow.png"
+        },
+        "ink": {
+          "vector": "贴纸/ink/arrow.svg",
+          "preview": "贴纸/ink/arrow.png"
+        },
+        "coast": {
+          "vector": "贴纸/coast/arrow.svg",
+          "preview": "贴纸/coast/arrow.png"
+        },
+        "plum": {
+          "vector": "贴纸/plum/arrow.svg",
+          "preview": "贴纸/plum/arrow.png"
+        },
+        "cobalt": {
+          "vector": "贴纸/cobalt/arrow.svg",
+          "preview": "贴纸/cobalt/arrow.png"
+        },
+        "slate": {
+          "vector": "贴纸/slate/arrow.svg",
+          "preview": "贴纸/slate/arrow.png"
+        }
+      }
+    },
+    {
+      "id": "ring",
+      "name": "双线手绘圈",
+      "uses": "圈选关键词或按钮",
+      "shape": "两笔错位椭圆，中央镂空；适合绕在目标外。",
+      "edge": "画布 192 × 128，笔端圆润；主体外至少预留 8 像素。",
+      "files": {
+        "vector": "贴纸/ring.svg",
+        "preview": "贴纸/ring.png"
+      },
+      "source": "pictograms",
+      "tokens": {
+        "viewBox": [
+          0,
+          0,
+          192,
+          128
+        ],
+        "strokeLinejoin": "round",
+        "strokeLinecap": "round",
+        "svgPaints": "see source SVG for per-path fills and weights",
+        "alphaOutside": 0
+      },
+      "variants": {
+        "atelier": {
+          "vector": "贴纸/atelier/ring.svg",
+          "preview": "贴纸/atelier/ring.png"
+        },
+        "herb": {
+          "vector": "贴纸/herb/ring.svg",
+          "preview": "贴纸/herb/ring.png"
+        },
+        "night": {
+          "vector": "贴纸/night/ring.svg",
+          "preview": "贴纸/night/ring.png"
+        },
+        "ink": {
+          "vector": "贴纸/ink/ring.svg",
+          "preview": "贴纸/ink/ring.png"
+        },
+        "coast": {
+          "vector": "贴纸/coast/ring.svg",
+          "preview": "贴纸/coast/ring.png"
+        },
+        "plum": {
+          "vector": "贴纸/plum/ring.svg",
+          "preview": "贴纸/plum/ring.png"
+        },
+        "cobalt": {
+          "vector": "贴纸/cobalt/ring.svg",
+          "preview": "贴纸/cobalt/ring.png"
+        },
+        "slate": {
+          "vector": "贴纸/slate/ring.svg",
+          "preview": "贴纸/slate/ring.png"
+        }
+      }
+    },
+    {
+      "id": "check",
+      "name": "完成勾章",
+      "uses": "确认完成一项操作",
+      "shape": "浅米圆底，蓝色勾，外圈采用虚线印章。",
+      "edge": "画布 192 × 128，笔端圆润；主体外至少预留 8 像素。",
+      "files": {
+        "vector": "贴纸/check.svg",
+        "preview": "贴纸/check.png"
+      },
+      "source": "pictograms",
+      "tokens": {
+        "viewBox": [
+          0,
+          0,
+          192,
+          128
+        ],
+        "strokeLinejoin": "round",
+        "strokeLinecap": "round",
+        "svgPaints": "see source SVG for per-path fills and weights",
+        "alphaOutside": 0
+      },
+      "variants": {
+        "atelier": {
+          "vector": "贴纸/atelier/check.svg",
+          "preview": "贴纸/atelier/check.png"
+        },
+        "herb": {
+          "vector": "贴纸/herb/check.svg",
+          "preview": "贴纸/herb/check.png"
+        },
+        "night": {
+          "vector": "贴纸/night/check.svg",
+          "preview": "贴纸/night/check.png"
+        },
+        "ink": {
+          "vector": "贴纸/ink/check.svg",
+          "preview": "贴纸/ink/check.png"
+        },
+        "coast": {
+          "vector": "贴纸/coast/check.svg",
+          "preview": "贴纸/coast/check.png"
+        },
+        "plum": {
+          "vector": "贴纸/plum/check.svg",
+          "preview": "贴纸/plum/check.png"
+        },
+        "cobalt": {
+          "vector": "贴纸/cobalt/check.svg",
+          "preview": "贴纸/cobalt/check.png"
+        },
+        "slate": {
+          "vector": "贴纸/slate/check.svg",
+          "preview": "贴纸/slate/check.png"
+        }
+      }
+    },
+    {
+      "id": "tab",
+      "name": "折角书签",
+      "uses": "标记章节切换或新观点",
+      "shape": "窄长书签，燕尾下缘，左上方三角折角。",
+      "edge": "画布 192 × 128，笔端圆润；主体外至少预留 8 像素。",
+      "files": {
+        "vector": "贴纸/tab.svg",
+        "preview": "贴纸/tab.png"
+      },
+      "source": "pictograms",
+      "tokens": {
+        "viewBox": [
+          0,
+          0,
+          192,
+          128
+        ],
+        "strokeLinejoin": "round",
+        "strokeLinecap": "round",
+        "svgPaints": "see source SVG for per-path fills and weights",
+        "alphaOutside": 0
+      },
+      "variants": {
+        "atelier": {
+          "vector": "贴纸/atelier/tab.svg",
+          "preview": "贴纸/atelier/tab.png"
+        },
+        "herb": {
+          "vector": "贴纸/herb/tab.svg",
+          "preview": "贴纸/herb/tab.png"
+        },
+        "night": {
+          "vector": "贴纸/night/tab.svg",
+          "preview": "贴纸/night/tab.png"
+        },
+        "ink": {
+          "vector": "贴纸/ink/tab.svg",
+          "preview": "贴纸/ink/tab.png"
+        },
+        "coast": {
+          "vector": "贴纸/coast/tab.svg",
+          "preview": "贴纸/coast/tab.png"
+        },
+        "plum": {
+          "vector": "贴纸/plum/tab.svg",
+          "preview": "贴纸/plum/tab.png"
+        },
+        "cobalt": {
+          "vector": "贴纸/cobalt/tab.svg",
+          "preview": "贴纸/cobalt/tab.png"
+        },
+        "slate": {
+          "vector": "贴纸/slate/tab.svg",
+          "preview": "贴纸/slate/tab.png"
+        }
+      }
+    },
+    {
+      "id": "bubble",
+      "name": "留白话框",
+      "uses": "给现场物件加一句话",
+      "shape": "横向圆角框和向左下的短尾；中央留出文字区。",
+      "edge": "画布 192 × 128，笔端圆润；主体外至少预留 8 像素。",
+      "files": {
+        "vector": "贴纸/bubble.svg",
+        "preview": "贴纸/bubble.png"
+      },
+      "source": "pictograms",
+      "tokens": {
+        "viewBox": [
+          0,
+          0,
+          192,
+          128
+        ],
+        "strokeLinejoin": "round",
+        "strokeLinecap": "round",
+        "svgPaints": "see source SVG for per-path fills and weights",
+        "alphaOutside": 0
+      },
+      "variants": {
+        "atelier": {
+          "vector": "贴纸/atelier/bubble.svg",
+          "preview": "贴纸/atelier/bubble.png"
+        },
+        "herb": {
+          "vector": "贴纸/herb/bubble.svg",
+          "preview": "贴纸/herb/bubble.png"
+        },
+        "night": {
+          "vector": "贴纸/night/bubble.svg",
+          "preview": "贴纸/night/bubble.png"
+        },
+        "ink": {
+          "vector": "贴纸/ink/bubble.svg",
+          "preview": "贴纸/ink/bubble.png"
+        },
+        "coast": {
+          "vector": "贴纸/coast/bubble.svg",
+          "preview": "贴纸/coast/bubble.png"
+        },
+        "plum": {
+          "vector": "贴纸/plum/bubble.svg",
+          "preview": "贴纸/plum/bubble.png"
+        },
+        "cobalt": {
+          "vector": "贴纸/cobalt/bubble.svg",
+          "preview": "贴纸/cobalt/bubble.png"
+        },
+        "slate": {
+          "vector": "贴纸/slate/bubble.svg",
+          "preview": "贴纸/slate/bubble.png"
+        }
+      }
+    },
+    {
+      "id": "spark",
+      "name": "双星高光",
+      "uses": "强调结果出现的瞬间",
+      "shape": "一个大四芒星和一个小四芒星，高度错落。",
+      "edge": "画布 192 × 128，笔端圆润；主体外至少预留 8 像素。",
+      "files": {
+        "vector": "贴纸/spark.svg",
+        "preview": "贴纸/spark.png"
+      },
+      "source": "pictograms",
+      "tokens": {
+        "viewBox": [
+          0,
+          0,
+          192,
+          128
+        ],
+        "strokeLinejoin": "round",
+        "strokeLinecap": "round",
+        "svgPaints": "see source SVG for per-path fills and weights",
+        "alphaOutside": 0
+      },
+      "variants": {
+        "atelier": {
+          "vector": "贴纸/atelier/spark.svg",
+          "preview": "贴纸/atelier/spark.png"
+        },
+        "herb": {
+          "vector": "贴纸/herb/spark.svg",
+          "preview": "贴纸/herb/spark.png"
+        },
+        "night": {
+          "vector": "贴纸/night/spark.svg",
+          "preview": "贴纸/night/spark.png"
+        },
+        "ink": {
+          "vector": "贴纸/ink/spark.svg",
+          "preview": "贴纸/ink/spark.png"
+        },
+        "coast": {
+          "vector": "贴纸/coast/spark.svg",
+          "preview": "贴纸/coast/spark.png"
+        },
+        "plum": {
+          "vector": "贴纸/plum/spark.svg",
+          "preview": "贴纸/plum/spark.png"
+        },
+        "cobalt": {
+          "vector": "贴纸/cobalt/spark.svg",
+          "preview": "贴纸/cobalt/spark.png"
+        },
+        "slate": {
+          "vector": "贴纸/slate/spark.svg",
+          "preview": "贴纸/slate/spark.png"
+        }
+      }
+    },
+    {
+      "id": "bracket",
+      "name": "分组括号",
+      "uses": "把三条事项看作一组",
+      "shape": "左右方括号包住透明中空区，短端圆角。",
+      "edge": "画布 192 × 128，笔端圆润；主体外至少预留 8 像素。",
+      "files": {
+        "vector": "贴纸/bracket.svg",
+        "preview": "贴纸/bracket.png"
+      },
+      "source": "pictograms",
+      "tokens": {
+        "viewBox": [
+          0,
+          0,
+          192,
+          128
+        ],
+        "strokeLinejoin": "round",
+        "strokeLinecap": "round",
+        "svgPaints": "see source SVG for per-path fills and weights",
+        "alphaOutside": 0
+      },
+      "variants": {
+        "atelier": {
+          "vector": "贴纸/atelier/bracket.svg",
+          "preview": "贴纸/atelier/bracket.png"
+        },
+        "herb": {
+          "vector": "贴纸/herb/bracket.svg",
+          "preview": "贴纸/herb/bracket.png"
+        },
+        "night": {
+          "vector": "贴纸/night/bracket.svg",
+          "preview": "贴纸/night/bracket.png"
+        },
+        "ink": {
+          "vector": "贴纸/ink/bracket.svg",
+          "preview": "贴纸/ink/bracket.png"
+        },
+        "coast": {
+          "vector": "贴纸/coast/bracket.svg",
+          "preview": "贴纸/coast/bracket.png"
+        },
+        "plum": {
+          "vector": "贴纸/plum/bracket.svg",
+          "preview": "贴纸/plum/bracket.png"
+        },
+        "cobalt": {
+          "vector": "贴纸/cobalt/bracket.svg",
+          "preview": "贴纸/cobalt/bracket.png"
+        },
+        "slate": {
+          "vector": "贴纸/slate/bracket.svg",
+          "preview": "贴纸/slate/bracket.png"
+        }
+      }
+    },
+    {
+      "id": "tape",
+      "name": "撕边纸胶带",
+      "uses": "承托短标题或手写批注",
+      "shape": "两端锯齿切边，小面积半透明暖色纸面。",
+      "edge": "画布 192 × 128，笔端圆润；主体外至少预留 8 像素。",
+      "files": {
+        "vector": "贴纸/tape.svg",
+        "preview": "贴纸/tape.png"
+      },
+      "source": "pictograms",
+      "tokens": {
+        "viewBox": [
+          0,
+          0,
+          192,
+          128
+        ],
+        "strokeLinejoin": "round",
+        "strokeLinecap": "round",
+        "svgPaints": "see source SVG for per-path fills and weights",
+        "alphaOutside": 0
+      },
+      "variants": {
+        "atelier": {
+          "vector": "贴纸/atelier/tape.svg",
+          "preview": "贴纸/atelier/tape.png"
+        },
+        "herb": {
+          "vector": "贴纸/herb/tape.svg",
+          "preview": "贴纸/herb/tape.png"
+        },
+        "night": {
+          "vector": "贴纸/night/tape.svg",
+          "preview": "贴纸/night/tape.png"
+        },
+        "ink": {
+          "vector": "贴纸/ink/tape.svg",
+          "preview": "贴纸/ink/tape.png"
+        },
+        "coast": {
+          "vector": "贴纸/coast/tape.svg",
+          "preview": "贴纸/coast/tape.png"
+        },
+        "plum": {
+          "vector": "贴纸/plum/tape.svg",
+          "preview": "贴纸/plum/tape.png"
+        },
+        "cobalt": {
+          "vector": "贴纸/cobalt/tape.svg",
+          "preview": "贴纸/cobalt/tape.png"
+        },
+        "slate": {
+          "vector": "贴纸/slate/tape.svg",
+          "preview": "贴纸/slate/tape.png"
+        }
+      }
+    }
+  ],
+  "refs": {
+    "grid": [
+      "IBM · 版式网格",
+      "https://www.ibm.com/design/language/2x-grid/"
+    ],
+    "roles": [
+      "USWDS · 颜色角色",
+      "https://designsystem.digital.gov/design-tokens/color/overview/"
+    ],
+    "contrast": [
+      "W3C · 文字对比度",
+      "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html"
+    ],
+    "glb": [
+      "Khronos · glTF 2.0",
+      "https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html"
+    ],
+    "pictograms": [
+      "IBM · 图形的描边与转角",
+      "https://www.ibm.com/design/language/iconography/pictograms/design/"
+    ]
+  },
+  "origin": "本批版式、配色、几何模型与贴纸为此素材册原创。链接为制作规范参考。"
+}

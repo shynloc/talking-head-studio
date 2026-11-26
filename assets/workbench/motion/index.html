@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>只做口播素材 · 口播导演工作台</title>
+    <link rel="stylesheet" href="studio.css" />
+  </head>
+  <body>
+    <header>
+      <a href="/" class="back">← 工作台首页</a><b>只做口播素材</b><span id="save-state" role="status"></span>
+    </header>
+    <main inert>
+      <nav aria-label="素材制作步骤">
+        <button data-page="script">选原句</button><span>›</span><button data-page="edit">配画面</button
+        ><span>›</span><button data-page="pack">素材包 <span id="total">0</span></button>
+      </nav>
+      <section id="script">
+        <div class="heading">
+          <div>
+            <h1>给哪句话<span>配画面？</span></h1>
+            <p>贴入稿件，点选一句。每句都能单独搭配动画。</p>
+          </div>
+          <button id="restore" class="quiet">打开已有搭配</button
+          ><input id="restore-file" type="file" hidden accept=".json,application/json" />
+        </div>
+        <div class="paper-grid">
+          <div class="paper">
+            <label for="manuscript">我的口播稿</label
+            ><textarea id="manuscript" rows="10" placeholder="在这里粘贴或输入你的稿子……"></textarea>
+          </div>
+          <div class="paper">
+            <h2>选一句开始</h2>
+            <div id="sentences"></div>
+          </div>
+        </div>
+      </section>
+      <section id="edit" hidden>
+        <div class="heading">
+          <div>
+            <h1>这句话<span>怎么演？</span></h1>
+            <p id="selected-quote"></p>
+          </div>
+        </div>
+        <div class="editor-grid">
+          <div class="paper proof">
+            <div class="bar">
+              <h2>透明小样</h2>
+              <select id="backdrop" aria-label="预览底色">
+                <option value="check">透明棋盘</option>
+                <option value="dark">深色画面</option>
+                <option value="light">浅色画面</option>
+              </select>
+            </div>
+            <div class="stage check" id="stage">
+              <canvas id="preview" width="960" height="360" aria-label="自定义动画透明预览"></canvas>
+            </div>
+            <div class="transport">
+              <button id="play" class="quiet">▶ 播放</button
+              ><input type="range" aria-label="预览进度" id="scrub" value="0" min="0" /><output
+                id="time"
+              ></output>
+            </div>
+            <div class="bar">
+              <label for="seconds">动画时长</label
+              ><select id="seconds"></select>
+            </div>
+          </div>
+          <div class="paper settings">
+            <label id="title-label" for="title">画面文字</label><input id="title" maxlength="90" />
+            <div class="bar">
+              <h2>我的效果</h2>
+              <button class="link" id="open-library">挑效果 ↗</button>
+            </div>
+            <div id="chips"></div>
+            <label for="recipe">试一组现成搭配</label
+            ><select id="recipe">
+              <option value="">选择搭配…</option>
+            </select>
+            <details id="details">
+              <summary>改图形、步骤和数字</summary>
+              <div class="fields">
+                <label>画面里的图形<select id="theme"></select></label>
+                <div id="states-inputs" class="pair">
+                  <label>变化前<input id="a" maxlength="45" /></label
+                  ><label>变化后<input id="b" maxlength="45" /></label>
+                </div>
+                <label id="steps-inputs">三个步骤（用顿号分开）<input id="labels" maxlength="120" /></label>
+                <div id="number-inputs" class="pair">
+                  <label>起始数<input type="number" id="from" min="0" max="99999999" /></label
+                  ><label>结束数<input type="number" id="to" min="0" max="99999999" /></label>
+                </div>
+                <label
+                  >替换第一张图<input
+                    type="file"
+                    id="image-a"
+                    accept="image/png,image/jpeg,image/webp" /></label
+                ><label
+                  >替换第二张图<input
+                    type="file"
+                    id="image-b"
+                    accept="image/png,image/jpeg,image/webp" /></label
+                ><button id="reset-images" class="quiet">还原内置图形</button>
+              </div>
+            </details>
+            <button id="approve" class="primary">用这版，加入素材包 →</button>
+          </div>
+        </div>
+      </section>
+      <section id="pack" hidden>
+        <div class="heading">
+          <div>
+            <h1>我的<span>素材包</span></h1>
+            <p>解压后，把透明 MOV 放到口播视频上方的轨道，按原句对齐。</p>
+          </div>
+          <button id="more" class="quiet">＋ 再选一句</button>
+        </div>
+        <div id="approved"></div>
+        <div class="export-line">
+          <button id="export" class="primary">导出素材包 ↓</button>
+          <div id="progress" role="status"></div>
+          <a id="download" href="#" download hidden>下载刚导出的素材包 ↓</a>
+        </div>
+      </section>
+      <div id="notice" role="status" aria-live="polite"></div>
+    </main>
+    <dialog id="lexicon" aria-labelledby="library-title">
+      <div class="bar">
+        <h2 id="library-title">通用动效词库</h2>
+        <button id="close-library" class="quiet">完成选效果</button>
+      </div>
+      <input id="search" type="search" aria-label="搜索效果" placeholder="搜「逐字」「翻面」或「沿线」" />
+      <div id="groups"></div>
+      <div id="cards"></div>
+      <details id="prompt-details">
+        <summary>查看并编辑完整提示词</summary>
+        <textarea rows="7" id="prompt" aria-label="我的完整提示词"></textarea
+        ><button id="copy" class="quiet">复制提示词</button>
+      </details>
+    </dialog>
+    <script src="../overlay-easing.js"></script>
+    <script src="catalog.js"></script>
+    <script src="renderer.js"></script>
+    <script src="studio.js"></script>
+    <script src="pack.js"></script>
+  </body>
+</html>

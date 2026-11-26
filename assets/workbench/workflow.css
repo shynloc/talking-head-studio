@@ -127,3 +127,5 @@ input::placeholder,textarea::placeholder {color:#705c47;opacity:1;}
 #cut-review .cut-nav button { font-size:.9em; }
 #cut-confirm { justify-self:end; }
 #cut-review [hidden] { display:none; }
+
+.entry-card.motion-entry{color:inherit;text-decoration:none;box-sizing:border-box;display:flex;flex-direction:column;align-items:flex-start}.motion-entry:focus-visible{outline:3px solid var(--blue,#2348c5);outline-offset:3px}@media(min-width:1025px){.entry-grid:has(.motion-entry){grid-template-columns:repeat(4,minmax(0,1fr))}}@media(min-width:701px) and (max-width:1024px){.entry-grid:has(.motion-entry){grid-template-columns:repeat(2,minmax(0,1fr))}}

@@ -13,6 +13,7 @@ from runtime import configure_tool_path, data_lock, default_data_dir
 from speech_live import LiveSpeech
 import v2_api
 import agent_api
+import motion_package
 
 
 class WorkbenchServer(ThreadingHTTPServer):
@@ -42,6 +43,11 @@ class Handler(BaseHTTPRequestHandler):
         if not self.valid_host():return self.respond(403,{'error':'仅允许本机访问'})
         url=urllib.parse.urlparse(self.path);path=url.path;query=urllib.parse.parse_qs(url.query)
         try:
+            if path.startswith('/motion-download/'):
+                name = path.removeprefix('/motion-download/')
+                return self.send_file(motion_package.download(self.server.store.root, name), download=True)
+            if path == '/api/motion/status':
+                return self.respond(200, motion_package.status())
             if path.startswith('/api/agents/'):
                 if self.headers.get('X-Studio-Token') != self.server.token:
                     return self.respond(403, {'error': '无效的本地会话'})
@@ -95,6 +101,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def handle_post(self):
         try:
+            if self.path == '/api/motion/export':
+                return self.respond(200, motion_package.export(self.server.store.root, self.rfile, int(self.headers.get('Content-Length', 0))))
             if self.path.startswith('/api/upload?'):return self.upload()
             length=int(self.headers.get('Content-Length',0))
             if length>16*1024*1024:raise ValueError('请求过大')

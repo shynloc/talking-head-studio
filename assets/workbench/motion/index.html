@@ -12,28 +12,61 @@
     </header>
     <main inert>
       <nav aria-label="素材制作步骤">
-        <button data-page="script">选原句</button><span>›</span><button data-page="edit">配画面</button
+        <button data-page="script">看推荐</button><span>›</span><button data-page="edit">配画面</button
         ><span>›</span><button data-page="pack">素材包 <span id="total">0</span></button>
       </nav>
       <section id="script">
         <div class="heading">
           <div>
-            <h1>给哪句话<span>配画面？</span></h1>
-            <p>贴入稿件，点选一句。每句都能单独搭配动画。</p>
+            <h1>这篇稿子，<span>哪里值得配画面？</span></h1>
+            <p>贴入整篇稿子，先看推荐理由和透明小样。喜欢的可以一起带走。</p>
           </div>
           <button id="restore" class="quiet">打开已有搭配</button
           ><input id="restore-file" type="file" hidden accept=".json,application/json" />
         </div>
-        <div class="paper-grid">
-          <div class="paper">
-            <label for="manuscript">我的口播稿</label
-            ><textarea id="manuscript" rows="10" placeholder="在这里粘贴或输入你的稿子……"></textarea>
+        <div class="paper intake">
+          <label for="manuscript">我的口播稿</label>
+          <textarea disabled id="manuscript" rows="4" placeholder="把整篇稿子粘贴到这里……"></textarea>
+          <div class="intake-actions">
+            <button id="recommend" class="primary">推荐配画面的原句</button>
+            <label for="agent-mode">用哪位助手</label
+            ><select id="agent-mode">
+              <option value="codex">Codex 原对话</option>
+              <option value="workbuddy">WorkBuddy 待办</option>
+              <option value="service">已配置的模型服务</option>
+            </select>
           </div>
-          <div class="paper">
-            <h2>选一句开始</h2>
-            <div id="sentences"></div>
-          </div>
+          <small id="service-note" hidden>选择此项后，稿件将发送到你在工作台设置的模型服务。</small>
         </div>
+        <section id="review" aria-labelledby="review-title" hidden>
+          <div class="bar review-heading">
+            <div>
+              <h2 id="review-title">值得配画面的原句</h2>
+              <p id="picks-status" role="status"></p>
+            </div>
+            <button id="export-choices" class="primary">导出已采用素材</button>
+          </div>
+          <div id="handoff" hidden>
+            <button id="copy-task" class="quiet">复制待办</button>
+            <details>
+              <summary>连接原对话或粘贴回复</summary>
+              <button id="bind-chat" class="link">复制连接原对话的指令</button>
+              <textarea
+                id="assistant-result"
+                rows="4"
+                placeholder="也可将助手返回的推荐 JSON 粘贴到这里"
+              ></textarea>
+              <button id="apply-result" class="quiet">读取助手回复</button>
+            </details>
+            <textarea id="copy-fallback" rows="5" aria-label="手动复制指令" hidden></textarea>
+          </div>
+          <div id="picks"></div>
+          <button id="undo-skip" class="link" hidden>恢复已跳过的原句</button>
+        </section>
+        <details id="manual-lines">
+          <summary>从全部原句手动挑</summary>
+          <div id="sentences"></div>
+        </details>
       </section>
       <section id="edit" hidden>
         <div class="heading">
@@ -82,13 +115,13 @@
               <div class="fields">
                 <label>画面里的图形<select id="theme"></select></label>
                 <div id="states-inputs" class="pair">
-                  <label>变化前<input id="a" maxlength="45" /></label
-                  ><label>变化后<input id="b" maxlength="45" /></label>
+                  <label>第一项文字<input id="a" maxlength="45" /></label
+                  ><label>第二项文字<input id="b" maxlength="45" /></label>
                 </div>
-                <label id="steps-inputs">三个步骤（用顿号分开）<input id="labels" maxlength="120" /></label>
+                <label id="steps-inputs">三个节点（用顿号分开）<input id="labels" maxlength="120" /></label>
                 <div id="number-inputs" class="pair">
-                  <label>起始数<input type="number" id="from" min="0" max="99999999" /></label
-                  ><label>结束数<input type="number" id="to" min="0" max="99999999" /></label>
+                  <label>第一个数<input type="number" id="from" min="0" max="99999999" /></label
+                  ><label>第二个数<input type="number" id="to" min="0" max="99999999" /></label>
                 </div>
                 <label
                   >替换第一张图<input
@@ -139,9 +172,6 @@
       </details>
     </dialog>
     <script src="../overlay-easing.js"></script>
-    <script src="catalog.js"></script>
-    <script src="renderer.js"></script>
-    <script src="studio.js"></script>
-    <script src="pack.js"></script>
+    <script src="boot.js"></script>
   </body>
 </html>

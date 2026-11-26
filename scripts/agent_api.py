@@ -18,6 +18,8 @@ def command(url, *args):
 
 def task_card(task, url):
     task_id, agent = task['id'], task['agent']
+    if agent=='service':
+        return '这条推荐由工作台配置的模型服务处理。'
     if HOSTS[agent].get('cloud') and 'context' in task:
         return (f'口播项目：{task["project_title"]}（待办 {task_id}）\n'
                 f'请完成：{task["instruction"]}\n以下是参考资料：\n'
@@ -70,6 +72,14 @@ def post(server, path, data):
     url = f'http://127.0.0.1:{server.server_port}'
     if path == '/api/agents/destination':
         return {'value':project_destination(tasks, data['project_id'],agent_key(data['agent']),data['value'])}
+    if path == '/api/agents/motion-desk':
+        workspace = tasks.motion_desk(data.get('thread_id'))
+        return {'url': f'{url}/motion/index.html?desk={workspace}'}
+    if path == '/api/agents/motion':
+        task=tasks.create_motion(data,server.manuscripts)
+        if task['agent']=='codex' and task['status']=='waiting':
+            return tasks.resume(task['id'],lambda t:task_card(t,url))
+        return task
     if path == '/api/agents/create':
         return tasks.create(data)
     if path == '/api/agents/claim':

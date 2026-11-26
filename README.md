@@ -2,7 +2,7 @@
 
 从稿件、提词和录制计划开始，把一条口播做成可发布的视频。你可以使用完整的三阶段流程，也可以从已有定稿或已经粗剪好的视频开始。
 
-本地源码与 Skill 版本为 **V3.11.0**。公开发行包版本见下载页。Windows 安装包和 macOS 磁盘映像包含首次启动所需的 Python 安装程序。已安装 Python 的创作者也可使用通用 Skill ZIP。
+本地源码与 Skill 版本为 **V3.12.0**。公开发行包版本见下载页。Windows 安装包和 macOS 磁盘映像包含首次启动所需的 Python 安装程序。已安装 Python 的创作者也可使用通用 Skill ZIP。
 
 [下载安装包与 Skill](https://github.com/shynloc/talking-head-studio/releases/latest)
 
@@ -10,7 +10,11 @@
 
 ## 只做口播素材
 
-打开工作台首页，点「只做口播素材」。粘贴稿件后，点任意一句原话。根据句式推荐的搭配可直接播放，也可以点「挑效果」查看 74 个带预览的动效，改成自己的文字、两张图片、步骤或数字。播放或拖动进度条，在透明棋盘、浅底和深底上看效果。点「用这版，加入素材包」，继续选句或直接导出。
+打开「只做口播素材」，粘贴整篇稿件就会发起推荐。手动输入完稿后点「推荐配画面的原句」。助手通读全文，选出最多五句值得配图的原话，说明理由，并为每句配好可以播放的透明小样。你可以直接采用、换效果或跳过，再点「导出已采用的 N 款」。需要补配别的句子，展开「从全部原句手动挑」。
+
+从 Codex 开始做素材时，可让当前对话打开专属素材页。Skill 在本机运行 `python scripts/studio.py agent-motion-desk`，验证原对话后返回工作台链接。用此链接贴稿，工作台向同一对话投递。直接从首页进入时，首次可用「复制待办给 Codex」，也可一次连接原对话。WorkBuddy 通过任务卡领取。已配置模型服务的用户可以主动选择直接发送整稿。在等待期间可以先采用标有「本机初选」的搭配，助手回复时会保留你的决定。
+
+词库有 17 类、100 个可播放的效果。除了元素和文字的入场、强调、转场与退场，还可用两点斜率图讲变化、分支图讲分类、地图路线讲地点、逐项勾选讲操作，或用手绘圈注突出原话。每款都能改文字、时长与适用的图形参数。
 
 解压后，将「透明动画」中的 MOV 拖到剪辑软件的视频上方轨道，按「原句对照.txt」对齐。每款动画另有透明定格 PNG，可调整停留时间。修改内部文字或动作时，在此入口打开包内「素材搭配.json」，改好后重新导出。单条素材 1 至 12 秒，960 × 360、25 fps、ProRes 4444、无声。摆放位置和大小由剪辑软件控制。页面按预览的同一组帧在本机绘制，FFmpeg 编码并打包。草稿保存在当前浏览器，换设备用素材包带走已采用的搭配。
 
@@ -170,6 +174,11 @@ Codex 用户还可点「连接 Codex 原对话」，把连接指令粘贴到项�
 
 ## FAQ
 
+**为什么先看到「本机初选」，接下来要做什么？**
+
+粘贴整篇稿后，本机先按句式生成一批可用的小样。通过原对话专属入口进入时，可以直接等 Codex 回复。普通入口首次使用时，点「复制待办给 Codex」并粘贴到要继续的对话。回来后页面会自动更新，之前采用或跳过的选择会保留。只有清楚的问候和结束语时，助手也可以建议保留纯口播。
+
+
 ### 没有模型密钥，能工作吗？
 
 可以手动编稿、用规则分页、编辑时间线，并用已有字幕出片。AI 润稿可以由当前 Agent 处理待办；本地转写和实时跟读各自使用本地模型。
@@ -250,6 +259,6 @@ Windows 与 Apple 芯片 macOS 可以用完整工程 ZIP 互相迁移，并从�
 
 ### 如何重新制作系统安装包？
 
-从已提交的发行源码运行 `python scripts/package_release.py --output dist`，再运行 `python packaging/build_installers.py windows --archive dist/talking-head-studio-v3.11.0.zip --out native`。Mac 构建时将平台参数改为 `macos`。构建器使用 Python 官方安装程序及固定 SHA-256。Mac 应用包含 Intel 和 Apple 芯片可执行文件。[Python 安装程序来源](https://www.python.org/downloads/release/python-31314/)
+从已提交的发行源码运行 `python scripts/package_release.py --output dist`，再运行 `python packaging/build_installers.py windows --archive dist/talking-head-studio-v3.12.0.zip --out native`。Mac 构建时将平台参数改为 `macos`。构建器使用 Python 官方安装程序及固定 SHA-256。Mac 应用包含 Intel 和 Apple 芯片可执行文件。[Python 安装程序来源](https://www.python.org/downloads/release/python-31314/)
 
 有 Developer ID 的发布者可在 Mac 钥匙串中配置签名身份和 notarytool 配置，构建时提供 `--identity` 与 `--notary-profile`。发布流程会分别签署应用和磁盘映像，等待 Apple 接受并附加公证票据。GitHub Actions 可通过仓库 Secrets 配置相同流程。[Apple 公证说明](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)

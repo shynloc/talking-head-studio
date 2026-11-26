@@ -14,6 +14,9 @@ const recipes = [
   ['让标题像盖章', ['stamp', 'marker', 'eraseText']],
   ['卡片逐格换图', ['tiles', 'spark', 'clear']],
   ['看清图层结构', ['fade', 'explode', 'clear']],
+  ['把两次数值连起来', ['fade', 'slopePair', 'vanish']],
+  ['把三项逐一勾选', ['lift', 'checkList', 'vanish']],
+  ['用铅笔圈出重点', ['fade', 'pencilLoop']],
   ['给图标一点呼吸', ['zoomIn', 'breathe', 'glint', 'vanish']],
 ]
 const aliases = {
@@ -29,6 +32,8 @@ const aliases = {
   scramble: '乱码 解码',
   outlineText: '描边',
 }
+const deskParam = new URLSearchParams(location.search).get('desk') || ''
+const storageKey = /^motion_[0-9a-f]{32}$/.test(deskParam) ? deskParam : 'workspace'
 const blank = () => ({ script: '', page: 'script', draft: null, edits: {}, items: [], download: '' })
 let state = blank(),
   db,
@@ -68,7 +73,7 @@ function getDB() {
 }
 function readSaved() {
   return new Promise((resolve, reject) => {
-    const r = db.transaction('drafts').objectStore('drafts').get('workspace')
+    const r = db.transaction('drafts').objectStore('drafts').get(storageKey)
     r.onsuccess = () => resolve(r.result)
     r.onerror = () => reject(r.error)
   })
@@ -81,7 +86,7 @@ function save() {
   return new Promise((resolve) => {
     try {
       const tx = db.transaction('drafts', 'readwrite')
-      tx.objectStore('drafts').put(state, 'workspace')
+      tx.objectStore('drafts').put(state, storageKey)
       tx.oncomplete = () => {
         if (rev === serial) $('save-state').textContent = '草稿已存本机'
         resolve(true)
@@ -237,6 +242,7 @@ function nav(page) {
   if (page === 'script') {
     sentences()
     $('manuscript').value = state.script
+    renderReview()
   }
   if (page === 'pack') showPack()
   $('total').textContent = state.items.length
@@ -259,6 +265,7 @@ async function openItem(item) {
   redraw(item.poster)
 }
 async function selectLine(line) {
+  state.editFromReview = ''
   const existing =
     Object.values(state.edits).find((x) => x.quote === line.quote && x.offset === line.offset) ||
     state.items.find((x) => x.quote === line.quote && x.offset === line.offset)
@@ -284,6 +291,9 @@ function updateFields() {
     : '用这版，加入素材包 →'
   chips()
 }
+function usesField(ids, field) {
+  return ids.some((id) => TERM[id].fields.includes(field))
+}
 function chips() {
   const root = $('chips')
   root.replaceChildren()
@@ -293,14 +303,10 @@ function chips() {
     root.append(b)
   }
   const ids = state.draft.ids
-  $('title-label').textContent = ids.some((id) => ['type', 'textcue', 'textout'].includes(TERM[id].group))
-    ? '画面文字'
-    : '素材名称'
-  $('states-inputs').hidden = !ids.some(
-    (id) => TERM[id].group === 'swap' || ['bars', 'compare', 'switch'].includes(id),
-  )
-  $('steps-inputs').hidden = !ids.some((id) => ['steps', 'cycle', 'timeline', 'travel', 'trace'].includes(id))
-  $('number-inputs').hidden = !ids.some((id) => id === 'bars' || id === 'counter')
+  $('title-label').textContent = usesField(ids, 'title') ? '画面文字' : '素材名称'
+  $('states-inputs').hidden = !usesField(ids, 'states')
+  $('steps-inputs').hidden = !usesField(ids, 'labels')
+  $('number-inputs').hidden = !usesField(ids, 'values')
   $('approve').disabled = !ids.length || pendingImages.size > 0
 }
 function changed() {
@@ -317,7 +323,7 @@ function changed() {
 function toggle(id) {
   const d = state.draft,
     on = d.ids.includes(id)
-  d.ids = d.ids.filter((v) => TERM[v].group !== TERM[id].group)
+  d.ids = d.ids.filter((v) => primarySlot(v) !== primarySlot(id))
   if (!on) d.ids.push(id)
   chips()
   changed()
@@ -326,23 +332,18 @@ function toggle(id) {
     showPrompt()
   }
 }
-function showPrompt() {
-  const d = state.draft
-  const hasText = d.ids.some((id) => ['type', 'textcue', 'textout'].includes(TERM[id].group))
+function updatePrompt(d) {
+  const hasText = usesField(d.ids, 'title')
   const result = [
     '为口播原句「' + d.quote + '」做一件透明叠加素材。',
     (hasText ? '画面文字' : '素材名称') + '「' + d.title + '」。',
     ...d.ids.map((id) => groupNames[TERM[id].group] + ' · ' + TERM[id].prompt),
   ]
-  if (d.ids.some((id) => TERM[id].group === 'swap' || ['compare', 'switch', 'bars'].includes(id)))
-    result.push('前后分别为「' + d.a + '」和「' + d.b + '」。')
-  if (d.ids.some((id) => ['steps', 'cycle', 'travel', 'timeline', 'trace'].includes(id)))
-    result.push('演示顺序为 ' + d.labels.join(' → ') + '。')
-  if (d.ids.some((id) => ['bars', 'counter'].includes(id)))
-    result.push('数值从 ' + d.values.join(' 到 ') + '。')
+  if (usesField(d.ids, 'states')) result.push('两项文字分别为「' + d.a + '」和「' + d.b + '」。')
+  if (usesField(d.ids, 'labels')) result.push('三个节点为 ' + d.labels.join('、') + '。')
+  if (usesField(d.ids, 'values')) result.push('两个数值为 ' + d.values.join(' 和 ') + '。')
   result.push('时长 ' + d.seconds + ' 秒，画布外围全透明，叠在人物留白处。')
-  const next = result.join('\n'),
-    box = $('prompt')
+  const next = result.join('\n')
   if (!d.promptBase) {
     d.promptBase = next
     d.notes = next
@@ -355,19 +356,18 @@ function showPrompt() {
     d.notes = lines.join('\n')
     d.promptBase = next
   }
-  box.value = d.notes
+  if (d === state.draft) $('prompt').value = d.notes
 }
-async function approve() {
-  const d = state.draft
-  if (!d?.ids.length) return
-  stop()
-  let poster = frame
+function showPrompt() {
+  updatePrompt(state.draft)
+}
+function putReviewed(d, poster, imgs) {
   // A deliberate transparent first/last frame is fine in the MOV. Pick a visible still for the pack.
   const c = document.createElement('canvas')
   c.width = 480
   c.height = 180
   const visible = (f) => {
-    paint(c, d, f, images)
+    paint(c, d, f, imgs)
     const data = c.getContext('2d').getImageData(0, 0, c.width, c.height).data
     let n = 0
     for (let i = 3; i < data.length; i += 4) if (data[i] > 16 && ++n > 120) return true
@@ -376,34 +376,43 @@ async function approve() {
   if (!visible(poster)) {
     poster = [0.58, 0.82, 0.28].map((t) => Math.round(t * (countFrames(d) - 1))).find(visible)
     if (poster === undefined) {
-      tell('这一组没有可见画面。请添加文字、图形或更换效果。')
-      return
+      throw Error('这一组没有可见画面。请添加文字、图形或更换效果。')
     }
   }
   d.poster = poster
   d.changed = false
-  showPrompt()
-  paint(c, d, poster, images)
+  updatePrompt(d)
+  paint(c, d, poster, imgs)
   d.thumb = c.toDataURL('image/png')
   const index = state.items.findIndex((x) => x.id === d.id)
   if (index < 0) state.items.push(clone(d))
   else state.items[index] = clone(d)
   state.download = ''
-  state.page = 'pack'
+  state.edits[d.id] = clone(d)
+}
+async function approve() {
+  const d = state.draft
+  if (!d?.ids.length) return
+  stop()
+  putReviewed(d, frame, images)
+  const reviewPage = state.editFromReview === d.id
+  if (!reviewPage) state.packFromScript = false
+  state.editFromReview = ''
   $('approve').disabled = true
   await save()
-  nav('pack')
+  nav(reviewPage ? 'script' : 'pack')
 }
 function showPack() {
   const root = $('approved')
   root.replaceChildren()
-  if (!state.items.length) {
+  const items = packItems()
+  if (!items.length) {
     const el = document.createElement('p')
     el.className = 'paper empty'
     el.textContent = '选一句原稿，试看后点「用这版，加入素材包」。'
     root.append(el)
   }
-  state.items.forEach((item, i) => {
+  items.forEach((item, i) => {
     const row = document.createElement('article')
     row.className = 'paper pack-item'
     const thumb = document.createElement('div')
@@ -422,7 +431,10 @@ function showPack() {
     row.append(
       thumb,
       copy,
-      button('改这款', 'quiet', () => openItem(state.edits[item.id] || item).catch(issue)),
+      button('改这款', 'quiet', () => {
+        state.editFromReview = ''
+        openItem(state.edits[item.id] || item).catch(issue)
+      }),
       button('移除', 'link', () => {
         state.items = state.items.filter((x) => x.id !== item.id)
         state.download = ''
@@ -431,8 +443,9 @@ function showPack() {
     )
     root.append(row)
   })
-  $('export').disabled = busy || !state.items.length
-  $('download').hidden = !state.download
+  $('export').disabled = busy || !items.length
+  $('download').hidden =
+    !state.download || (state.downloadItems && items.map((item) => item.id).join() !== state.downloadItems)
   if (state.download) $('download').href = state.download
   $('progress').textContent = state.draft?.changed
     ? '素材包只含已采用的版本。当前还有修改，可回「配画面」采用。'
@@ -490,6 +503,16 @@ function renderTerms() {
     })
     replay.setAttribute('aria-label', '播放' + t.name)
     card.append(pick, replay)
+    const reference = DATA.refs[t.ref]
+    if (reference) {
+      const link = document.createElement('a')
+      link.href = reference[2]
+      link.target = '_blank'
+      link.rel = 'noopener noreferrer'
+      link.className = 'term-source'
+      link.textContent = reference[0] + ' · ' + reference[1] + ' ↗'
+      card.append(link)
+    }
     root.append(card)
   }
   if (!terms.length) root.textContent = '没找到这个动作，可以换个词或选择「全部」。'
@@ -620,14 +643,16 @@ $('reset-images').onclick = () => {
 }
 $('manuscript').oninput = () => {
   state.script = $('manuscript').value
+  manuscriptChanged()
   sentences()
   save()
 }
-$('approve').onclick = approve
+$('approve').onclick = () => approve().catch(issue)
 $('more').onclick = () => nav('script')
 document.querySelectorAll('nav button').forEach(
   (b) =>
     (b.onclick = () => {
+      if (b.dataset.page === 'pack') state.packFromScript = false
       if (b.dataset.page === 'edit' && state.draft) openItem(state.draft).catch(issue)
       else nav(b.dataset.page)
     }),

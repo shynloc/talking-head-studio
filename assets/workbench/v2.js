@@ -60,7 +60,7 @@ async function dashboard(){
     <div class="entry-grid">
       <div class="entry-start"><button class="entry-card featured" data-v2="import-new">${icon('import')}<strong>有稿件</strong><small>导入或粘贴，分成提词页。</small></button><button class="text-action" data-v2="polish-new">想先润色稿件？</button></div>
       <button class="entry-card" data-v2="video-new">${icon('recording')}<strong>有录音或视频</strong><small>录音可以变成稿件，视频可以剪停顿、加字幕。</small></button>
-      <a class="entry-card motion-entry" href="/motion/index.html"><svg viewBox="0 0 30 30" aria-hidden="true"><path d="m3 10 12-6 12 6-12 6zM3 15l12 6 12-6M3 20l12 6 12-6"/></svg><strong>只做口播素材</strong><small>贴一句稿，做能叠在视频上的透明动画。</small></a>
+      <a class="entry-card motion-entry" href="/motion/index.html"><svg viewBox="0 0 30 30" aria-hidden="true"><path d="m3 10 12-6 12 6-12 6zM3 15l12 6 12-6M3 20l12 6 12-6"/></svg><strong>只做口播素材</strong><small>贴整篇稿，挑喜欢的小样，一次导出透明动画。</small></a>
       <button class="entry-card" data-v2="blank">${icon('new')}<strong>从空白开始</strong><small>写下第一段口播。</small></button>
     </div>
     ${others.length?`<h2>我的项目</h2><div class="recent-grid">${others.map(projectButton).join('')}</div>`:''}

@@ -10,6 +10,7 @@ from core import Conflict, digest, now, uid, write_json
 
 
 from agent_hosts import AGENTS
+import motion_recommend as motion
 
 
 def text_value(value, label, limit):
@@ -44,6 +45,9 @@ class AgentTasks:
         self.codex = codex
         for path in self.root.glob('handoff_*.json'):
             task = json.loads(path.read_text(encoding='utf-8'))
+            if task.get('status')=='analyzing':
+                task.update(status='failed',error='工作台已重启，请重新分析。')
+                self._save(task)
             if task['delivery'] == 'sending':
                 task['delivery'] = 'unconfirmed'
                 self._save(task)
@@ -67,6 +71,9 @@ class AgentTasks:
         public = {k: v for k, v in task.items() if k not in ('claim', 'context', 'binding', 'request_id', 'context_hash')}
         if not detail:
             public.pop('result', None)
+            public.pop('recommendations', None)
+        if task.get('kind')=='motion':
+            return public
         if detail and task['status'] == 'ready':
             try:
                 project = self.store.load(task['project_id'])
@@ -81,7 +88,7 @@ class AgentTasks:
         with self.lock:
             tasks = [json.loads(path.read_text(encoding='utf-8')) for path in self.root.glob('handoff_*.json')]
             return [self._public(task, detail=False) for task in sorted(tasks, key=lambda x: x['updated'], reverse=True)
-                    if (not project_id or task['project_id'] == project_id) and (not agent or task['agent'] == agent)]
+                    if (not project_id or task['project_id'] == project_id) and (not agent or task['agent'] == agent) and (agent or task.get('kind')!='motion')]
 
     def get(self, task_id):
         with self.lock:
@@ -93,7 +100,8 @@ class AgentTasks:
             return self._public(task) | {'context': task['context']}
 
     def _binding_path(self, project_id):
-        self.store.folder(project_id)
+        if not re.fullmatch(r'motion_[0-9a-f]{32}',project_id):
+            self.store.folder(project_id)
         return self.root / (f'{project_id}-codex.json')
 
     def _binding(self, project_id):
@@ -105,8 +113,21 @@ class AgentTasks:
             binding = self._binding(project_id)
             return {'codex_bound': bool(binding), 'codex_available': self.codex.available()}
 
+    def motion_desk(self, thread_id):
+        binding = self.codex.verify(thread_id)
+        # The same verified original conversation always reopens its own browser draft.
+        workspace = 'motion_' + digest({'motion_thread': binding['thread_id']})[:32]
+        with self.lock:
+            write_json(self._binding_path(workspace), binding)
+        return workspace
+
     def bind_codex(self, project_id, thread_id, replace=False):
-        self.store.load(project_id)
+        if re.fullmatch(r'motion_[0-9a-f]{32}',project_id):
+            with self.lock:
+                if not any(self._get(p.stem)['project_id']==project_id for p in self.root.glob('handoff_*.json')):
+                    raise ValueError('先从素材页发起一次推荐。')
+        else:
+            self.store.load(project_id)
         binding = self.codex.verify(thread_id)
         with self.lock:
             old = self._binding(project_id)
@@ -138,12 +159,61 @@ class AgentTasks:
             self._save(task)
             return self._public(task)
 
+    def create_motion(self,data,service):
+        workspace=data.get('workspace','')
+        if not isinstance(workspace,str) or not re.fullmatch(r'motion_[0-9a-f]{32}',workspace):
+            raise ValueError("无效的素材工作区。")
+        agent = data.get("agent", "codex")
+        if agent not in ("codex", "workbuddy", "service"):
+            raise ValueError("请选择可用助手。")
+        context = motion.snapshot(data.get("text"), data.get("sentences"))
+        request = text_value(data.get("request_id"), "提交编号", 80)
+        with self.lock:
+            for path in self.root.glob("handoff_*.json"):
+                old = self._get(path.stem)
+                if old["project_id"] == workspace and old["request_id"] == request:
+                    if old["context_hash"] != digest(context) or old["agent"] != agent:
+                        raise Conflict("稿件或助手已变化，请重新推荐。")
+                    return self._public(old)
+            if agent == "service" and not service.config()["ready"]:
+                raise ValueError("请先在工作台设置中配置模型服务，或选择 Codex 原对话。")
+            task = {
+                "kind": "motion",
+                "id": uid("handoff"),
+                "request_id": request,
+                "project_id": workspace,
+                "project_title": "口播素材推荐",
+                "context": context,
+                "context_hash": digest(context),
+                "agent": agent,
+                "instruction": motion.INSTRUCTION,
+                "created": now(),
+                "delivery": "manual",
+                "status": "analyzing" if agent == "service" else "waiting",
+            }
+            self._save(task)
+            if agent == "service":
+                service.pool.submit(self._model_motion, task["id"], context, service)
+            return self._public(task)
+
+    def _model_motion(self, task_id, context, service):
+        try:
+            result = service.model_reply(motion.INSTRUCTION, json.dumps(context, ensure_ascii=False))
+            rows = motion.recommendations(context, result)
+            update = {"status": "ready", "result": result, "recommendations": rows}
+        except Exception as exc:
+            update = {"status": "failed", "error": str(exc)[:450]}
+        with self.lock:
+            task = self._get(task_id)
+            task.update(update)
+            self._save(task)
+
     def claim(self, data):
-        agent = agent_key(data.get('agent'))
+        agent = agent_key(data.get("agent"))
         with self.lock:
             task = self._get(data['id'])
             if task['agent'] != agent:
-                raise Conflict(f"这条待办由 {AGENTS[task['agent']]} 领取。")
+                raise Conflict(f"这条待办由 {AGENTS.get(task['agent'],'模型服务')} 领取。")
             if task['status'] != 'waiting':
                 raise Conflict('这条待办已领取或已有结果。可在工作台查看。')
             receipt = secrets.token_urlsafe(24)
@@ -164,6 +234,8 @@ class AgentTasks:
                 return self._public(task)
             if task['status'] != 'claimed':
                 raise Conflict('这条待办已有结果。')
+            if task.get('kind')=='motion':
+                task['recommendations']=motion.recommendations(task['context'],result)
             task.update(status='ready', result=result)
             self._save(task)
             return self._public(task)
@@ -172,8 +244,12 @@ class AgentTasks:
         result = text_value(data.get('result'), '处理结果', 120000)
         with self.lock:
             task = self._get(data['id'])
+            if task.get('agent')=='service':
+                raise Conflict('此请求由模型服务处理。')
             if task['status'] == 'ready' or task['delivery'] == 'sending':
                 raise Conflict('待办已有结果或正在投递，请刷新后查看。')
+            if task.get('kind')=='motion':
+                task['recommendations']=motion.recommendations(task['context'],result)
             task.pop('claim', None)
             task.update(status='ready', result=result, manual_result=True)
             self._save(task)
@@ -199,13 +275,14 @@ class AgentTasks:
                 return self._public(task)
             task['delivery'] = 'sending'
             self._save(task)
-            self.pool.submit(self._dispatch, task_id, binding, make_card(task))
+            card_task = self._public(task) if task.get('kind') == 'motion' else task
+            self.pool.submit(self._dispatch, task_id, binding, make_card(card_task))
             return self._public(task)
 
     def has_dispatches(self):
         with self.lock:
-            return any(json.loads(path.read_text(encoding='utf-8'))['delivery'] == 'sending'
-                       for path in self.root.glob('handoff_*.json'))
+            return any(t['delivery']=='sending' or t['status']=='analyzing' for t in
+                       (self._get(path.stem) for path in self.root.glob('handoff_*.json')))
 
     def _dispatch(self, task_id, binding, card):
         try:

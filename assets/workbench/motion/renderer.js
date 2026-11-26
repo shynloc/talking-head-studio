@@ -471,6 +471,7 @@ function swapShape(g, id, n, ctx) {
   )
 }
 function diagram(g, id, t, c, plate) {
+  if (TERM[id]?.foreground) return illustration(g, id, t, c)
   const n = epoch(t, 0.06, 0.82),
     xs = [89, 240, 391]
   if (['steps', 'travel', 'trace', 'timeline'].includes(id)) {
@@ -745,7 +746,7 @@ function draw(canvas, t, ids = [], subject = '', solo = false, settings = {}) {
     action = pick('loop'),
     fx = pick('fx'),
     swap = pick('swap'),
-    demo = pick('demo'),
+    demo = ids.find((id) => primarySlot(id) === 'demo'),
     exit = pick('out'),
     plate = pick('plate') || 'clear'
   const textMode = !!(pick('type') || pick('textcue') || pick('textout')),

@@ -25,8 +25,11 @@ function reviewedCopy(item) {
   delete copy.changed
   return copy
 }
+function packItems() {
+  return state.packFromScript ? sentenceItems() : state.items
+}
 async function makePack() {
-  if (busy || !state.items.length) return
+  if (busy || !packItems().length) return
   busy = true
   exporting = true
   $('export').disabled = true
@@ -39,7 +42,7 @@ async function makePack() {
   try {
     const capability = await jsonResponse(await fetch('/api/motion/status', { cache: 'no-store' }))
     if (!capability.ready) throw Error('导出 MOV 需要 FFmpeg。安装媒体工具后回到这里重试，已选素材会保留。')
-    const entries = state.items.map(reviewedCopy),
+    const entries = packItems().map(reviewedCopy),
       header = new TextEncoder().encode(JSON.stringify({ format: FORMAT, items: entries }))
     if (entries.length > 64 || header.byteLength > 32 * 1024 * 1024)
       throw Error('这个包的素材较多，请分批导出。')
@@ -77,6 +80,7 @@ async function makePack() {
         body: new Blob(chunks),
       }),
     )
+    state.downloadItems = entries.map((item) => item.id).join()
     state.download = response.url
     save()
     $('download').href = response.url
@@ -90,7 +94,7 @@ async function makePack() {
     exporting = false
     $('approved').inert = false
     $('more').disabled = false
-    $('export').disabled = !state.items.length
+    $('export').disabled = !packItems().length
     navBar.inert = false
     back.inert = false
   }
@@ -110,7 +114,7 @@ function parseItem(raw) {
     !Array.isArray(raw.ids) ||
     !raw.ids.length ||
     raw.ids.some((id) => typeof id !== 'string' || !Object.hasOwn(TERM, id)) ||
-    new Set(raw.ids.map((id) => TERM[id].group)).size !== raw.ids.length
+    new Set(raw.ids.map(primarySlot)).size !== raw.ids.length
   )
     throw Error('这份文件包含无法识别的动作或原句。')
   if (
@@ -164,6 +168,7 @@ $('restore-file').onchange = async (event) => {
       paint(canvas, item, item.poster, await loadImages(item))
       item.thumb = canvas.toDataURL()
     }
+    state.packFromScript = false
     state.items.push(...incoming)
     state.download = ''
     if (!state.script.trim()) state.script = incoming.map((s) => s.quote).join('\n')
@@ -190,6 +195,8 @@ async function initMaterials() {
     nav('script')
     issue(e)
   } finally {
+    initReview()
+    $('manuscript').disabled = false
     document.querySelector('main').inert = false
   }
 }

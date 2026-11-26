@@ -7,6 +7,8 @@ from agent_client import AgentClient
 
 def handoff_command(args):
     client = AgentClient(args.url, getattr(args, 'agent', 'codex'))
+    if args.command == 'agent-motion-desk':
+        return client.motion_desk(os.environ.get('CODEX_THREAD_ID', ''))
     if args.command == 'agent-config':
         return {'mcpServers':{'talking-head-studio':{'command':sys.executable,
             'args':['-X','utf8',str(Path(__file__).with_name('agent_mcp.py').resolve()),'--agent',args.agent,'--url',args.url]}}}
@@ -30,6 +32,7 @@ def main():
     patch=sub.add_parser('edit');patch.add_argument('id');patch.add_argument('--file',required=True)
     tasks=sub.add_parser('tasks');tasks.add_argument('id')
     finish=sub.add_parser('complete-task');finish.add_argument('id');finish.add_argument('task');finish.add_argument('--text-file',required=True)
+    sub.add_parser('agent-motion-desk')
     sub.add_parser('agent-config').add_argument('--agent', choices=tuple(AGENTS), required=True)
     sub.add_parser('agent-list').add_argument('--agent', choices=tuple(AGENTS), required=True)
     claim=sub.add_parser('agent-claim');claim.add_argument('id');claim.add_argument('--agent', choices=tuple(AGENTS), required=True)

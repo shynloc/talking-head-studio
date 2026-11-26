@@ -72,11 +72,12 @@ def main():
             sample=page.evaluate("""()=>({quote:state.draft.quote,seconds:state.draft.seconds,title:state.draft.title,frame,
                        png:document.getElementById('preview').toDataURL().split(',')[1]})""")
             sample['png']=base64.b64decode(sample['png']);return sample
+        page.locator('#manual-lines summary').click()
         page.locator('.sentence').nth(0).click()
         page.locator('#title').fill('用留白组织画面')
         page.locator('#seconds').select_option('2')
         page.locator('#open-library').click()
-        expect(page.locator('#cards .card')).to_have_count(74)
+        expect(page.locator('#cards .card')).to_have_count(100)
         page.locator('[data-group=textcue]').click();page.locator('[data-id=underline] .pick').click()
         page.locator('#close-library').click();page.locator('#play').click()
         page.wait_for_function("Number(document.getElementById('scrub').value)>3");page.locator('#play').click()

@@ -509,3 +509,136 @@ body:has(dialog[open]) {
     }
   }
 }
+
+.intake textarea,
+#handoff textarea {
+  display: block;
+  width: 100%;
+  resize: vertical;
+  margin: 8px 0 12px;
+}
+.intake textarea {
+  min-height: 110px;
+}
+.intake-actions,
+.pick-actions,
+.review-heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.intake-actions label {
+  margin-left: auto;
+  font-size: 14px;
+  color: var(--muted);
+}
+#review {
+  margin: 24px 0;
+}
+.review-heading {
+  margin: 18px 0 12px;
+}
+.review-heading h2 {
+  font-size: clamp(21px, 3vw, 30px);
+  letter-spacing: -0.04em;
+}
+#picks-status,
+#service-note {
+  color: var(--muted);
+  font-size: 14px;
+}
+#handoff {
+  padding: 8px 0 14px;
+}
+#handoff details {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 10px;
+  max-width: 100%;
+}
+#handoff details[open] {
+  display: block;
+  margin: 10px 0;
+}
+#picks {
+  display: grid;
+  gap: 12px;
+}
+.review-card {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.7fr) minmax(0, 1.3fr);
+  align-items: center;
+  gap: 22px;
+  padding: 15px;
+}
+.pick-stage {
+  position: relative;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  overflow: hidden;
+  padding: 5px 0 28px;
+}
+.pick-stage canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.watch {
+  position: absolute;
+  left: 8px;
+  bottom: 5px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  font-size: 13px;
+  padding: 2px 9px;
+}
+.pick-copy {
+  overflow-wrap: anywhere;
+}
+.pick-copy h3 {
+  font-size: clamp(18px, 2vw, 23px);
+  line-height: 1.35;
+  margin: 0 0 0.35em;
+}
+.pick-copy small,
+.pick-copy p {
+  color: var(--muted);
+}
+.pick-copy small {
+  display: block;
+  margin: 5px 0 12px;
+}
+.pick-actions button {
+  font-size: 14px;
+}
+.accept[aria-pressed='true'] {
+  color: var(--blue);
+  border-color: var(--blue);
+}
+#manual-lines {
+  margin-top: 16px;
+}
+.term-source {
+  display: block;
+  font-size: 11px;
+  margin: 0 10px 6px;
+}
+@media (max-width: 650px) {
+  .intake-actions label {
+    margin-left: 0;
+  }
+  .review-card {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .pick-stage canvas {
+    max-height: 140px;
+    object-fit: contain;
+  }
+  #handoff details {
+    display: block;
+    margin: 6px 0;
+  }
+}

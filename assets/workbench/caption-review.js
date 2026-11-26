@@ -201,18 +201,30 @@ function bindCorrectionPlayback(review,state,video) {
   }
   if(!ranges.length)return;
   const button=$('#proof-play');
-  button.hidden=false;let cursor=-1;
-  function begin(){cursor=0;video.currentTime=ranges[0].start;video.play().catch(()=>{});}
-  button.onclick=()=>{if(cursor>=0){cursor=-1;button.textContent='连看改过的几句';}else begin();};
+  button.hidden=false;
+  let cursor=-1, userSelected=false;
+  function setCursor(next,label){
+    cursor=next;button.setAttribute('aria-pressed',String(cursor>=0));
+    button.textContent=cursor>=0?'切回连续播放':label;
+  }
+  function begin(){
+    setCursor(0);video.currentTime=ranges[0].start;
+    video.play().catch(()=>setCursor(-1,'连看改过的几句'));
+  }
+  setCursor(-1,'连看改过的几句');
+  button.onclick=()=>{
+    userSelected=true;
+    if(cursor>=0)setCursor(-1,'连看改过的几句');else begin();
+  };
   video.addEventListener('timeupdate',()=>{
-    if(cursor<0)return;
-    button.textContent='切回连续播放';
-    if(video.currentTime<ranges[cursor].end)return;
-    if(++cursor<ranges.length){video.currentTime=ranges[cursor].start;}
-    else {cursor=-1;video.pause();button.textContent='再看改过的几句';}
+    if(cursor<0 || video.seeking || video.currentTime<ranges[cursor].end-.015)return;
+    if(cursor+1<ranges.length){cursor++;video.currentTime=ranges[cursor].start;}
+    else {setCursor(-1,'再看改过的几句');video.pause();}
   });
+  video.addEventListener('ended',()=>{if(cursor>=0)setCursor(-1,'再看改过的几句');});
   if(review.playCorrections){
     review.playCorrections=false;
-    if(video.readyState>=1)begin();else video.addEventListener('loadedmetadata',begin,{once:true});
+    if(video.readyState>=1)begin();
+    else video.addEventListener('loadedmetadata',()=>{if(!userSelected)begin();},{once:true});
   }
 }

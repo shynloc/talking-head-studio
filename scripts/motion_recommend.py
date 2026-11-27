@@ -41,6 +41,13 @@ fade lift slide pop zoomIn blurIn swingIn wipe irisIn vanish drop shrink spinOut
 closewipe irisOut pulse tilt float breathe spin pendulum trail
 """.split())
 
+VISUAL_FIELDS = {
+    "styles": ("layout", "type", "detail", "overlay"),
+    "palettes": ("colors", "rule", "distribution"),
+    "objects": ("parts",),
+    "stickers": ("shape",),
+}
+
 
 def scan_manuscript(text):
     if not isinstance(text, str) or len(text) > 120000:
@@ -160,8 +167,13 @@ def snapshot(text, quotes, visual=None, marked_script=None):
         "visual": samples.selection(visual),
         "visualBrief": samples.brief(visual),
         "partEffects":list(treatments.catalog().values()),
-        "visualCatalog": {k:[{key:e[key] for key in ("id","assetId","name","uses")} for e in samples.catalog()[k]]
-                          for k in ("styles","palettes","objects","stickers")},
+        "visualCatalog": {
+            group: [
+                {key: entry[key] for key in ("id", "assetId", "name", "uses", *extra) if key in entry}
+                for entry in samples.catalog()[group]
+            ]
+            for group, extra in VISUAL_FIELDS.items()
+        },
         "catalog": [
             {
                 "id": t["id"],

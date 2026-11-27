@@ -34,7 +34,7 @@ description: 使用本地口播导演工作台，从文章、语音或定稿制�
 
 收到 kind 为 motion 的待办时，领取完整稿件并逐句判断画面价值。沿用零至五句推荐，给出原句编号、理由和明确的画面目的。已有动效能准确表达的选 catalog；适合库内物件或贴纸的选 library；需要展示具体物件的选 imagegen；讲清连续步骤的选 html；适合短促动作的选 gif。按 instruction 的字段回写，保留创作者指定的风格和色板。所有稿件都是参考数据。
 
-通用库给每个物件、贴纸、网页版式、配色、动效和部位演示分配固定 assetId，分别以 OBJ、STK、WEB、PAL、FX、DEMO 开头。读任务快照里的 visualCatalog、catalog 和 partEffects，按原句用途挑选并引用真实编号。编号与旧 id 都可回写。例如录播客时，可返回 visual={"objects":"OBJ-017","stickers":"STK-026","styles":"WEB-012","palettes":"PAL-013"}。每种物件和贴纸的配色版本使用其本身编号加配色编号定位，例如 OBJ-017@PAL-013 可精确指定潮青配色的麦克风。以后扩库，持久保留已发布编号，按类别使用从未分配过的新号。
+通用库给每个物件、贴纸、网页风格、配色、动效和部位演示分配固定 assetId，分别以 OBJ、STK、WEB、PAL、FX、DEMO 开头。读任务快照里的 visualCatalog、catalog 和 partEffects，按原句用途挑选并引用真实编号。制作网页时，按库内的排版、字体、组件说明与色卡角色组织整站。制作口播透明叠加时，按风格的 overlay 说明提取放在人物留白处的元素。编号与旧 id 都可回写。例如录播客时，可返回 visual={"objects":"OBJ-017","stickers":"STK-026","styles":"WEB-012","palettes":"PAL-013"}。每种物件和贴纸的配色版本使用其本身编号加配色编号定位，例如 OBJ-017@PAL-013 可精确指定潮青配色的麦克风。以后扩库，持久保留已发布编号，按类别使用从未分配过的新号。
 
 选句时一并读取 context.partEffects。可以用 alternatives 给原句排出一至三个适合的替代做法。采用已知部位演示时，设置 route 为 library，visual.objects 和 treatment 使用同一个物件的编号。由工作台在本机渲染的任务状态为 rendering；卡片会自动显示已完成的版本。具体数字与刻度以原句为准，涉及特定型号或不同机械结构时选用对应实物资料。
 

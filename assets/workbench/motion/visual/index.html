@@ -5,6 +5,102 @@
 .toolrow,.view-switch{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0}.toolrow input[type=search]{font:inherit;flex:1;min-width:130px;border:1px solid var(--line);border-radius:7px;padding:7px}.toolrow label{font-size:13px;white-space:nowrap}.asset-id{font:12px/1.3 ui-monospace,monospace;letter-spacing:.04em;color:#344e81}.view-switch button[aria-pressed=true]{background:var(--blue);color:white}.grid{max-height:54vh;overflow:auto;align-content:start;padding:3px}.entry{align-content:start}.inline .top,.inline .refs,.inline #promptbox,.inline #copy,.inline #copy-annotation{display:none}.inline main{width:100%;padding:0}.inline .desk{margin:0}.inline .proof{position:static}
 #overlay{height:220px;display:grid;place-items:center;border-radius:8px}#overlay img{max-width:100%;max-height:210px;object-fit:contain}#overlay img,#overlay-message{grid-area:1/1}#overlay-thumbnail{max-height:70%;max-width:70%}#overlay-message{align-self:end;margin:0 0 5px;padding:1px 8px;border-radius:5px;background:#fffbf2ed}#overlay-message:empty{display:none}
 @media(max-width:830px){.desk .proof{grid-row:1}.grid{max-height:45vh}.inline .panel{padding:10px}.inline #overlay{height:140px}.inline #overlay img{max-height:138px}}
+
+.web-kinds,.web-devices{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.web-kinds[hidden],.web-devices[hidden],.color-lab [hidden],.color-lab[hidden]{display:none}
+.web-kinds button,.web-devices button,.web-devices label{font-size:.84rem}
+.web-kinds button[aria-pressed="true"],.web-devices button[aria-pressed="true"]{background:#002fa7;color:white;border-color:#002fa7}
+.web-devices label{align-self:center}
+.web-card{min-height:66px;padding:9px;display:grid;align-content:center;gap:4px;background:var(--card-bg);color:var(--card-ink);border-radius:7px;border-bottom:4px solid var(--card-accent);text-align:left}
+.web-card small{font-size:10px!important;color:inherit!important}
+.web-card b{font-size:15px;line-height:1.1;overflow-wrap:anywhere}
+.web-card[data-theme="product"]{text-align:center}
+.web-card[data-theme="type"],.web-card[data-theme="editorial"]{font-family:Georgia,"Songti SC",serif}
+.web-card[data-theme="workshop"]{border:1px solid var(--card-ink);border-left:5px solid var(--card-accent);border-radius:0}
+.web-card[data-theme="bento"]{border-right:14px solid var(--card-accent)}
+.web-card[data-theme="adaptive"]{border:1px dashed var(--card-ink);border-radius:13px}
+#preview.is-website{max-height:clamp(290px,64vh,700px);overflow:auto;overscroll-behavior-y:contain;border:1px solid #c9bda8;border-radius:12px;background:#d9d1c3;scrollbar-gutter:stable}
+#preview.is-website .website{margin-inline:auto}
+#preview.is-website.is-phone .website{max-width:324px}
+.color-lab{margin:9px 0 14px;padding:13px;border:1px solid #d7cbb6;border-radius:12px;background:#fffaf1}
+.color-lab h3{font-size:1.05rem;margin:0 0 6px}
+.color-lab p{font-size:.83rem;margin:5px 0 9px}
+.color-fields{display:flex;gap:7px 12px;flex-wrap:wrap;align-items:center}
+.color-fields label{display:flex;gap:5px;align-items:center;font-size:.82rem}
+.color-fields select{padding:4px;border:1px solid #b6aa99;border-radius:5px;font:inherit;color:inherit;background:white}
+.color-fields input[type="color"]{width:43px;height:33px;padding:2px;border:1px solid #b6aa99;border-radius:5px;background:white;cursor:pointer}
+.color-chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(74px,1fr));gap:4px}
+.color-chip{min-height:50px;padding:5px 6px;border:1px solid #0002;border-radius:6px;display:grid;align-content:center;font-size:.72rem}
+.color-chip code{color:inherit;font-size:.69rem}
+.color-lab .actions{margin-top:6px}
+#detail .color-chips{margin:8px 0}
+
+</style><style id="website-css">
+.website{color:var(--web-text);background:var(--web-surface);font-family:system-ui,sans-serif;line-height:1.55;container-type:inline-size;isolation:isolate;overflow:clip}
+.website *{box-sizing:border-box}
+.website a{color:inherit}
+.website a:focus-visible,.website summary:focus-visible{outline:2px solid currentColor;outline-offset:4px}
+.website .web-header{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:16px clamp(14px,5cqi,54px);border-bottom:1px solid color-mix(in srgb,currentColor 20%,transparent);position:sticky;top:0;background:var(--web-surface);z-index:1}
+.website .web-brand{font-weight:800;letter-spacing:.02em;font-size:clamp(.83rem,2.7cqi,1.2rem);text-decoration:none}
+.website nav{display:flex;align-items:center;gap:clamp(7px,3.2cqi,30px);padding:0;background:none;margin:0;font-size:clamp(.69rem,2.2cqi,.92rem)}
+.website nav a{white-space:nowrap;text-decoration:underline;text-underline-offset:4px}
+.website section{scroll-margin-top:74px}
+.website .web-cover{display:grid;grid-template-columns:1.05fr 1fr;min-height:min(60cqi,610px);align-items:stretch}
+.website .web-words{padding:clamp(23px,7cqi,92px) clamp(16px,5cqi,70px);align-self:center}
+.website .web-kicker{margin:0 0 12px;font-size:clamp(.72rem,1.75cqi,.9rem);font-weight:650;letter-spacing:.08em}
+.website .web-headline{font-size:clamp(1.55rem,6.5cqi,5rem);margin:0;line-height:1.06;letter-spacing:-.055em;overflow-wrap:anywhere;text-wrap:balance}
+.website .web-intro{margin:14px 0 18px;font-size:clamp(.83rem,2.35cqi,1.12rem);max-width:32ch}
+.website .web-action{display:inline-flex;align-items:center;gap:.35em;text-decoration:none;color:var(--web-action-text,var(--web-surface));background:var(--web-accent);padding:8px 14px;border-radius:6px;font-size:clamp(.75rem,1.8cqi,1rem);font-weight:700;border:1px solid var(--web-text)}
+.website .web-art{min-width:0;position:relative;display:grid;place-items:center;overflow:hidden;background:color-mix(in srgb,var(--web-object),var(--web-surface) 65%)}
+.website .web-art .web-shape{position:absolute;inset:13% 12%;border:1px solid currentColor;border-radius:47%;background:radial-gradient(ellipse at 40% 30%,var(--web-surface),var(--web-object));opacity:.66}
+.website .web-art img{position:relative;width:90%;max-height:440px;object-fit:contain;filter:drop-shadow(0 15px 20px #0003)}
+.website .web-art .web-sticker{position:absolute;width:23%;max-width:145px;right:8%;top:14%;filter:none}
+.website .website-section{padding:clamp(20px,5cqi,72px) clamp(14px,5cqi,54px)}
+.website .website-section h4{font-size:clamp(1.2rem,3.4cqi,2.4rem);margin:0 0 18px}
+.website .web-features{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.website .web-feature{padding:clamp(10px,2.6cqi,30px);border:1px solid color-mix(in srgb,currentColor 26%,transparent);border-radius:14px;background:color-mix(in srgb,var(--web-object),var(--web-surface) 84%);overflow-wrap:anywhere}
+.website .web-feature h5{font-size:clamp(.93rem,2.6cqi,1.5rem);margin:5px 0}
+.website .web-feature p,.website details p{margin:0;font-size:clamp(.78rem,1.85cqi,1rem)}
+.website .web-index{font:700 .72rem/1.2 ui-monospace,monospace}
+.website .web-questions{background:color-mix(in srgb,var(--web-object),var(--web-surface) 90%)}
+.website details{margin:0;border-top:1px solid color-mix(in srgb,currentColor 30%,transparent);padding:11px 0}
+.website details p{padding:8px 0}
+.website summary{cursor:pointer;font-weight:650;font-size:.93rem;color:inherit}
+.website .web-footer{padding:18px clamp(14px,5cqi,54px);display:flex;justify-content:space-between;gap:10px;border-top:1px solid color-mix(in srgb,currentColor 22%,transparent);font-size:.85rem}
+.website[data-theme="product"] .web-cover{grid-template-columns:1fr;text-align:center}
+.website[data-theme="product"] .web-words{padding-bottom:14px}
+.website[data-theme="product"] .web-intro{margin-inline:auto}
+.website[data-theme="product"] .web-action{border-radius:100px}
+.website[data-theme="product"] .web-art{min-height:135px;background:linear-gradient(var(--web-surface),color-mix(in srgb,var(--web-surface),var(--web-object) 17%))}
+.website[data-theme="product"] .web-shape{border:0;inset:15% 23%;opacity:.32}
+.website[data-theme="product"] .web-art img{width:62%;max-height:min(44cqi,390px)}
+.website[data-theme="product"] .web-art .web-sticker{width:20%}
+.website[data-theme="type"] .web-headline,.website[data-theme="editorial"] .web-headline{font-family:Georgia,"Songti SC","SimSun",serif;font-weight:800}
+.website[data-theme="type"] .web-headline{font-size:clamp(1.75rem,8.1cqi,6.7rem)}
+.website[data-theme="type"] .web-art{transform:rotate(-6deg);border-radius:50%;margin:8% 10% 8% 0}
+.website[data-theme="type"] .web-feature:nth-child(2){border:3px double var(--web-text);border-radius:0}
+.website[data-theme="editorial"] .web-cover{border-bottom:2px solid var(--web-text)}
+.website[data-theme="editorial"] .web-art{margin:12px}
+.website[data-theme="editorial"] .web-shape{border-radius:0;inset:10%}
+.website[data-theme="editorial"] .web-feature{border:0;border-inline-start:1px solid currentColor;background:none;border-radius:0}
+.website[data-theme="workshop"]{background-image:linear-gradient(to bottom,#8882 1px,transparent 1px),linear-gradient(to right,#8882 1px,transparent 1px);background-size:24px 24px}
+.website[data-theme="workshop"] .web-art{border:1px solid var(--web-text);margin:16px}
+.website[data-theme="workshop"] .web-shape{border-radius:0;inset:7%;background:transparent}
+.website[data-theme="workshop"] .web-feature{border-radius:0;border-color:var(--web-text);background:var(--web-surface)}
+.website[data-theme="bento"] .web-art{margin:10px;border-radius:26px}
+.website[data-theme="bento"] .web-features{grid-template-columns:1.7fr 1fr}
+.website[data-theme="bento"] .web-feature:first-child{grid-row:span 2;border-radius:25px}
+.website[data-theme="bento"] .web-feature:nth-child(2){border-radius:8px 26px 8px 26px}
+.website[data-theme="adaptive"] .web-cover{margin:12px;overflow:hidden;outline:1px solid currentColor;outline-offset:-1px;border-radius:22px}
+.website[data-theme="adaptive"] .web-shape{inset:9% 11%;border-radius:20%;border-style:dashed}
+.website[data-theme="adaptive"] .web-feature{border-radius:0;border-width:0 0 2px;background:none}
+@container (max-width:380px){
+ .website .web-cover{grid-template-columns:1fr}
+ .website .web-art{min-height:135px;margin:0!important;transform:none!important}
+ .website .web-art img{width:60%;max-height:220px}
+ .website .web-features{grid-template-columns:1fr}
+ .website .web-feature{grid-row:auto!important}
+}
 </style><style id="scene-css">
 .scene{--surface:#f4eddf;--text:#201e22;--object:#e8833e;--accent:#002fa7;container-type:inline-size;background:var(--surface);color:var(--text);font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;padding:20px;min-height:244px;line-height:1.4;position:relative;isolation:isolate;overflow:hidden;border:1px solid color-mix(in srgb,var(--text) 24%,transparent);border-radius:10px}.scene *{box-sizing:border-box}.scene h3{font-size:clamp(22px,7cqw,40px);letter-spacing:-.06em;line-height:1.12;margin:0 0 9px}.scene p,.scene ul,.scene ol,.scene figure{margin:0}.scene img{width:100%;height:125px;object-fit:contain}.scene figure{min-width:0}.scene figcaption,.scene .label{font-size:12px}.scene .badge{position:absolute;right:9px;top:9px;width:60px;height:42px;object-fit:contain;z-index:2}.scene .contents{display:flex;flex-wrap:wrap;gap:7px}.scene .contents span{padding:3px 6px;border-bottom:2px solid var(--object);font-size:13px}.field{display:grid;grid-template-columns:42% 1fr;align-items:center;gap:13px}.field h3,.editorial h3{font-family:"Songti SC","SimSun",Georgia,serif}.field figure{border-right:1px solid var(--object)}.field .contents{display:grid}.manual{display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:12px}.manual ol{padding:0;list-style:none;counter-reset:step}.manual li{counter-increment:step;padding:7px 0;border-bottom:1px solid var(--object);font-weight:650}.manual li:before{content:counter(step,decimal-leading-zero);font:13px monospace;margin-right:7px;color:var(--text);border-bottom:3px solid var(--accent)}.editorial{display:grid;grid-template-columns:1.2fr 1fr;align-content:center;gap:7px}.editorial header{grid-column:1/-1;border-top:3px solid var(--text);padding-top:10px}.editorial h3{font-size:clamp(26px,9cqw,48px)}.editorial p{align-self:center}.measure{display:grid;align-content:center;gap:15px}.measure header{display:flex;align-items:center;justify-content:space-between;gap:7px}.measure .meter{display:flex;justify-content:space-around;border-bottom:3px solid var(--object);padding:8px 0}.meter strong{display:block;font:700 clamp(23px,8cqw,42px)/1.05 monospace}.meter small{font-size:13px}.meter div:last-child{border-left:5px solid var(--accent);padding-left:12px}.exhibit{display:flex;flex-direction:column;align-items:center;justify-content:center}.exhibit img{height:120px;filter:drop-shadow(0 4px 2px #0002)}.exhibit .plate{width:78%;border-top:1px solid var(--text);padding:7px 0}.exhibit h3{font-size:22px;margin-bottom:2px}.route{display:grid;align-content:center;gap:18px}.route .path{display:flex;justify-content:space-between;padding:0;position:relative;list-style:none}.route .path:before{content:"";position:absolute;left:6%;right:6%;top:7px;border-top:2px dashed var(--object)}.path li{position:relative;font-size:14px;font-weight:bold}.path li:before{content:"";display:block;margin:0 auto 7px;width:11px;height:11px;border-radius:50%;background:var(--surface);border:2px solid var(--text)}.path li:last-child:before{background:var(--accent)}.textonly.field{display:block;align-content:center}.textonly figure{display:none}.textonly.editorial p{grid-column:1/-1}.route img,.measure img{position:absolute;right:14px;top:10px;width:50px;height:50px}
 .mini{height:115px}.mini>.scene{width:calc(100% / .52);height:216px;min-height:216px;zoom:.52;overflow:hidden}.mini>.scene img{max-height:90px}.mini .scene h3{font-size:25px}.mini .scene header{padding-top:4px}.mini .scene{padding:13px}.mini .meter{padding:2px 0}
@@ -14,7 +110,7 @@
 .scene.contactsheet{display:grid;grid-template-columns:2fr 1fr;gap:7px;padding:12px;border:6px solid var(--text)}.scene.contactsheet header{grid-column:1/-1;border-bottom:1px solid var(--text)}.scene.contactsheet figure{background:color-mix(in srgb,var(--object) 20%,var(--surface));margin:0;overflow:hidden}.scene.contactsheet figure:nth-of-type(2) img{transform:scale(1.55)}.scene.contactsheet h3,.scene.recipeleaf h3,.scene.signalcard h3{margin:3px 0}
 .scene.recipeleaf{display:grid;grid-template-columns:1fr 1fr;align-items:center;background:repeating-linear-gradient(0deg,transparent 0 22px,color-mix(in srgb,var(--object) 17%,transparent) 22px 23px),var(--surface)}.scene.recipeleaf ol{padding-left:1.1em;margin:4px 0}.scene.recipeleaf figure{margin:0}
 .scene.signalcard{display:grid;grid-template-columns:1fr 1fr;align-items:center;border-left:8px solid var(--accent)}.scene.signalcard figure{margin:0}.scene.signalcard .wave{grid-column:1/-1;height:24px;display:flex;align-items:center;gap:4px}.scene.signalcard .wave i{flex:1;background:var(--object);border-radius:2px}
-</style><main><header class="top"><h1>口播视觉素材册</h1><p>挑版式、配颜色，把喜欢的搭配交给助手。</p><a class="act" href="https://github.com/shynloc/acks-video-visionbuddy" target="_blank" rel="noopener noreferrer">GitHub 仓库 ↗</a></header><div class="desk"><section class="panel"><h2>挑一款搭配</h2><nav aria-label="素材类别" id="tabs"></nav><div class="toolrow"><input type="search" id="asset-search" aria-label="按名称、用途或素材编号搜索" placeholder="搜名称、用途或编号，如 OBJ-017"><label><input type="checkbox" id="recent-only"> 本次新增</label></div><div class="grid" id="grid"></div><div id="detail"></div></section><section class="panel proof"><div class="bar"><h2>搭配预览</h2><button id="reset">还原默认</button></div><p id="choice" class="choice"></p><div class="view-switch" aria-label="预览方式"><button id="layout-view">网页排版</button><button id="overlay-view">透明叠加</button></div><div id="preview"></div><div id="overlay" class="checkboard" hidden><img alt="所选物件与贴纸的真实透明合成" id="overlay-image" hidden><img id="overlay-thumbnail" alt="选中素材缩略图" hidden><p id="overlay-message" role="status"></p></div><details><summary>把我的原句写进生成说明</summary><textarea style="min-height:75px" rows="2" id="quote" aria-label="口播原句" placeholder="粘贴一句原话（可选）"></textarea></details><div class="actions"><button class="go" id="copy">复制给 AI 的说明</button><button id="copy-annotation">复制到稿件</button><button id="json">保存搭配 JSON</button></div><div id="status" role="status"></div><details id="promptbox"><summary>查看生成说明</summary><textarea id="prompt" aria-label="生成说明" readonly></textarea></details><details><summary>下载这个搭配的素材</summary><div id="files"></div></details></section></div><details class="refs"><summary>词条来源与制作标准</summary><p>网页、配色、模型和贴纸为本批原创。以下资料用于研究网格、颜色角色、模型格式和图形规范。</p><div id="evidence"></div></details></main><script id="catalog" type="application/json">{
+</style><main><header class="top"><h1>口播视觉素材册</h1><p>看整站设计、搭颜色和素材，把选好的搭配交给助手。</p><a class="act" href="https://github.com/shynloc/acks-video-visionbuddy" target="_blank" rel="noopener noreferrer">GitHub 仓库 ↗</a></header><div class="desk"><section class="panel"><h2>挑一款搭配</h2><nav aria-label="素材类别" id="tabs"></nav><div class="toolrow"><input type="search" id="asset-search" aria-label="按名称、用途或素材编号搜索" placeholder="搜名称、用途或编号，如 OBJ-017"><label><input type="checkbox" id="recent-only"> 本次新增</label></div><div class="web-kinds" id="web-kinds" aria-label="网页风格类别" hidden><button data-style-kind="web">整站设计</button><button data-style-kind="scene">口播画面版式</button></div><section class="color-lab" id="color-lab" hidden></section><div class="grid" id="grid"></div><div id="detail"></div></section><section class="panel proof"><div class="bar"><h2>搭配预览</h2><button id="reset">还原默认</button></div><p id="choice" class="choice"></p><div class="view-switch" aria-label="预览方式"><button id="layout-view">网页预览</button><button id="overlay-view">透明叠加</button></div><div class="web-devices" id="web-devices" aria-label="网页预览尺寸" hidden><button id="desktop-layout">桌面</button><button id="phone-layout">手机</button><label><input type="checkbox" id="use-website-object"> 使用已选物件</label></div><div id="preview"></div><div id="overlay" class="checkboard" hidden><img alt="所选物件与贴纸的真实透明合成" id="overlay-image" hidden><img id="overlay-thumbnail" alt="选中素材缩略图" hidden><p id="overlay-message" role="status"></p></div><details><summary>把我的原句写进生成说明</summary><textarea style="min-height:75px" rows="2" id="quote" aria-label="口播原句" placeholder="粘贴一句原话（可选）"></textarea></details><div class="actions"><button class="go" id="copy">复制给 AI 的说明</button><button id="copy-annotation">复制到稿件</button><button id="json">保存搭配 JSON</button></div><div id="status" role="status"></div><details id="promptbox"><summary>查看生成说明</summary><textarea id="prompt" aria-label="生成说明" readonly></textarea></details><details><summary>下载这个搭配的素材</summary><div id="files"></div></details></section></div><details class="refs"><summary>词条来源与制作标准</summary><p>网页、配色、模型和贴纸为本批原创。以下资料用于研究网格、颜色角色、模型格式和图形规范。</p><div id="evidence"></div></details></main><script id="catalog" type="application/json">{
   "schema": "visual-library/1",
   "revision": 3,
   "styles": [
@@ -5825,4 +5921,4 @@
     ]
   }
 }
-</script><script src="layout.js"></script><script src="素材册.js"></script></html>
+</script><script src="layout.js"></script><script src="website.js"></script><script src="palette-lab.js"></script><script src="素材册.js"></script></html>

@@ -419,6 +419,18 @@ def layout_html(spec):
     inputs = [style, palette, relative_entry("objects"), relative_entry("stickers")]
     args = json.dumps(inputs, ensure_ascii=False).replace("<", r"\u003c")
     page = (LIBRARY / "index.html").read_text(encoding="utf8")
+    if style.get("website"):
+        css = page.split('<style id="website-css">', 1)[1].split("</style>", 1)[0]
+        node_helper = (LIBRARY / "layout.js").read_text(encoding="utf8")
+        site_script = (LIBRARY / "website.js").read_text(encoding="utf8")
+        palette_script = (LIBRARY / "palette-lab.js").read_text(encoding="utf8")
+        return ('<!doctype html><html lang="zh-CN"><meta charset="utf-8">'
+                '<meta name="viewport" content="width=device-width,initial-scale=1">'
+                '<title>网页小样</title><style>body{margin:0}' + css
+                + '</style><body><script>' + node_helper + '\n' + site_script + '\n' + palette_script
+                + '\nconst example = websiteScene(...' + args + ');'
+                + 'example.style.setProperty("--web-action-text",foregroundOn(' + args + '[1].colors.accent));'
+                + 'document.body.append(example);</script></body></html>')
     css = page.split('<style id="scene-css">', 1)[1].split("</style>", 1)[0]
     script = (LIBRARY / "layout.js").read_text(encoding="utf8")
     return ('<!doctype html><html lang="zh-CN"><meta charset="utf-8">'

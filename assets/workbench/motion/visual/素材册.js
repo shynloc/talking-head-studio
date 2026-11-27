@@ -21,15 +21,76 @@ function tinted(e,color=selected.palettes){if(!e?.variants)return e
 const item=k=>tinted(catalog[k].find(e=>e.id===selected[k]))
 function uiButton(label,action){const b=node('button',label);b.type='button';b.onclick=action;return b}
 function link(url,label,download=false){const a=node('a',label);a.href=url;if(download)a.download='';else{a.target='_blank';a.rel='noopener'}return a}
+
+const currentWebStyles = catalog.styles.filter(style => style.website)
+let showWebsites = currentWebStyles.length > 0
+let phonePreview = false
+let customWebPalette = null
+let useSelectedObject = false
+
+function openStyles(chooseWebsite) {
+ if (!currentWebStyles.length) return
+ if (chooseWebsite && showWebsites && !item('styles').website) {
+  selected.styles = currentWebStyles[0].id
+  selected.palettes = currentWebStyles[0].website.palette
+ }
+ $('recent-only').checked = false
+}
+function pickStyle(entry) {
+ const previous = item('styles').website
+ if (entry.website && (!previous || previous.palette === selected.palettes))
+  selected.palettes = entry.website.palette
+ $('preview').scrollTop = 0
+ select('styles',entry.id)
+}
+function renderStyleControls() {
+ const groups=$('web-kinds')
+ groups.hidden = tab!=='styles' || !currentWebStyles.length
+ document.querySelectorAll('[data-style-kind]').forEach(button => {
+  button.setAttribute('aria-pressed',String((button.dataset.styleKind==='web')===showWebsites))
+ })
+ $('color-lab').hidden = tab!=='palettes'
+}
+function makeLayout(r, sources=null) {
+ const palette = r.customWebPalette || r.palette
+ if (!r.webStyle.website) return scene(r.webStyle,palette,r.object,r.sticker,sources)
+ const result = websiteScene(r.webStyle,palette,r.websiteObject,r.sticker,sources)
+ result.style.setProperty('--web-action-text',foregroundOn(palette.colors.accent))
+ return result
+}
+function setLayoutPreview(r, overlay) {
+ const area=$('preview'), website=!!r.webStyle.website && !overlay
+ $('web-devices').hidden = !website
+ $('desktop-layout').setAttribute('aria-pressed',String(!phonePreview))
+ $('phone-layout').setAttribute('aria-pressed',String(phonePreview))
+ $('use-website-object').checked = useSelectedObject
+ area.classList.toggle('is-website',website)
+ area.classList.toggle('is-phone',phonePreview)
+ if (!overlay) area.replaceChildren(makeLayout(r))
+}
+function renderColorChips(colors) {
+ const group=node('div',null,'color-chips')
+ for(const [role,hex] of Object.entries(colors)) {
+  const chip=node('div',null,'color-chip')
+  chip.style.background=hex
+  chip.style.color=foregroundOn(hex)
+  chip.append(node('span',roles[role]),node('code',hex))
+  group.append(chip)
+ }
+ return group
+}
+
 function recipe(){
  const s=item('styles'),p=item('palettes'),o=item('objects'),t=item('stickers')
- return {schema:'creator-visual-brief/1',sentence:$('quote').value.trim(),catalogRevision:catalog.revision,webStyle:s,palette:p,object:o||null,sticker:t||null,
+ const picture = s.website && (useSelectedObject ? o : tinted(catalog.objects.find(entry=>entry.id===s.website.picture)))
+ return {schema:'creator-visual-brief/1',sentence:$('quote').value.trim(),catalogRevision:catalog.revision,webStyle:s,palette:p,object:o||null,sticker:t||null,customWebPalette,websiteObject:picture||null,
  render:{fullPage:'按版式和色板渲染 HTML；标题与标签取自用户原句。',overlay:'口播叠加时抽出主体、标签和必要引线，四周 alpha=0。局部说明底板可选 50% 或 75% 不透明度，文字保留 100%。',placement:'优先用人物侧面留白，底部避开口播字幕。没有原片时在深浅底和棋盘预览，放置位置待合成时调整。',colors:'网页、模型与贴纸采用所选配色。叶、土、镜片等辨识性部位保留原色；重新生成时按相同角色着色。',source:'按原句选择实际需要的元素。具体品牌与型号需有用户提供或可用的实物参考。'}}
 }
 function instructions(r){
  const s=r.webStyle,p=r.palette,o=r.object,t=r.sticker
  const lines=[r.sentence?'为以下口播原句制作画面。「'+r.sentence+'」':'为我的口播原句制作画面。','网页风格「'+s.name+'」。'+[s.layout,s.type,s.detail].join(' '),
  '转成口播叠加时，'+s.overlay,'配色「'+p.name+'」。'+Object.entries(p.colors).map(([k,c])=>roles[k]+' '+c).join('，')+'。'+p.rule+' '+p.distribution]
+ if(r.customWebPalette)lines.push('网页使用自定义色卡。'+r.customWebPalette.rule+' '+Object.entries(r.customWebPalette.colors).map(([k,v])=>k+' '+v).join('，')+'。素材文件使用所选色系。')
  if(o)lines.push('可用 3D 物件「'+o.name+'」。'+[o.parts,o.projection,o.appearance,o.framing].join(' ')+' 模型文件 '+o.files.model+'。')
  if(t)lines.push('可用贴纸「'+t.name+'」。'+t.shape+' '+t.edge+' 源文件 '+t.files.vector+'。')
  lines.unshift('素材编号 '+[s,p,o,t].filter(Boolean).map(entry=>entry.assetId+' '+entry.name).join(' / '))
@@ -52,45 +113,59 @@ function details(){
   try{await navigator.clipboard.writeText(code);$('status').textContent='已复制 '+code}
   catch{const range=document.createRange();range.selectNodeContents(root.querySelector('code'));const selection=getSelection();selection.removeAllRanges();selection.addRange(range);$('status').textContent='编号已选中，可按系统复制快捷键。'}
  }))
- const lines={styles:[d.layout,d.type,d.detail,d.overlay],palettes:[d.rule,d.distribution,d.colors&&Object.entries(d.colors).map(([k,c])=>roles[k]+' '+c).join(' · ')],objects:[d.parts,d.framing,d.appearance,d.projection],stickers:[d.shape,d.edge]}[tab]
+ if(tab==='styles' && d.website && catalog.refs[d.source]){
+  const [title,url]=catalog.refs[d.source];root.append(node('p',d.website.tag),link(url,title))
+ }
+ if(tab==='palettes')root.append(renderColorChips(d.colors))
+ const lines={styles:[d.layout,d.type,d.detail,d.overlay],palettes:[d.rule,d.distribution],objects:[d.parts,d.framing,d.appearance,d.projection],stickers:[d.shape,d.edge]}[tab]
  for(const line of lines.filter(Boolean))root.append(node('p',line,'muted'))
  if(d.files){const media=node('div',null,'paint checkboard');const im=new Image();im.src=d.files.preview;im.alt=d.name+'透明预览';media.append(im);root.append(media)}
 }
 function render(changed){
  const tabs=$('tabs');tabs.replaceChildren()
- for(const [k,name] of Object.entries(names)){const b=uiButton(name,()=>{tab=k;$('asset-search').value='';previewMode=k==='styles'?'layout':k==='palettes'?previewMode:'overlay';render()});b.setAttribute('aria-pressed',String(k===tab));tabs.append(b)}
+ for(const [k,name] of Object.entries(names)){const b=uiButton(name,()=>{tab=k;$('asset-search').value='';previewMode=k==='styles'?'layout':k==='palettes'?previewMode:'overlay';if(k==='styles')openStyles(true);render()});b.setAttribute('aria-pressed',String(k===tab));tabs.append(b)}
+ renderStyleControls()
  const box=$('grid');box.replaceChildren()
  const query=$('asset-search').value.trim().toLowerCase()
  const [needle,paletteCode]=query.split('@')
  const variant=catalog.palettes.find(p=>p.assetId.toLowerCase()===paletteCode)
  const entries=catalog[tab].filter(entry=>
   (!$('recent-only').checked || catalog.recent[tab].includes(entry.id)) &&
-  [entry.assetId,entry.name,entry.uses,entry.parts,entry.shape,entry.summary].some(text=>text?.toLowerCase().includes(needle)) &&
+  (tab!=='styles' || !!needle || !!entry.website===showWebsites) &&
+  [entry.assetId,entry.name,entry.uses,entry.parts,entry.shape,entry.summary,entry.layout].some(text=>text?.toLowerCase().includes(needle)) &&
   (!query.includes('@') || (query===needle+'@'+paletteCode && !!variant && !!entry.variants))
  ).map(entry=>tinted(entry,variant?.id||selected.palettes))
  if(!entries.length)box.append(node('p','没有找到这款素材，换个名称或清除筛选。'))
  if(!query && !$('recent-only').checked && ['objects','stickers'].includes(tab))entries.push({id:'',name:tab==='objects'?'不放物件':'不加贴纸'})
  for(const d of entries){
-  const b=uiButton('',()=>{if(variant)selected.palettes=variant.id;select(tab,d.id)});b.className='entry';b.setAttribute('aria-pressed',String(d.id===selected[tab]))
-  if(d.id&&tab==='styles'){const mini=node('div',null,'mini');mini.setAttribute('aria-hidden','true');mini.append(scene(d,item('palettes'),item('objects'),null));b.append(mini)}
+  const b=uiButton('',()=>{if(variant)selected.palettes=variant.id;
+   if(tab==='styles'){showWebsites=!!d.website;pickStyle(d)}
+   else {if(tab==='palettes'){customWebPalette=null;colorLab.setActive(false)} select(tab,d.id)}});b.className='entry';b.setAttribute('aria-pressed',String(d.id===selected[tab]))
+  if(d.website)b.append(websiteCard(d))
+  else if(d.id&&tab==='styles'){const mini=node('div',null,'mini');mini.setAttribute('aria-hidden','true');mini.append(scene(d,item('palettes'),item('objects'),null));b.append(mini)}
   if(tab==='palettes'){const sw=node('div',null,'swatches');for(const c of Object.values(d.colors)){const sample=node('i');sample.style.background=c;sw.append(sample)}b.append(sw)}
   if(d.files){const thumb=node('div',null,'thumb');const im=new Image();im.loading='lazy';im.src=d.files.preview;im.alt='';thumb.append(im);b.append(thumb)}
   b.append(node('strong',d.name));if(d.assetId){b.dataset.assetId=d.assetId;b.append(node('code',d.assetId,'asset-id'))}if(d.uses)b.append(node('small',d.summary||d.uses));box.append(b)
  }
- const r=recipe();$('choice').textContent=[r.webStyle.name,r.palette.name,r.object?.name,r.sticker?.name].filter(Boolean).join('  /  ')
+ const r=recipe()
  showPreview(r, changed==='objects' ? r.object : (r.sticker || r.object))
  updateBrief(r)
  const files=$('files');files.replaceChildren()
  const html=uiButton('保存当前 HTML 样式',async()=>{
+  const r=recipe()
   try {
-   for(const path of [r.object?.files.preview,r.sticker?.files.vector].filter(Boolean)){
+   for(const path of [(r.webStyle.website?r.websiteObject:r.object)?.files.preview,r.sticker?.files.vector].filter(Boolean)){
     if(embedded[path])continue
     const response=await fetch(path);if(!response.ok)throw Error('无法读取所选素材。')
     const blob=await response.blob()
     embedded[path]=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(blob)})
    }
-  const sampled=scene(r.webStyle,r.palette,r.object,r.sticker,embedded).outerHTML
-  downloadText(r.webStyle.name+'-'+r.palette.name+'.html','<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+r.webStyle.name+'</title><style>body{margin:4vw auto;max-width:720px;padding:12px}'+$('scene-css').textContent+'</style>'+sampled+'</html>','text/html')
+  const sampled=makeLayout(r,embedded).outerHTML
+  const css=r.webStyle.website
+   ? 'body{margin:0}'+$('website-css').textContent
+   : 'body{margin:4vw auto;max-width:720px;padding:12px}'+$('scene-css').textContent
+  const layoutName=r.webStyle.name+'-'+(r.customWebPalette||r.palette).name
+  downloadText(layoutName+'.html','<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+node('span',r.webStyle.name).innerHTML+'</title><style>'+css+'</style>'+sampled+'</html>','text/html')
   }catch(e){$('status').textContent=e.message||'保存失败，请重试。'}
  });files.append(html)
  if(r.object)files.append(link(r.object.files.model,'3D 模型 GLB',true),link(r.object.files.preview,'物件透明 PNG',true))
@@ -103,6 +178,7 @@ function annotationLine(r){
   asset.name+' '+(asset.variantId||asset.assetId)).join('、')+'。）'
 }
 function updateBrief(r){
+ $('choice').textContent=[r.webStyle.name,(r.customWebPalette||r.palette).name,r.object?.name,r.sticker?.name].filter(Boolean).join('  /  ')
  const prompt=instructions(r);$('prompt').value=prompt
  $('copy-annotation').disabled=!annotationLine(r)
  if(inline && window.parent!==window)window.parent.postMessage({type:'studio-visual-selection',prompt,annotation:annotationLine(r),ids:[r.webStyle,r.palette,r.object,r.sticker].filter(Boolean).map(e=>e.assetId)},location.origin)
@@ -112,9 +188,9 @@ function showPreview(r, hint=r.sticker||r.object){
  const overlay=previewMode==='overlay'
  $('preview').hidden=overlay;$('overlay').hidden=!overlay
  $('layout-view').setAttribute('aria-pressed',String(!overlay));$('overlay-view').setAttribute('aria-pressed',String(overlay))
+ setLayoutPreview(r,overlay)
  if(!overlay){
   pendingOverlay=null
-  $('preview').replaceChildren(scene(r.webStyle,r.palette,r.object,r.sticker))
   return
  }
  $('preview').replaceChildren()
@@ -171,7 +247,44 @@ window.addEventListener('message',event=>{
     event.data?.type!=='studio-find-visual' || typeof event.data.code!=='string')return
  $('asset-search').value=event.data.code;$('asset-search').oninput()
 })
-$('recent-only').checked=inline
+
+if (!inline && !$('asset-search').value) openStyles(true)
+for (const button of document.querySelectorAll('[data-style-kind]')) {
+ button.onclick=()=>{
+  showWebsites=button.dataset.styleKind==='web'
+  tab='styles';previewMode='layout';$('asset-search').value=''
+  openStyles(true)
+  if (!showWebsites && item('styles').website) selected.styles=defaults.styles
+  render()
+ }
+}
+$('desktop-layout').onclick=()=>{phonePreview=false;setLayoutPreview(recipe(),false)}
+$('phone-layout').onclick=()=>{phonePreview=true;setLayoutPreview(recipe(),false)}
+$('use-website-object').onchange=event=>{
+ useSelectedObject=event.target.checked;setLayoutPreview(recipe(),false)
+}
+$('preview').onclick=event=>{
+ const viewport=$('preview')
+ const jump=event.target.closest('.website a[href^="#"]')
+ if (!jump) return
+ const target=viewport.querySelector(jump.getAttribute('href'))
+ if (!target) return
+ event.preventDefault()
+ viewport.scrollTop+=target.getBoundingClientRect().top-viewport.getBoundingClientRect().top
+  - (viewport.querySelector('.web-header').offsetHeight + 8)
+}
+const colorLab=mountPaletteLab($('color-lab'), palette=>{
+ customWebPalette=palette
+ previewMode='layout'
+ const current=recipe()
+ showPreview(current);updateBrief(current)
+}, ()=>{
+ customWebPalette=null
+ const current=recipe()
+ showPreview(current);updateBrief(current)
+}, message=>{$('status').textContent=message})
+
+$('recent-only').checked=inline && tab!=='styles'
 $('recent-only').onchange=render
 $('copy-annotation').onclick=async()=>{
  const line=annotationLine(recipe())
@@ -182,18 +295,19 @@ $('quote').oninput=()=>{updateBrief(recipe());$('status').textContent=''}
 $('copy').onclick=async()=>{const text=$('prompt');try{await navigator.clipboard.writeText(text.value);$('status').textContent='已复制生成说明，可粘贴给助手。'}catch{$('promptbox').open=true;text.focus();text.select();$('status').textContent=document.execCommand('copy')?'已复制生成说明。':'已选中说明，按系统复制快捷键即可。'}}
 $('json').onclick=()=>downloadText('我的素材风格.json',JSON.stringify(recipe(),null,2),'application/json')
 $('reset').onclick=()=>{
- selected={...(inline?galleryDefaults:defaults)};$('asset-search').value='';select('styles',selected.styles)
+ selected={...(inline?galleryDefaults:defaults)};customWebPalette=null;colorLab.setActive(false);$('asset-search').value='';openStyles(tab==='styles');select('styles',selected.styles)
 }
 for(const [title,url] of Object.values(catalog.refs))$('evidence').append(link(url,title))
 render()
 
 window.readVisualSelection=()=>Object.fromEntries(Object.entries(selected).filter(([,v])=>v))
 window.setVisualSelection=(value,quote,group)=>{
- selected={...defaults,objects:'',stickers:''}
+ selected={...defaults,objects:'',stickers:''};customWebPalette=null;colorLab.setActive(false)
  for(const k of Object.keys(names)){
   const match=catalog[k].find(x=>x.id===value?.[k] || x.assetId===String(value?.[k]).toUpperCase())
   if(match)selected[k]=match.id
  }
  $('asset-search').value='';$('recent-only').checked=false;previewMode=group==='objects'||group==='stickers'?'overlay':'layout'
+ showWebsites=!!item('styles').website
  tab=group||'styles';$('quote').value=quote||'';render()
 }

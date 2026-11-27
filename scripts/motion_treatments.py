@@ -28,7 +28,8 @@ def resolve(key, object_id=None):
     item = catalog().get(key) if isinstance(key, str) else None
     if not item and isinstance(key, str):
         item = next((row for row in catalog().values() if row["assetId"] == key.upper()), None)
-    if not item or (object_id and item["object"] != object_id):
+    if not item or (object_id and item["object"] != object_id
+                    and (item.get("kind") != "lesson" or item["scene"] == "seal")):
         raise ValueError("这项演示与所选物件不符，请重新挑选。")
     return item
 
@@ -107,30 +108,41 @@ def scene_data(context):
 def render(root, context):
     from sample_tool import html_frames, encode
 
-    data, spec = scene_data(context)
-    code = (samples.LIBRARY / "part-demo.html").read_text(encoding="utf8")
-    source = code.replace(
-        "__SCENE__", json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
-    )
+    treatment = resolve(context["treatment"], context["visual"].get("objects"))
+    lesson = treatment["kind"] == "lesson"
+    if lesson:
+        from motion_lesson import source as lesson_source
+        spec = samples.brief(context["visual"])
+        source = lesson_source(root, treatment, context, spec)
+    else:
+        data, spec = scene_data(context)
+        code = (samples.LIBRARY / "part-demo.html").read_text(encoding="utf8")
+        source = code.replace(
+            "__SCENE__", json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
+        )
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp)
         html = path / "scene.html"
         html.write_text(source, encoding="utf8")
-        static = data["kind"] == "still"
-        frames = html_frames(html, 560, 330, 1 if static else context["seconds"] * 25)
+        static = not lesson and data["kind"] == "still"
+        frame_count = 1 if static else context["seconds"] * 25
+        frames = html_frames(html, 560, 330, frame_count)
         master = path / ("media.png" if static else "media.mov")
+        ending = path / "ending.png"
         if static:
             try:
                 master.write_bytes(next(frames))
             finally:
                 frames.close()
         else:
-            encode(frames, master)
+            encode(save_ending(frames, frame_count, ending) if lesson else frames, master)
         with zipfile.ZipFile(
             path / "sample.zip", "w", zipfile.ZIP_DEFLATED, compresslevel=2
         ) as z:
             z.write(master, master.name)
             z.write(html, "sources/scene.html")
+            if lesson:
+                z.write(ending, "sources/ending.png")
             obj = spec["objects"]
             z.write(obj["files"]["model"], "sources/" + obj["id"] + ".glb")
             if "stickers" in spec:
@@ -150,3 +162,10 @@ def render(root, context):
                 ),
             )
         return samples.receive(root, path / "sample.zip")
+
+
+def save_ending(frames, count, destination):
+    for index, frame in enumerate(frames):
+        if index == count - 1:
+            destination.write_bytes(frame)
+        yield frame

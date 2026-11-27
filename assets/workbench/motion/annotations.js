@@ -134,7 +134,7 @@ function addAnnotationCard(list, review, row) {
   status.textContent = row.renderError || {
     none: '纯口播 · 按稿内标注',
     error: row.annotationError,
-    specified: '指定部位演示 · 按稿内标注',
+    specified: '指定演示 · 按稿内标注',
   }[row.annotationMode]
   card.append(quote, status)
   if (row.annotationMode === 'specified') {

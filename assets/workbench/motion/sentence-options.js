@@ -1,15 +1,22 @@
 'use strict'
 
 function suggestedEffects(row, item) {
+  const active = PART_EFFECTS.find(effect => effect.id === item.treatment)
+  if (row.annotationMode && active?.kind === 'lesson') {
+    const kit = VISUAL.practice?.find(entry => entry.demos.includes(active.assetId))
+    return (kit?.demos || [active.assetId])
+      .map(code => PART_EFFECTS.find(effect => effect.assetId === code))
+      .filter(effect => effect && (effect.scene !== 'seal' || item.visual.objects === effect.object))
+  }
   const agentChoices = (row.alternatives || [])
     .map((id) => PART_EFFECTS.find((e) => e.id === id))
     .filter(Boolean)
   const matched = PART_EFFECTS.filter(
-    (e) => e.subjects.some((word) => item.quote.includes(word)) || item.visual?.objects === e.object,
+    (e) => e.subjects?.some((word) => item.quote.includes(word)) || item.visual?.objects === e.object,
   )
     .map((effect) => ({
       effect,
-      score: effect.cues.filter((word) => item.quote.includes(word)).length,
+      score: (effect.cues || []).filter((word) => item.quote.includes(word)).length,
     }))
     .sort((a, b) => b.score - a.score)
     .map((x) => x.effect)
@@ -48,10 +55,11 @@ function showSentenceOptions(review, row, item) {
     choice(
       effect.label,
       effect.description + ' · ' + effect.assetId,
-      effect.kind === 'motion' ? '动画' : '静态',
+      effect.kind === 'still' ? '静态' : '动画',
       async () => {
-        const visual = { ...editing.visual, objects: effect.object }
-        if (!state.visual?.stickers) delete visual.stickers
+        const visual = { ...editing.visual }
+        if (effect.kind !== 'lesson' || effect.scene === 'seal' || !visual.objects) visual.objects = effect.object
+        if (!row.annotationMode && !state.visual?.stickers) delete visual.stickers
         await newProduction(review, row, item, 'library', visual, effect)
       },
       effect.id,

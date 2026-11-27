@@ -155,6 +155,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def handle_post(self):
         try:
+            if self.path == '/api/motion/lesson-input':
+                from motion_lesson import MAX_INPUT, package_input
+                size = int(self.headers.get('Content-Length', 0))
+                if not 0 < size <= MAX_INPUT:
+                    raise ValueError('请选择不超过 12 MB 的截图或音频。')
+                return self.respond(200, package_input(self.server.store.root,
+                    self.headers.get('X-Lesson-Media'), self.rfile.read(size)))
             if self.path == '/api/motion/library-install':
                 size = int(self.headers.get('Content-Length', 0))
                 if not 0 < size <= vision.MAX_PACK:

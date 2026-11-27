@@ -1,0 +1,124 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>口播透明演示</title>
+<style>
+html,body{margin:0;background:transparent}svg{display:block;width:100%;height:auto}text{font:650 22px "Microsoft YaHei","PingFang SC",sans-serif}text.small{font-size:17px}text.num{font:700 38px Consolas,monospace}
+</style>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 330" role="img" aria-label="口播透明演示" stroke-linecap="round" stroke-linejoin="round"></svg>
+<script id="scene-data" type="application/json">__SCENE__</script>
+<script>
+'use strict'
+const d=JSON.parse(document.querySelector('#scene-data').textContent)
+const sceneRoot=document.querySelector('svg')
+const {surface,accent,text:ink,object:body}=d.colors
+const done=t=>1-(1-Math.max(0,Math.min(1,t)))**3
+function add(tag,attrs={},value=null,parent=sceneRoot){
+ const e=document.createElementNS(sceneRoot.namespaceURI,tag)
+ for(const [k,v] of Object.entries(attrs))e.setAttribute(k,v)
+ if(value!==null)e.textContent=value
+ parent.append(e);return e
+}
+const box=(x,y,w,h,fill=surface,stroke=ink,rx=18)=>add('rect',{x,y,width:w,height:h,rx,fill,stroke,'stroke-width':2})
+const text=(x,y,value,opts={})=>add('text',{x,y,'text-anchor':'middle',fill:ink,...opts},value)
+const path=(coords,stroke=accent,width=5,opts={})=>add('path',{d:coords,stroke,fill:'none','stroke-width':width,...opts})
+const dot=(cx,cy,r,col=accent)=>add('circle',{cx,cy,r,fill:col})
+const picture=(url,x,y,width,height)=>{if(url)add('image',{href:url,x,y,width,height,preserveAspectRatio:'xMidYMid meet'})}
+function marker(x,y,label){
+ const width=Math.max(104,Math.min(294,[...label].length*23+28))
+ box(x-width/2,y-23,width,42,surface,accent,15)
+ text(x,y+5,label,{class:'small',textLength:label.length>11?width-14:undefinedSafe(width,label)})
+}
+function undefinedSafe(width,label){return Math.min(width-10,15*[...label].length)}
+function seal(t){
+ const lift=done((t-.10)/.45), ring=done((t-.43)/.40), y=116-65*lift
+ box(67,150,198,142,body,ink,46);add('ellipse',{cx:166,cy:151,rx:96,ry:20,fill:surface,stroke:ink,'stroke-width':3})
+ box(72,y,188,30,surface,ink,10)
+ for(let i=0;i<9;i++)path('M'+(86+i*19)+' '+(y+8)+'v12',body,2)
+ add('ellipse',{cx:166+66*ring,cy:148-42*ring,rx:77,ry:14,fill:'none',stroke:accent,'stroke-width':8})
+ path('M272 80h42l22-23h59',ink,2)
+ marker(428,58,d.labels[0])
+ path('M'+(245+36*ring)+' '+(147-34*ring)+' h38l22 34h37',accent,3)
+ marker(434,156,d.labels[1])
+}
+function wave(t){
+ const chart=[d.waveBefore,d.waveAfter]
+ for(const [i,values] of chart.entries()){
+  const x=28+i*263
+  box(x,54,241,190)
+  text(x+120,92,d.labels[i],{class:'small'})
+  path('M'+(x+18)+' 161h204',body,2)
+  const bars=Math.floor(values.length*done(t/.67))
+  values.slice(0,bars).forEach((v,j)=>{
+   const amplitude=Math.max(1,Math.min(46,v*44))
+   const pos=x+25+j*(191/Math.max(1,values.length-1))
+   path('M'+pos+' '+(161-amplitude)+'v'+(2*amplitude),i?accent:ink,3)
+  })
+ }
+}
+function status(t){
+ const complete=t>.73, p=done(t/.75)
+ box(43,34,474,266,surface,ink,23)
+ if(d.screenshot){
+  picture(d.screenshot,59,47,443,226)
+ }else{
+  path('M45 87h470',body,2);[67,82,97].forEach(x=>dot(x,61,3,x===67?accent:body))
+  text(278,69,d.heading,{class:'small'})
+  box(80,112,400,126,'none',body,14)
+  text(275,153,d.labels[0])
+  box(118,183,320,12,body,'none',6);box(118,183,Math.max(2,320*p),12,accent,'none',6)
+ }
+ box(367,54,126,35,surface,accent,10)
+ text(424,77,complete?d.labels[1]:'处理中',{class:'small'})
+ if(complete)path('m470 69 4 5 8-10',accent,3)
+}
+function route(t){
+ const points=[[117,248],[276,78],[438,176]]
+ const p=done(t/.74), index=p<.5?0:1, step=p*2-index
+ path('M117 248L276 78 438 176',body,11,{'stroke-dasharray':'8 16'})
+ points.forEach(([x,y],i)=>{dot(x,y,13,i<=index+step?accent:ink);marker(x,y+(i===1?-41:39),d.labels[i])})
+ const [x,y]=points[index], [a,b]=points[index+1]
+ dot(x+(a-x)*step,y+(b-y)*step,19,accent)
+}
+function number(t){
+ const [before,after]=d.labels, p=done((t-.12)/.66)
+ const a=Number(before),b=Number(after)
+ box(60,67,440,181)
+ text(280,114,d.heading)
+ const value=before.trim() && after.trim() && Number.isFinite(a) && Number.isFinite(b)
+  ? String(Math.round((a+(b-a)*p)*100)/100)+(d.labels[2]||'')
+  : (p>.55?after:before)
+ text(280,188,value,{class:'num',fill:ink})
+ box(125,211,310,9,body,'none');box(125,211,Math.max(1,310*p),9,accent,'none')
+}
+function focus(t){
+ const p=done((t-.10)/.55)
+ if(d.picture)picture(d.picture,34,12,327,307)
+ else {box(71,44,230,226,body);path('M100 125h166m-166 55h134',surface,12)}
+ const [u,v]=d.anchor||[.63,.49], x=34+327*u, y=12+307*v
+ add('circle',{cx:x,cy:y,r:40+p*14,fill:'none',stroke:accent,'stroke-width':4,opacity:p})
+ path('M'+x+' '+y+'L367 137h40',accent,3,{opacity:p})
+ marker(426,109,d.labels[0])
+}
+const renderers={seal,wave,status,route,number,focus}
+window.renderFrame=(frame,total)=>{
+ sceneRoot.replaceChildren()
+ const t=Math.min(1,frame/Math.max(1,total-1))
+ renderers[d.scene](t)
+ if(d.sticker)picture(d.sticker,430,238,116,82)
+}
+let started=null, active=0, position=0
+const frames=d.frames||75
+function loop(time){
+ if(started===null)started=time-position*d.seconds*1000
+ position=Math.min(1,(time-started)/(d.seconds*1000))
+ window.renderFrame(Math.round(position*(frames-1)),frames)
+ if(position<1)active=requestAnimationFrame(loop)
+}
+window.previewPlayback=(action)=>{
+ if(active)cancelAnimationFrame(active);active=0;started=null
+ if(action==='pause')return
+ if(action==='finish'){position=1;window.renderFrame(frames-1,frames);return}
+ position=action==='restart'||position>=1?0:position
+ active=requestAnimationFrame(loop)
+}
+window.renderFrame(0,frames)
+if(d.play && !matchMedia('(prefers-reduced-motion: reduce)').matches)window.previewPlayback('restart')
+</script></html>

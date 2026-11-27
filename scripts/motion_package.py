@@ -130,6 +130,7 @@ def export(data, stream, size, sources=None):
                 release = sources.for_version(item.get("libraryRelease")) if sources else vision.current()
                 with vision.using(release):
                     item["libraryRelease"] = release.version
+                    treatment = motion_treatments.resolve(item["treatment"]) if item.get("treatment") else None
                     effects = {term["id"]: term["assetId"] for term in motion_recommend.catalog()["terms"]}
                     name = (
                         re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", item["title"])[:28].strip(" .")
@@ -156,6 +157,9 @@ def export(data, stream, size, sources=None):
                                 target = "可编辑源件/" + stem + "/" + name
                                 archive.write(source, target)
                                 item["packageSources"][name] = target
+                        ending = home / "sources" / "ending.png"
+                        if treatment and treatment["kind"] == "lesson" and ending.is_file():
+                            archive.write(ending, "透明定格/" + stem + ".png")
                     else:
                         encode(packet, item, folder, archive, stem)
                         if item.get("overlay"):
@@ -173,8 +177,8 @@ def export(data, stream, size, sources=None):
                         refs.update({k: v["assetId"] for k, v in samples.brief(origin).items()})
                     if item.get("ids"):
                         refs["effects"] = [effects[k] for k in item["ids"] if k in effects]
-                    if item.get("treatment"):
-                        refs["treatment"] = motion_treatments.resolve(item["treatment"])["assetId"]
+                    if treatment:
+                        refs["treatment"] = treatment["assetId"]
                     item["assetRefs"] = refs
                     if refs.get("objects") or refs.get("stickers"):
                         palette = refs.get("palettes") or samples.resolve_entry("palettes", "atelier")["assetId"]

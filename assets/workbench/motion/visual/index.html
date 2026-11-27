@@ -35,6 +35,46 @@
 .color-lab .actions{margin-top:6px}
 #detail .color-chips{margin:8px 0}
 
+</style><style>
+#practice-box{margin:0 0 18px;padding:12px 15px;background:#fffaf1;border:1px solid #ccbea5;border-radius:15px}
+#practice-box summary{font-size:clamp(1rem,3vw,1.18rem);font-weight:800;cursor:pointer}
+#practice-box label{display:grid;gap:3px;font-size:.83rem;font-weight:650;min-width:0}
+#practice-box input:not([type=file]),#practice-box select{width:100%;box-sizing:border-box;border:1px solid #bfb39f;border-radius:8px;padding:7px;background:#fffdf7;color:#262123;font:inherit}
+#practice-box input[type=file]{max-width:100%;font:inherit}
+.practice-cards{display:grid;gap:7px;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));margin:9px 0}
+.practice-cards button{width:100%;text-align:left;padding:8px;min-height:44px}
+.practice-cards button[aria-pressed=true]{color:#002fa7;border:2px solid #002fa7;background:#eef1ff}
+.practice-cards span{display:block;font-size:.81rem;margin-top:3px;font-weight:400}
+.practice-active{margin-top:9px;padding-top:8px;border-top:1px solid #d4c6b4}
+.practice-active h3{margin:0}
+.practice-settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(137px,100%),1fr));gap:6px}
+.practice-attachments{column-gap:12px;display:flex;flex-wrap:wrap;align-items:center;margin:8px 0}
+.practice-attachments p{flex-basis:100%;margin:0 0 5px}
+.practice-file{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+.practice-view{max-width:620px;margin:8px auto;border-radius:8px;overflow:hidden}
+.practice-preview,.component-preview{width:100%;display:block;border:0}
+.practice-preview{aspect-ratio:560/330}
+.component-preview{min-height:340px;margin:6px 0;background:#fff;border-radius:8px}
+#components-box{padding:5px 0}
+.shelf-samples{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(128px,100%),1fr));gap:7px;margin-top:6px}
+.shelf-samples div{border-radius:7px;padding:8px;min-height:55px}
+.shelf-samples strong,.shelf-samples span{display:block;font-size:.8rem}
+.shelf-samples span{padding:3px 8px;border-radius:5px;margin-top:5px;width:max-content}
+</style><style id="experience-css">
+.web-find{display:flex;align-items:end;gap:8px;flex-wrap:wrap}
+.web-find label{font-size:.86rem}
+.website .web-find input,.website .web-find select,.website .web-find button,.website .web-record button,.website .web-record-detail button{
+ font:inherit;font-size:.82rem;color:inherit;background:var(--web-surface);border:1px solid currentColor;border-radius:7px;padding:6px 10px
+}
+.web-find input{display:block;width:100%;box-sizing:border-box}
+.web-records{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(140px,100%),1fr));gap:8px}
+.web-record{padding:11px;border:1px solid currentColor;border-radius:10px;background:color-mix(in srgb,var(--web-surface) 89%,var(--web-object))}
+.web-record h5,.web-record-detail h5{margin:2px 0;font-size:1.05rem}
+.web-record p,.web-record-detail p,.web-results{font-size:.82rem}
+.web-record-detail{padding:13px;border:1px solid currentColor;border-radius:10px}
+.web-record-detail:focus{outline:2px solid currentColor;outline-offset:2px}
+.website .web-find button,.website .web-record button,.website .web-record-detail button{cursor:pointer}
+.website .web-find [hidden],.website [hidden]{display:none}
 </style><style id="website-css">
 .website{color:var(--web-text);background:var(--web-surface);font-family:system-ui,sans-serif;line-height:1.55;container-type:inline-size;isolation:isolate;overflow:clip}
 .website *{box-sizing:border-box}
@@ -110,7 +150,7 @@
 .scene.contactsheet{display:grid;grid-template-columns:2fr 1fr;gap:7px;padding:12px;border:6px solid var(--text)}.scene.contactsheet header{grid-column:1/-1;border-bottom:1px solid var(--text)}.scene.contactsheet figure{background:color-mix(in srgb,var(--object) 20%,var(--surface));margin:0;overflow:hidden}.scene.contactsheet figure:nth-of-type(2) img{transform:scale(1.55)}.scene.contactsheet h3,.scene.recipeleaf h3,.scene.signalcard h3{margin:3px 0}
 .scene.recipeleaf{display:grid;grid-template-columns:1fr 1fr;align-items:center;background:repeating-linear-gradient(0deg,transparent 0 22px,color-mix(in srgb,var(--object) 17%,transparent) 22px 23px),var(--surface)}.scene.recipeleaf ol{padding-left:1.1em;margin:4px 0}.scene.recipeleaf figure{margin:0}
 .scene.signalcard{display:grid;grid-template-columns:1fr 1fr;align-items:center;border-left:8px solid var(--accent)}.scene.signalcard figure{margin:0}.scene.signalcard .wave{grid-column:1/-1;height:24px;display:flex;align-items:center;gap:4px}.scene.signalcard .wave i{flex:1;background:var(--object);border-radius:2px}
-</style><main><header class="top"><h1>口播视觉素材册</h1><p>看整站设计、搭颜色和素材，把选好的搭配交给助手。</p><a class="act" href="https://github.com/shynloc/acks-video-visionbuddy" target="_blank" rel="noopener noreferrer">GitHub 仓库 ↗</a></header><div class="desk"><section class="panel"><h2>挑一款搭配</h2><nav aria-label="素材类别" id="tabs"></nav><div class="toolrow"><input type="search" id="asset-search" aria-label="按名称、用途或素材编号搜索" placeholder="搜名称、用途或编号，如 OBJ-017"><label><input type="checkbox" id="recent-only"> 本次新增</label></div><div class="web-kinds" id="web-kinds" aria-label="网页风格类别" hidden><button data-style-kind="web">整站设计</button><button data-style-kind="scene">口播画面版式</button></div><section class="color-lab" id="color-lab" hidden></section><div class="grid" id="grid"></div><div id="detail"></div></section><section class="panel proof"><div class="bar"><h2>搭配预览</h2><button id="reset">还原默认</button></div><p id="choice" class="choice"></p><div class="view-switch" aria-label="预览方式"><button id="layout-view">网页预览</button><button id="overlay-view">透明叠加</button></div><div class="web-devices" id="web-devices" aria-label="网页预览尺寸" hidden><button id="desktop-layout">桌面</button><button id="phone-layout">手机</button><label><input type="checkbox" id="use-website-object"> 使用已选物件</label></div><div id="preview"></div><div id="overlay" class="checkboard" hidden><img alt="所选物件与贴纸的真实透明合成" id="overlay-image" hidden><img id="overlay-thumbnail" alt="选中素材缩略图" hidden><p id="overlay-message" role="status"></p></div><details><summary>把我的原句写进生成说明</summary><textarea style="min-height:75px" rows="2" id="quote" aria-label="口播原句" placeholder="粘贴一句原话（可选）"></textarea></details><div class="actions"><button class="go" id="copy">复制给 AI 的说明</button><button id="copy-annotation">复制到稿件</button><button id="json">保存搭配 JSON</button></div><div id="status" role="status"></div><details id="promptbox"><summary>查看生成说明</summary><textarea id="prompt" aria-label="生成说明" readonly></textarea></details><details><summary>下载这个搭配的素材</summary><div id="files"></div></details></section></div><details class="refs"><summary>词条来源与制作标准</summary><p>网页、配色、模型和贴纸为本批原创。以下资料用于研究网格、颜色角色、模型格式和图形规范。</p><div id="evidence"></div></details></main><script id="catalog" type="application/json">{
+</style><main><header class="top"><h1>口播视觉素材册</h1><p>看整站设计、搭颜色和素材，把选好的搭配交给助手。</p><a class="act" href="https://github.com/shynloc/acks-video-visionbuddy" target="_blank" rel="noopener noreferrer">GitHub 仓库 ↗</a></header><details id="practice-box" hidden><summary>找一套口播搭配</summary><div id="practice"></div></details><div class="desk"><section class="panel"><h2>挑一款搭配</h2><nav aria-label="素材类别" id="tabs"></nav><div class="toolrow"><input type="search" id="asset-search" aria-label="按名称、用途或素材编号搜索" placeholder="搜名称、用途或编号，如 OBJ-017"><label><input type="checkbox" id="recent-only"> 本次新增</label></div><div class="web-kinds" id="web-kinds" aria-label="网页风格类别" hidden><button data-style-kind="web">整站设计</button><button data-style-kind="scene">口播画面版式</button><button data-style-kind="ui" hidden>界面组件</button></div><section class="color-lab" id="color-lab" hidden></section><div id="components-box" hidden></div><div class="grid" id="grid"></div><div id="detail"></div></section><section class="panel proof"><div class="bar"><h2>搭配预览</h2><button id="reset">还原默认</button></div><p id="choice" class="choice"></p><div class="view-switch" aria-label="预览方式"><button id="layout-view">网页预览</button><button id="overlay-view">透明叠加</button></div><div class="web-devices" id="web-devices" aria-label="网页预览尺寸" hidden><button id="desktop-layout">桌面</button><button id="phone-layout">手机</button><label><input type="checkbox" id="use-website-object"> 使用已选物件</label></div><div id="preview"></div><div id="overlay" class="checkboard" hidden><img alt="所选物件与贴纸的真实透明合成" id="overlay-image" hidden><img id="overlay-thumbnail" alt="选中素材缩略图" hidden><p id="overlay-message" role="status"></p></div><details><summary>把我的原句写进生成说明</summary><textarea style="min-height:75px" rows="2" id="quote" aria-label="口播原句" placeholder="粘贴一句原话（可选）"></textarea></details><div class="actions"><button class="go" id="copy">复制给 AI 的说明</button><button id="copy-annotation">复制到稿件</button><button id="json">保存搭配 JSON</button></div><div id="status" role="status"></div><details id="promptbox"><summary>查看生成说明</summary><textarea id="prompt" aria-label="生成说明" readonly></textarea></details><details><summary>下载这个搭配的素材</summary><div id="files"></div></details></section></div><details class="refs"><summary>词条来源与制作标准</summary><p>网页、配色、模型和贴纸为本批原创。以下资料用于研究网格、颜色角色、模型格式和图形规范。</p><div id="evidence"></div></details></main><script id="catalog" type="application/json">{
   "schema": "visual-library/1",
   "revision": 3,
   "styles": [
@@ -5921,4 +5961,4 @@
     ]
   }
 }
-</script><script src="layout.js"></script><script src="website.js"></script><script src="palette-lab.js"></script><script src="素材册.js"></script></html>
+</script><script src="layout.js"></script><script src="website.js"></script><script src="palette-lab.js"></script><script src="website-extras.js"></script><script src="components.js"></script><script src="practice.js"></script><script src="素材册.js"></script></html>

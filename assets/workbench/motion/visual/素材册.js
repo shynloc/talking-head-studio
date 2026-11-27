@@ -3,6 +3,8 @@ const catalog=JSON.parse(document.getElementById('catalog').textContent)
 const embedded={}
 const $=id=>document.getElementById(id)
 const names={styles:'网页风格',palettes:'配色',objects:'3D 物件',stickers:'贴纸'}
+if(catalog.stickers.some(entry=>entry.family==='icon'))names.icons='图标与插画'
+const catalogGroup=group=>group==='icons'?'stickers':group
 const roles={surface:'局部底板',text:'正文与轮廓',object:'主体与结构',accent:'当前重点'}
 const defaults={styles:'field',palettes:'atelier',objects:'pot',stickers:''}
 const params = new URLSearchParams(location.search)
@@ -25,6 +27,7 @@ function link(url,label,download=false){const a=node('a',label);a.href=url;if(do
 const currentWebStyles = catalog.styles.filter(style => style.website)
 let showWebsites = currentWebStyles.length > 0
 let phonePreview = false
+let showComponents = false
 let customWebPalette = null
 let useSelectedObject = false
 
@@ -47,14 +50,22 @@ function renderStyleControls() {
  const groups=$('web-kinds')
  groups.hidden = tab!=='styles' || !currentWebStyles.length
  document.querySelectorAll('[data-style-kind]').forEach(button => {
-  button.setAttribute('aria-pressed',String((button.dataset.styleKind==='web')===showWebsites))
+  button.hidden=button.dataset.styleKind==='ui' && !catalog.components?.length
+  const kind=showComponents?'ui':showWebsites?'web':'scene'
+  button.setAttribute('aria-pressed',String(button.dataset.styleKind===kind))
  })
  $('color-lab').hidden = tab!=='palettes'
+ const components=tab==='styles' && showComponents
+ $('components-box').hidden=!components
+ $('grid').hidden=components
+ $('detail').hidden=components
+ if(components)componentShelf.refresh()
 }
 function makeLayout(r, sources=null) {
  const palette = r.customWebPalette || r.palette
  if (!r.webStyle.website) return scene(r.webStyle,palette,r.object,r.sticker,sources)
  const result = websiteScene(r.webStyle,palette,r.websiteObject,r.sticker,sources)
+ if(r.webStyle.website.experience)enhanceWebsite(result,r.webStyle)
  result.style.setProperty('--web-action-text',foregroundOn(palette.colors.accent))
  return result
 }
@@ -106,7 +117,7 @@ function downloadText(name,body,type){
 }
 function select(k,id){selected[k]=id;try{localStorage.setItem(storageKey,JSON.stringify(selected))}catch{};$('status').textContent='';render(k)}
 function details(){
- const d=item(tab),root=$('detail');root.replaceChildren();if(!d)return
+ const group=catalogGroup(tab),d=item(group),root=$('detail');root.replaceChildren();if(!d)return
  root.append(node('h3',d.name,'section-title'),node('code',d.variantId||d.assetId,'asset-id'))
  root.append(uiButton('复制编号',async()=>{
   const code=d.variantId||d.assetId
@@ -116,31 +127,37 @@ function details(){
  if(tab==='styles' && d.website && catalog.refs[d.source]){
   const [title,url]=catalog.refs[d.source];root.append(node('p',d.website.tag),link(url,title))
  }
- if(tab==='palettes')root.append(renderColorChips(d.colors))
- const lines={styles:[d.layout,d.type,d.detail,d.overlay],palettes:[d.rule,d.distribution],objects:[d.parts,d.framing,d.appearance,d.projection],stickers:[d.shape,d.edge]}[tab]
+ if(tab==='palettes'){root.append(renderColorChips(d.colors));renderPaletteTests(customWebPalette||d)}
+ const lines={styles:[d.layout,d.type,d.detail,d.overlay],palettes:[d.rule,d.distribution],objects:[d.parts,d.framing,d.appearance,d.projection],stickers:[d.shape,d.edge]}[group]
  for(const line of lines.filter(Boolean))root.append(node('p',line,'muted'))
+ if(d.rights){
+  root.append(node('p',d.rights.license+' · '+d.rights.author+'。'+d.rights.changes,'muted'),
+   link(d.rights.sourceUrl,'查看原件与授权'))
+ }
  if(d.files){const media=node('div',null,'paint checkboard');const im=new Image();im.src=d.files.preview;im.alt=d.name+'透明预览';media.append(im);root.append(media)}
 }
 function render(changed){
  const tabs=$('tabs');tabs.replaceChildren()
- for(const [k,name] of Object.entries(names)){const b=uiButton(name,()=>{tab=k;$('asset-search').value='';previewMode=k==='styles'?'layout':k==='palettes'?previewMode:'overlay';if(k==='styles')openStyles(true);render()});b.setAttribute('aria-pressed',String(k===tab));tabs.append(b)}
+ for(const [k,name] of Object.entries(names)){const b=uiButton(name,()=>{tab=k;showComponents=false;$('asset-search').value='';previewMode=k==='styles'?'layout':k==='palettes'?previewMode:'overlay';if(k==='styles')openStyles(true);render()});b.setAttribute('aria-pressed',String(k===tab));tabs.append(b)}
  renderStyleControls()
  const box=$('grid');box.replaceChildren()
  const query=$('asset-search').value.trim().toLowerCase()
  const [needle,paletteCode]=query.split('@')
  const variant=catalog.palettes.find(p=>p.assetId.toLowerCase()===paletteCode)
- const entries=catalog[tab].filter(entry=>
-  (!$('recent-only').checked || catalog.recent[tab].includes(entry.id)) &&
+ const group=catalogGroup(tab)
+ const entries=catalog[group].filter(entry=>
+  (group!=='stickers' || (entry.family==='icon')===(tab==='icons')) &&
+  (!$('recent-only').checked || catalog.recent[group].includes(entry.id)) &&
   (tab!=='styles' || !!needle || !!entry.website===showWebsites) &&
   [entry.assetId,entry.name,entry.uses,entry.parts,entry.shape,entry.summary,entry.layout].some(text=>text?.toLowerCase().includes(needle)) &&
   (!query.includes('@') || (query===needle+'@'+paletteCode && !!variant && !!entry.variants))
  ).map(entry=>tinted(entry,variant?.id||selected.palettes))
  if(!entries.length)box.append(node('p','没有找到这款素材，换个名称或清除筛选。'))
- if(!query && !$('recent-only').checked && ['objects','stickers'].includes(tab))entries.push({id:'',name:tab==='objects'?'不放物件':'不加贴纸'})
+ if(!query && !$('recent-only').checked && ['objects','stickers','icons'].includes(tab))entries.push({id:'',name:tab==='objects'?'不放物件':'不加贴纸'})
  for(const d of entries){
   const b=uiButton('',()=>{if(variant)selected.palettes=variant.id;
    if(tab==='styles'){showWebsites=!!d.website;pickStyle(d)}
-   else {if(tab==='palettes'){customWebPalette=null;colorLab.setActive(false)} select(tab,d.id)}});b.className='entry';b.setAttribute('aria-pressed',String(d.id===selected[tab]))
+   else {if(tab==='palettes'){customWebPalette=null;colorLab.setActive(false)} select(group,d.id)}});b.className='entry';b.setAttribute('aria-pressed',String(d.id===selected[group]))
   if(d.website)b.append(websiteCard(d))
   else if(d.id&&tab==='styles'){const mini=node('div',null,'mini');mini.setAttribute('aria-hidden','true');mini.append(scene(d,item('palettes'),item('objects'),null));b.append(mini)}
   if(tab==='palettes'){const sw=node('div',null,'swatches');for(const c of Object.values(d.colors)){const sample=node('i');sample.style.background=c;sw.append(sample)}b.append(sw)}
@@ -164,8 +181,10 @@ function render(changed){
   const css=r.webStyle.website
    ? 'body{margin:0}'+$('website-css').textContent
    : 'body{margin:4vw auto;max-width:720px;padding:12px}'+$('scene-css').textContent
+  const interactive=r.webStyle.website?.experience
+   ? '<style>'+$('experience-css').textContent+'</style><script>('+wireWebsiteExperience.toString()+')(document.querySelector(".website"))</script>' : ''
   const layoutName=r.webStyle.name+'-'+(r.customWebPalette||r.palette).name
-  downloadText(layoutName+'.html','<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+node('span',r.webStyle.name).innerHTML+'</title><style>'+css+'</style>'+sampled+'</html>','text/html')
+  downloadText(layoutName+'.html','<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+node('span',r.webStyle.name).innerHTML+'</title><style>'+css+'</style>'+sampled+interactive+'</html>','text/html')
   }catch(e){$('status').textContent=e.message||'保存失败，请重试。'}
  });files.append(html)
  if(r.object)files.append(link(r.object.files.model,'3D 模型 GLB',true),link(r.object.files.preview,'物件透明 PNG',true))
@@ -238,23 +257,34 @@ $('layout-view').onclick=()=>{previewMode='layout';showPreview(recipe())}
 $('overlay-view').onclick=()=>{previewMode='overlay';showPreview(recipe())}
 $('asset-search').oninput=()=>{
  const key=$('asset-search').value.trim().toUpperCase().split('@')[0]
- const family=Object.keys(names).find(k=>catalog[k].some(e=>e.assetId===key))
- if(family){tab=family;$('recent-only').checked=false;previewMode=family==='styles'?'layout':'overlay'}
+ if(practiceShelf && catalog.practice.some(item=>item.assetId===key)){
+  $('practice-box').open=true;practiceShelf.find(key);return
+ }
+ if(componentShelf && catalog.components.some(item=>item.assetId===key)){
+  tab='styles';showComponents=true;render();componentShelf.find(key);return
+ }
+ const found=catalog.stickers.find(e=>e.assetId===key)
+ const family=found?.family==='icon'?'icons':Object.keys(names).find(k=>catalogGroup(k)===k && catalog[k].some(e=>e.assetId===key))
+ if(family){showComponents=false;tab=family;$('recent-only').checked=false;previewMode=family==='styles'?'layout':'overlay'}
  render()
 }
 window.addEventListener('message',event=>{
  if(!inline || event.origin!==location.origin || event.source!==window.parent ||
     event.data?.type!=='studio-find-visual' || typeof event.data.code!=='string')return
- $('asset-search').value=event.data.code;$('asset-search').oninput()
+ const code=event.data.code
+ if(/^KIT-/.test(code) && practiceShelf){$('practice-box').hidden=false;$('practice-box').open=true;practiceShelf.find(code);return}
+ if(/^UI-/.test(code) && componentShelf){tab='styles';showComponents=true;render();componentShelf.find(code);return}
+ $('asset-search').value=code;$('asset-search').oninput()
 })
 
 if (!inline && !$('asset-search').value) openStyles(true)
 for (const button of document.querySelectorAll('[data-style-kind]')) {
  button.onclick=()=>{
-  showWebsites=button.dataset.styleKind==='web'
+  showComponents=button.dataset.styleKind==='ui'
+  showWebsites=button.dataset.styleKind!=='scene'
   tab='styles';previewMode='layout';$('asset-search').value=''
   openStyles(true)
-  if (!showWebsites && item('styles').website) selected.styles=defaults.styles
+  if (!showComponents && !showWebsites && item('styles').website) selected.styles=defaults.styles
   render()
  }
 }
@@ -277,11 +307,11 @@ const colorLab=mountPaletteLab($('color-lab'), palette=>{
  customWebPalette=palette
  previewMode='layout'
  const current=recipe()
- showPreview(current);updateBrief(current)
+ showPreview(current);updateBrief(current);renderPaletteTests(palette)
 }, ()=>{
  customWebPalette=null
  const current=recipe()
- showPreview(current);updateBrief(current)
+ showPreview(current);updateBrief(current);renderPaletteTests(current.palette)
 }, message=>{$('status').textContent=message})
 
 $('recent-only').checked=inline && tab!=='styles'
@@ -297,17 +327,44 @@ $('json').onclick=()=>downloadText('我的素材风格.json',JSON.stringify(reci
 $('reset').onclick=()=>{
  selected={...(inline?galleryDefaults:defaults)};customWebPalette=null;colorLab.setActive(false);$('asset-search').value='';openStyles(tab==='styles');select('styles',selected.styles)
 }
+
+function renderPaletteTests(palette){
+ if(!catalog.practice?.length)return
+ const lab=$('color-lab')
+ lab.querySelector('.shelf-samples')?.remove()
+ const wrapper=node('div',null,'shelf-samples')
+ for(const [label,bg] of [['浅色口播底','#F5E8D4'],['深色口播底','#25283A'],['网页背景',palette.colors.surface]]){
+  const sample=node('div');sample.style.background=bg;sample.style.color=foregroundOn(bg)
+  const button=node('span',label==='网页背景'?'主操作':'重点提示')
+  button.style.background=palette.colors.accent;button.style.color=foregroundOn(palette.colors.accent)
+  sample.append(node('strong',label),button);wrapper.append(sample)
+ }
+ lab.append(wrapper)
+}
+const componentShelf=catalog.components?.length?mountComponentShelf($('components-box'),catalog,{
+ palette:()=>customWebPalette||item('palettes'),download:downloadText,
+}):null
+const practiceShelf=catalog.practice?.length?mountPractice($('practice'),catalog,{
+ path:versioned,workbench:!!libraryRelease,download:downloadText,
+}):null
+if(practiceShelf){
+ $('practice-box').hidden=false
+ const searchId=params.get('kit')
+ $('practice-box').open=!!searchId
+ if(searchId)practiceShelf.find(searchId)
+}
+
 for(const [title,url] of Object.values(catalog.refs))$('evidence').append(link(url,title))
 render()
 
 window.readVisualSelection=()=>Object.fromEntries(Object.entries(selected).filter(([,v])=>v))
 window.setVisualSelection=(value,quote,group)=>{
  selected={...defaults,objects:'',stickers:''};customWebPalette=null;colorLab.setActive(false)
- for(const k of Object.keys(names)){
+ for(const k of ['styles','palettes','objects','stickers']){
   const match=catalog[k].find(x=>x.id===value?.[k] || x.assetId===String(value?.[k]).toUpperCase())
   if(match)selected[k]=match.id
  }
  $('asset-search').value='';$('recent-only').checked=false;previewMode=group==='objects'||group==='stickers'?'overlay':'layout'
  showWebsites=!!item('styles').website
- tab=group||'styles';$('quote').value=quote||'';render()
+ showComponents=false;tab=group||'styles';$('quote').value=quote||'';render()
 }

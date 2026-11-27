@@ -150,7 +150,9 @@ async function newProduction(review, row, item, route, visual, treatment) {
     seconds: Math.min(12, Math.max(1, Math.round(item.seconds || 3))),
     visual,
     route,
-    ...(treatment ? { treatment: treatment.id, brief: treatment.description } : {}),
+    ...(treatment ? { treatment: treatment.id,
+      brief: treatment.id === item.treatment && item.binding
+        ? item.binding.notes.join(' ') : treatment.description } : {}),
   }
   const task = await agentRequest('/api/agents/production', request)
   if (state.review !== review || (treatment && (editing?.row !== row || !$('effect-dialog').open))) return
@@ -164,6 +166,7 @@ async function newProduction(review, row, item, route, visual, treatment) {
     ids: [],
     visual,
     seconds: request.seconds,
+    ...(item.binding ? { binding: clone(item.binding) } : {}),
   }
   row.item.productionTask = task.id
   row.candidate = true

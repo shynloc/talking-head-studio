@@ -427,7 +427,7 @@
   }
   $('#search').oninput = () => {
     const code=val('search').trim().toUpperCase()
-    if (/^(WEB|PAL|OBJ|STK)-\d{3}(@PAL-\d{3})?$/.test(code)) {
+    if (/^(WEB|PAL|OBJ|STK|ICO|KIT|UI)-\d{3}(@PAL-\d{3})?$/.test(code)) {
       setVisual(true)
       const send=()=>frame.contentWindow.postMessage({type:'studio-find-visual', code},location.origin)
       if (frame.contentWindow?.readVisualSelection) send()

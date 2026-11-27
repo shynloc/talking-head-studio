@@ -225,7 +225,7 @@ function renderReview() {
   const list = $('picks')
   list.replaceChildren()
   const rows = state.annotationUnits ? [...r.rows].sort((a, b) => a.sentence - b.sentence) : r.rows
-  for (const row of rows) if (!r.skipped.includes(row.sentence) || row.annotationMode) addPick(list, r, row)
+  for (const row of rows) if (!r.skipped.includes(row.sentence)) addPick(list, r, row)
   if (!list.childElementCount) {
     const empty = document.createElement('p')
     empty.className = 'empty'
@@ -329,7 +329,7 @@ function addPick(list, review, row) {
   accept.setAttribute('aria-pressed', String(adopted))
   actions.append(accept)
   if (row.annotationMode) actions.append(button('回稿件修改标注', 'quiet', focusManuscriptAnnotation))
-  else actions.append(
+  if (!row.annotationMode || PART_EFFECTS.find(e=>e.id===item.treatment)?.kind==='lesson') actions.append(
     button('换效果', 'quiet change-effect', () => chooseEffect(review, row, item)),
     button('跳过', 'link skip', () => {
       if (saved) {

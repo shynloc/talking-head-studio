@@ -45,7 +45,7 @@ def valid_path(name):
 def manifest(raw, version=None):
     data = json.loads(raw)
     if (not isinstance(data, dict) or data.get("schemaVersion") != 1
-            or data.get("rendererVersion") not in (1, 2)):
+            or data.get("rendererVersion") not in (1, 2, 3)):
         raise ValueError("此素材库需要兼容的工作台版本。")
     if valid_version(data.get("libraryRelease")) != (version or data["libraryRelease"]):
         raise ValueError("素材清单的版本不一致。")

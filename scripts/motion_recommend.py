@@ -10,6 +10,7 @@ import manuscript_annotations as annotations
 import vision_library as vision
 import motion_samples as samples
 import motion_treatments as treatments
+from motion_lesson import WORDS
 
 INSTRUCTION = """你是口播创作者的视觉编辑。通读全文，从 eligibleSentences 允许的原句编号中选择最值得配画面的 0 至 5 句。其余原句已有创作者指定的画面或要求纯口播，跳过。
 优先步骤、关系、地点、数据及前后变化。避免重复；问候、空泛或不配图也清楚的稿件可以不选。
@@ -33,8 +34,8 @@ def read_catalog(path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-ASSET_CODE = re.compile(r"(?<![A-Z0-9])(?:OBJ|STK|WEB|PAL|FX|DEMO)-\d+(?:@PAL-\d+)?(?![A-Z0-9])", re.I)
-VISUAL_PREFIX = {"OBJ": "objects", "STK": "stickers", "WEB": "styles", "PAL": "palettes"}
+ASSET_CODE = re.compile(r"(?<![A-Z0-9])(?:OBJ|STK|ICO|WEB|PAL|FX|DEMO)-\d+(?:@PAL-\d+)?(?![A-Z0-9])", re.I)
+VISUAL_PREFIX = {"OBJ": "objects", "STK": "stickers", "ICO": "stickers", "WEB": "styles", "PAL": "palettes"}
 # These transforms already act on a whole layer in the Canvas renderer.
 OVERLAY_EFFECTS = set("""
 fade lift slide pop zoomIn blurIn swingIn wipe irisIn vanish drop shrink spinOut
@@ -45,7 +46,7 @@ VISUAL_FIELDS = {
     "styles": ("layout", "type", "detail", "overlay"),
     "palettes": ("colors", "rule", "distribution"),
     "objects": ("parts",),
-    "stickers": ("shape",),
+    "stickers": ("shape", "family", "rights"),
 }
 
 
@@ -60,7 +61,7 @@ def binding_choices(notes, quote):
         if all(note in {"无", "无。"} for note in notes):
             return {"mode": "none"}
         raise ValueError("这里同时标了素材和「无」，请保留一种。")
-    codes = list(dict.fromkeys(code.upper() for note in notes for code in ASSET_CODE.findall(note)))
+    codes = list(dict.fromkeys(code.upper() for note in notes for code in ASSET_CODE.findall(WORDS.sub("",note))))
     if not codes or any(not note for note in notes):
         raise ValueError("请补全画面标注，填素材或动效编号，或写「画面：无」。")
     effects = {term["assetId"]: term for term in catalog()["terms"]}

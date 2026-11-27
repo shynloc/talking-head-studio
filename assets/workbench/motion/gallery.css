@@ -535,7 +535,7 @@ select {
 #chips {
   margin: 4px 0;
 }
-#prompt {
+:is(#prompt,#visual-prompt) {
   width: 100%;
   resize: vertical;
   max-height: 20vh;
@@ -839,7 +839,7 @@ main {
   left: var(--ax, 50%);
   transform: translateX(-50%);
 }
-#prompt {
+:is(#prompt,#visual-prompt) {
   display: block;
   width: 100%;
   resize: none;
@@ -931,7 +931,7 @@ body:has(dialog[open]) {
     width: 97%;
     padding: 7px 8px;
   }
-  #prompt {
+  :is(#prompt,#visual-prompt) {
     font-size: 14px;
     min-height: min(110px, 22dvh);
     max-height: 27dvh;
@@ -975,7 +975,7 @@ body:has(dialog[open]) {
   }
 }
 @media (max-height: 470px) {
-  #prompt {
+  :is(#prompt,#visual-prompt) {
     min-height: 55px;
     max-height: 22dvh;
   }
@@ -1027,3 +1027,9 @@ nav a:hover,
 @media (max-width: 640px) {
   header nav { flex-wrap: wrap; align-items: center; }
 }
+
+#visual-frame{display:block;width:100%;height:min(700px,74vh);border:0;background:var(--cream);border-radius:12px}
+body.visual-mode :is(#library,#sample,#example,.pack,#chips,#selected-count){display:none}
+[hidden]#prompt,[hidden]#visual-prompt,[hidden]#visual-library,[hidden]#use-visual{display:none}
+#visual-library{scroll-margin-top:16px}#visual-library .sectionline{flex-wrap:wrap}#use-visual{text-decoration:none}
+@media(max-width:640px){#visual-frame{height:76vh}}

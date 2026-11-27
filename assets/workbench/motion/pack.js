@@ -188,7 +188,31 @@ async function initMaterials() {
     $('save-state').textContent = '浏览器存储不可用，本次仍可导出'
   }
   try {
-    if (state.page === 'edit' && state.draft) await openItem(state.draft)
+    const url = new URL(location.href)
+    if (url.searchParams.has('materials')) {
+      const codes = new Set(url.searchParams.get('materials').split(',').map(x=>x.trim().toUpperCase()))
+      const visual = {}
+      for (const kind of ['styles','palettes','objects','stickers']) {
+        const entry = VISUAL[kind].find(asset=>codes.has(asset.assetId))
+        if (entry) visual[kind]=entry.id
+      }
+      if (Object.keys(visual).length !== codes.size) throw Error('有素材编号未能识别，请回素材册重新选择。')
+      state.visual=visual
+      if(state.review){
+        const previous=state.review
+        resetReview()
+        if(state.review){
+          state.review.skipped=previous.skipped.slice()
+          state.review.rows=previous.rows.filter(row=>chosen(row.item))
+        }
+      }
+      nav('script')
+      showStyle()
+      if (await save()) {
+        url.searchParams.delete('materials')
+        history.replaceState(null,'',url)
+      }
+    } else if (state.page === 'edit' && state.draft) await openItem(state.draft)
     else nav(state.page === 'pack' && packItems().length ? 'pack' : 'script')
   } catch (e) {
     nav('script')

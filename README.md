@@ -2,7 +2,7 @@
 
 从稿件、提词和录制计划开始，把一条口播做成可发布的视频。你可以使用完整的三阶段流程，也可以从已有定稿或已经粗剪好的视频开始。
 
-本地源码与 Skill 版本为 **V3.15.0**。公开发行包版本见下载页。Windows 安装包和 macOS 磁盘映像包含首次启动所需的 Python 安装程序。已安装 Python 的创作者也可使用通用 Skill ZIP。
+本地源码与 Skill 版本为 **V3.16.0**。公开发行包版本见下载页。Windows 安装包和 macOS 磁盘映像包含首次启动所需的 Python 安装程序。已安装 Python 的创作者也可使用通用 Skill ZIP。
 
 [下载安装包与 Skill](https://github.com/shynloc/talking-head-studio/releases/latest)
 
@@ -18,7 +18,9 @@
 
 从首页点「浏览动效词库」可以直接看 17 类、108 个动效。把鼠标移到卡片上或点播放键看片，点卡片搭配效果。底部的「我的 AI 提示词」可以编辑、展开和复制。「看搭配」会播放组合效果，也可以停在某一帧下载透明 PNG。需要给自己的整篇稿配画面时，点页面顶部的「用稿件做素材」。
 
-想统一整篇的外观，点「挑整篇风格」。素材册有 9 种网页版式、11 套配色、16 个分部件 3D 模型和 24 款贴纸，可看同内容预览并保存常用搭配。「换效果」也能只改当前句。助手结合原话决定用现成动效、库内物件、现画图片、逐步演示或动态贴纸。图片和演示逐个做好后回到各自的原句卡，能切底色、暂停动画、拖到单帧，或选一帧自己的录像试摆。
+想统一整篇的外观，点「挑整篇风格」。素材册有 12 种网页版式、14 套配色、24 个分部件 3D 模型和 34 款贴纸，可看同内容预览并保存常用搭配。「换效果」也能只改当前句。助手结合原话决定用现成动效、库内物件、现画图片、逐步演示或动态贴纸。图片和演示逐个做好后回到各自的原句卡，能切底色、暂停动画、拖到单帧，或选一帧自己的录像试摆。
+
+从动效预览页点「风格与素材册」，可筛选本次新增，按名称、用途或固定编号搜索。选好后，点「透明叠加」查看实际导出的 PNG，点「网页排版」查看同一套素材放入版式的效果。点「用这套搭配做稿件」会把选择带进原句工作台。比如桌面麦克风 `OBJ-017`、声音波形 `STK-026`、配色 `PAL-013` 和节目单 `WEB-012` 可以配在同一句上。导出包的「素材搭配.json」可查每句的 `assetRefs`。同一物件或贴纸的具体颜色版本也有完整编号，例如 `OBJ-017@PAL-013`，可直接搜索或交给助手。库内模型附 GLB，贴纸附 SVG，选了版式时还附可离线打开的 `layout.html`。
 
 点原句卡的「换效果」，先看这句话可用的做法。量杯能标刻度或演示加水，电子秤能看最后读数、放大归零键或演示称重，长尾夹能看夹口或演示夹纸，背包能标侧袋或演示取瓶。点一项就会在原句卡准备透明小样。看好后点「采用新版」，也可以保留已用版、恢复上一版。展开「更多做法与风格」可以自由挑选。颜色、可用部位和模型源件沿用素材册，数值取自原句。
 
@@ -275,6 +277,6 @@ Windows 与 Apple 芯片 macOS 可以用完整工程 ZIP 互相迁移，并从�
 
 ### 如何重新制作系统安装包？
 
-从已提交的发行源码运行 `python scripts/package_release.py --output dist`，再运行 `python packaging/build_installers.py windows --archive dist/talking-head-studio-v3.15.0.zip --out native`。Mac 构建时将平台参数改为 `macos`。构建器使用 Python 官方安装程序及固定 SHA-256。Mac 应用包含 Intel 和 Apple 芯片可执行文件。[Python 安装程序来源](https://www.python.org/downloads/release/python-31314/)
+从已提交的发行源码运行 `python scripts/package_release.py --output dist`，再运行 `python packaging/build_installers.py windows --archive dist/talking-head-studio-v3.16.0.zip --out native`。Mac 构建时将平台参数改为 `macos`。构建器使用 Python 官方安装程序及固定 SHA-256。Mac 应用包含 Intel 和 Apple 芯片可执行文件。[Python 安装程序来源](https://www.python.org/downloads/release/python-31314/)
 
 有 Developer ID 的发布者可在 Mac 钥匙串中配置签名身份和 notarytool 配置，构建时提供 `--identity` 与 `--notary-profile`。发布流程会分别签署应用和磁盘映像，等待 Apple 接受并附加公证票据。GitHub Actions 可通过仓库 Secrets 配置相同流程。[Apple 公证说明](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)

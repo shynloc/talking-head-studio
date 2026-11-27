@@ -11,6 +11,8 @@ from pathlib import Path
 
 from runtime import refresh_installed_tools
 import motion_samples as samples
+import motion_recommend
+import motion_treatments
 
 FPS = 25
 SIZE = (960, 360)
@@ -113,6 +115,7 @@ def export(data, stream, size):
     items = validate(manifest)
     if any("sample" not in x for x in items) and not status()["ready"]:
         raise ValueError("导出动效需要 FFmpeg。")
+    effects = {term["id"]: term["assetId"] for term in motion_recommend.catalog()["terms"]}
     pack_id = uuid.uuid4().hex
     dest = download(data, pack_id)
     dest.parent.parent.mkdir(parents=True, exist_ok=True)
@@ -151,6 +154,23 @@ def export(data, stream, size):
                             item["packageSources"][name] = target
                 else:
                     encode(packet, item, folder, archive, stem)
+                refs = {k: v["assetId"] for k, v in samples.brief(item.get("visual")).items()}
+                source_ids = home / "sources" / "asset-ids.json" if item.get("sample") else None
+                if source_ids and source_ids.is_file():
+                    # Other producers can supply their own source files with the same name.
+                    try:
+                        origin = samples.selection(json.loads(source_ids.read_text(encoding="utf8")))
+                    except (ValueError, UnicodeError):
+                        origin = {}
+                    refs.update({k: v["assetId"] for k, v in samples.brief(origin).items()})
+                if item.get("ids"):
+                    refs["effects"] = [effects[k] for k in item["ids"] if k in effects]
+                if item.get("treatment"):
+                    refs["treatment"] = motion_treatments.resolve(item["treatment"])["assetId"]
+                item["assetRefs"] = refs
+                if refs.get("objects") or refs.get("stickers"):
+                    palette = refs.get("palettes") or samples.resolve_entry("palettes", "atelier")["assetId"]
+                    item["variantIds"] = {k: refs[k] + "@" + palette for k in ("objects", "stickers") if k in refs}
                 duration = (
                     "静态图片"
                     if item.get("sample", {}).get("kind") == "image"

@@ -352,6 +352,23 @@ function addPick(list, review, row) {
     visual.style.backgroundImage = 'url(' + referenceFrame + ')'
   }
   copy.append(quote, why, recipe, actions)
+  const codes = item.ids.map(id => TERM[id]?.assetId).filter(Boolean)
+  const color = VISUAL.palettes.find(entry => entry.id === (item.visual?.palettes || 'atelier'))
+  for (const group of ['styles', 'palettes', 'objects', 'stickers']) {
+    const entry = VISUAL[group].find(asset => asset.id === item.visual?.[group])
+    if (entry) codes.push(entry.variants && color ? entry.assetId + '@' + color.assetId : entry.assetId)
+  }
+  const treatment = PART_EFFECTS.find(effect => effect.id === item.treatment)
+  if (treatment) codes.push(treatment.assetId)
+  if (codes.length) {
+    const detail = document.createElement('details')
+    const label = document.createElement('summary')
+    const text = document.createElement('code')
+    label.textContent = '查看素材编号'
+    text.textContent = codes.join(' / ')
+    detail.append(label, text)
+    copy.append(detail)
+  }
   card.append(visual, copy)
   list.append(card)
 }

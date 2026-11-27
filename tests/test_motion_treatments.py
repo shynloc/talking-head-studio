@@ -14,7 +14,7 @@ class SentenceEffectTests(unittest.TestCase):
         data = samples.catalog()
         self.assertEqual(
             [len(data[k]) for k in ("objects", "stickers", "styles", "palettes")],
-            [16, 24, 9, 11],
+            [24, 34, 12, 14],
         )
         colors = {p["id"] for p in data["palettes"]}
         for entry in data["objects"] + data["stickers"]:

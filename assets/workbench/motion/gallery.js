@@ -119,6 +119,7 @@
   function parts() {
     const o = options(),
       p = { task: '制作一件可叠在口播画面上的透明动效素材。' }
+    if (ids.length) p.assetIds = '动效编号 ' + ids.map(id => TERM[id].assetId).join(' / ')
     if (quote) p.quote = '对应原句「' + quote + '」'
     p.object =
       '素材主体：' +
@@ -339,7 +340,7 @@
         (t) =>
           (!group || group === t.group || (group === 'recent' && DATA.recent.includes(t.id))) &&
           [
-            t.name,
+            t.name, t.assetId,
             t.tech,
             t.prompt,
             groups[t.group],
@@ -377,7 +378,7 @@
       pick.innerHTML =
         '<span class="thumb"><canvas width="480" height="180"></canvas></span><span class="info"><b></b><small></small></span><i aria-hidden="true"></i>'
       pick.querySelector('b').textContent = term.name
-      pick.querySelector('small').textContent = term.tech
+      pick.querySelector('small').textContent = term.tech + ' · ' + term.assetId
       pick.setAttribute('aria-label', '选用或移除：' + term.name)
       pick.title = term.prompt
       const c = pick.querySelector('canvas'),
@@ -423,8 +424,45 @@
     b.setAttribute('aria-pressed', group === g.id)
     $('#filters').append(b)
   }
-  $('#search').oninput = renderCards
+  $('#search').oninput = () => {
+    const code=val('search').trim().toUpperCase()
+    if (/^(WEB|PAL|OBJ|STK)-\d{3}(@PAL-\d{3})?$/.test(code)) {
+      setVisual(true)
+      const send=()=>frame.contentWindow.postMessage({type:'studio-find-visual', code},location.origin)
+      if (frame.contentWindow?.readVisualSelection) send()
+      else frame.addEventListener('load',send,{once:true})
+    } else renderCards()
+  }
+  const frame = $('#visual-frame')
+  const visualPrompt = $('#visual-prompt')
+  let visualMode = false, lastVisualPrompt = ''
+  const activePrompt = () => visualMode ? visualPrompt : promptBox
+  function setVisual(open) {
+    visualMode = open
+    document.body.classList.toggle('visual-mode',open)
+    $('#visual-library').hidden = !open
+    promptBox.hidden = open
+    visualPrompt.hidden = !open
+    $('#nav-visual').setAttribute('aria-pressed',String(open))
+    if (!open) return
+    $('#nav-lib').setAttribute('aria-pressed','false')
+    if (!frame.hasAttribute('src')) frame.src = 'visual/index.html?inline=1' + (scoped ? '&desk=' + desk : '')
+    go('#visual-library')
+  }
+  window.addEventListener('message', event => {
+    if (event.origin !== location.origin || event.source !== frame.contentWindow ||
+        event.data?.type !== 'studio-visual-selection') return
+    const {prompt, ids} = event.data
+    if (prompt !== lastVisualPrompt) visualPrompt.value = prompt
+    lastVisualPrompt = prompt
+    const address = new URL($('#nav-example').href)
+    address.searchParams.set('materials',ids.join(','))
+    $('#use-visual').href = address.href
+    $('#use-visual').hidden = false
+  })
+  $('#nav-visual').onclick = () => setVisual(true)
   function tab(open) {
+    setVisual(false)
     $('#example').hidden = !open
     $('#nav-lib').setAttribute('aria-pressed', !open)
     go(open ? '#example' : '#library')
@@ -746,6 +784,11 @@
     }
   })
   $('#jumpmix').onclick = () => {
+    if (visualMode) {
+      go('#visual-library')
+      frame.contentDocument?.getElementById('choice')?.scrollIntoView({block:'center'})
+      return
+    }
     go('#sample')
     replay()
   }
@@ -768,13 +811,13 @@
     a.click()
   }
   function syncFull() {
-    promptBox.value = full.value
+    activePrompt().value = full.value
     $('#full-count').textContent = Array.from(full.value).length + ' 字'
     fit()
     storeDraft()
   }
   $('#expand').onclick = () => {
-    full.value = promptBox.value
+    full.value = activePrompt().value
     $('#full-count').textContent = Array.from(full.value).length + ' 字'
     dialog.showModal()
     full.focus()
@@ -808,7 +851,7 @@
     if (dialog.open) $('#full-count').textContent = msg
     else announce(msg)
   }
-  $('#copy').onclick = () => copy(promptBox)
+  $('#copy').onclick = () => copy(activePrompt())
   $('#full-copy').onclick = () => copy(full)
   $('#fold').onclick = () => {
     const body = $('#editor-body')
@@ -845,4 +888,5 @@
   renderCards()
   selectState()
   stageStyle()
+  if (new URLSearchParams(location.search).get('view') === 'visual') setVisual(true)
 })()

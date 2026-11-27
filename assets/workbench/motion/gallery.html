@@ -8,7 +8,7 @@
     <nav aria-label="工作区">
       <button id="nav-lib" aria-pressed="true">动效词库</button
       ><a id="nav-example" href="index.html?view=desk">用稿件做素材</a>
-      <a href="visual/index.html" target="_blank" rel="noopener" title="查看网页风格、配色、3D 物件和贴纸">风格与素材册 ↗</a>
+      <button id="nav-visual" aria-pressed="false">风格与素材册</button>
     </nav>
     <button id="refs" class="textbtn">词条出处 ↗</button>
   </header>
@@ -51,6 +51,10 @@
         </button>
       </div>
     </section>
+    <section id="visual-library" hidden>
+      <div class="sectionline"><h2>风格与素材册</h2><a id="use-visual" class="inkbtn" hidden>用这套搭配做稿件 →</a></div>
+      <iframe id="visual-frame" title="挑选物件、贴纸、网页风格和配色"></iframe>
+    </section>
     <section id="library">
       <div class="sectionline">
         <h2>挑选效果 <small id="count"></small></h2>
@@ -60,7 +64,7 @@
             id="search"
             type="search"
             aria-label="搜索名称、术语或描述"
-            placeholder="搜「逐字」「调档」「修图前后」"
+            placeholder="搜名称或编号，如 FX-001"
         /></label>
       </div>
       <details class="recipes">
@@ -151,6 +155,7 @@
     </div>
     <div id="editor-body">
       <div id="chips"></div>
+      <textarea id="visual-prompt" hidden rows="7" aria-label="可编辑的视觉素材提示词"></textarea>
       <textarea id="prompt" rows="6" aria-label="可编辑的提示词"></textarea>
     </div>
     <span id="notice" role="status" aria-live="polite"></span>

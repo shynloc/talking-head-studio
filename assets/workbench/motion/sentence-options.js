@@ -47,7 +47,7 @@ function showSentenceOptions(review, row, item) {
   for (const effect of effects) {
     choice(
       effect.label,
-      effect.description,
+      effect.description + ' · ' + effect.assetId,
       effect.kind === 'motion' ? '动画' : '静态',
       async () => {
         const visual = { ...editing.visual, objects: effect.object }

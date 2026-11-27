@@ -341,7 +341,7 @@ function updatePrompt(d) {
   const result = [
     d.standalone ? '制作一件可叠在口播画面上的透明动效素材。' : '为口播原句「' + d.quote + '」做一件透明叠加素材。',
     (hasText ? '画面文字' : '素材名称') + '「' + d.title + '」。',
-    ...d.ids.map((id) => groupNames[TERM[id].group] + ' · ' + TERM[id].prompt),
+    ...d.ids.map((id) => TERM[id].assetId + ' · ' + groupNames[TERM[id].group] + ' · ' + TERM[id].prompt),
   ]
   if (usesField(d.ids, 'states')) result.push('两项文字分别为「' + d.a + '」和「' + d.b + '」。')
   if (usesField(d.ids, 'labels')) result.push('三个节点为 ' + d.labels.join('、') + '。')
@@ -480,7 +480,7 @@ function renderTerms() {
   const terms = DATA.terms.filter(
     (t) =>
       (!group || t.group === group) &&
-      [t.name, t.tech, t.prompt, t.keywords, aliases[t.id], groupNames[t.group]].join(' ').toLowerCase().includes(q),
+      [t.name, t.assetId, t.tech, t.prompt, t.keywords, aliases[t.id], groupNames[t.group]].join(' ').toLowerCase().includes(q),
   )
   for (const t of terms) {
     const card = document.createElement('div')
@@ -495,7 +495,9 @@ function renderTerms() {
     title.textContent = t.name
     const tech = document.createElement('small')
     tech.className = 'choice'
-    pick.append(c, title, tech)
+    const code = document.createElement('small')
+    code.textContent = t.assetId
+    pick.append(c, title, tech, code)
     const subject = DATA.quotes[DATA.terms.indexOf(t) % DATA.quotes.length].key
     const poster = t.id === 'flip' ? 0.82 : 0.48
     const paintTerm = (n) => draw(c, n, [t.id], subject, true)

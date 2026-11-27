@@ -45,6 +45,16 @@ class Handler(BaseHTTPRequestHandler):
         if not self.valid_host():return self.respond(403,{'error':'仅允许本机访问'})
         url=urllib.parse.urlparse(self.path);path=url.path;query=urllib.parse.parse_qs(url.query)
         try:
+            if path == '/api/motion/library-preview':
+                chosen = {key: values[0] for key, values in query.items()}
+                body = motion_samples.overlay_png(motion_samples.brief(chosen))
+                self.send_response(200)
+                self.send_header('Content-Type', 'image/png')
+                self.send_header('Content-Length', str(len(body)))
+                self.send_header('Cache-Control', 'no-cache')
+                self.end_headers()
+                self.wfile.write(body)
+                return
             if path.startswith('/motion-media/'):
                 _,_,sample,name=path.split('/')
                 return self.send_file(motion_samples.preview_file(self.server.store.root,sample,name))

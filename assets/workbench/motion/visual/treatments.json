@@ -15,7 +15,8 @@
       "液面",
       "毫升"
     ],
-    "part": "level"
+    "part": "level",
+    "assetId": "DEMO-001"
   },
   {
     "id": "cup-pour",
@@ -33,7 +34,8 @@
       "加水",
       "水位"
     ],
-    "part": "level"
+    "part": "level",
+    "assetId": "DEMO-002"
   },
   {
     "id": "scale-read",
@@ -53,7 +55,8 @@
       "读数",
       "重量"
     ],
-    "part": "display"
+    "part": "display",
+    "assetId": "DEMO-003"
   },
   {
     "id": "scale-tare",
@@ -73,7 +76,8 @@
       "清零",
       "去皮"
     ],
-    "part": "tare"
+    "part": "tare",
+    "assetId": "DEMO-004"
   },
   {
     "id": "scale-weigh",
@@ -93,7 +97,8 @@
       "去皮",
       "称重"
     ],
-    "part": "display"
+    "part": "display",
+    "assetId": "DEMO-005"
   },
   {
     "id": "clip-tip",
@@ -111,7 +116,8 @@
       "夹住",
       "纸"
     ],
-    "part": "jaw"
+    "part": "jaw",
+    "assetId": "DEMO-006"
   },
   {
     "id": "clip-grip",
@@ -129,7 +135,8 @@
       "夹住",
       "松开"
     ],
-    "part": "jaw"
+    "part": "jaw",
+    "assetId": "DEMO-007"
   },
   {
     "id": "pack-pocket",
@@ -147,7 +154,8 @@
       "水瓶",
       "水壶"
     ],
-    "part": "pocket"
+    "part": "pocket",
+    "assetId": "DEMO-008"
   },
   {
     "id": "pack-lift",
@@ -165,6 +173,7 @@
       "拿",
       "抽出"
     ],
-    "part": "pocket"
+    "part": "pocket",
+    "assetId": "DEMO-009"
   }
 ]

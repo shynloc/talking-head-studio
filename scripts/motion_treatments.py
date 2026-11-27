@@ -23,6 +23,8 @@ def catalog():
 
 def resolve(key, object_id=None):
     item = catalog().get(key) if isinstance(key, str) else None
+    if not item and isinstance(key, str):
+        item = next((row for row in catalog().values() if row["assetId"] == key.upper()), None)
     if not item or (object_id and item["object"] != object_id):
         raise ValueError("这项演示与所选物件不符，请重新挑选。")
     return item
@@ -34,10 +36,10 @@ def alternatives(raw):
     if (
         not isinstance(raw, list)
         or len(raw) > 3
-        or any(not isinstance(k, str) or k not in catalog() for k in raw)
+        or any(not isinstance(k, str) for k in raw)
     ):
         raise ValueError("每句可选最多三个素材册中的替代效果。")
-    return list(dict.fromkeys(raw))
+    return list(dict.fromkeys(resolve(key)["id"] for key in raw))
 
 
 def scene_data(context):

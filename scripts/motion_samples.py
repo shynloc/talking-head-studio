@@ -1,5 +1,6 @@
 """Validated, immutable transparent media shared by agent tasks, card previews and exports."""
 
+import io
 import hashlib
 import json
 import os
@@ -37,6 +38,14 @@ def catalog():
     return json.loads((LIBRARY / "catalog.json").read_text(encoding="utf8"))
 
 
+def resolve_entry(group, key):
+    if isinstance(key, str):
+        for entry in catalog()[group]:
+            if key == entry["id"] or key.upper() == entry["assetId"]:
+                return entry
+    raise ValueError("素材册中没有所选搭配。")
+
+
 def selection(raw=None):
     if raw is None:
         return {}
@@ -46,9 +55,13 @@ def selection(raw=None):
     for group in ("styles", "palettes", "objects", "stickers"):
         key = raw.get(group)
         if key:
-            if not any(e["id"] == key for e in catalog()[group]):
-                raise ValueError("素材册中没有所选搭配。")
-            result[group] = key
+            if group in ("objects", "stickers") and isinstance(key, str) and "@" in key:
+                key, color = key.split("@", 1)
+                palette = resolve_entry("palettes", color)["id"]
+                if result.get("palettes", palette) != palette:
+                    raise ValueError("所选版本使用不同配色，请用同一套配色。")
+                result["palettes"] = palette
+            result[group] = resolve_entry(group, key)["id"]
     return result
 
 
@@ -61,6 +74,8 @@ def brief(raw):
             k: v for k, v in entry.items() if k not in ("variants", "files", "source")
         }
         if "variants" in entry:
+            palette = resolve_entry("palettes", selected.get("palettes", "atelier"))
+            result[kind]["variantId"] = entry["assetId"] + "@" + palette["assetId"]
             result[kind]["files"] = {
                 k: str(LIBRARY / v)
                 for k, v in entry["variants"][
@@ -262,85 +277,116 @@ def receive(root, bundle):
         return metadata(root, key)
 
 
-def from_library(root, raw):
+def overlay_png(spec):
     from PIL import Image
 
-    spec = brief(raw)
-    obj = spec.get("objects")
-    sticker = spec.get("stickers")
+    obj, sticker = spec.get("objects"), spec.get("stickers")
     if not (obj or sticker):
         raise ValueError("请从素材册挑一个物件或贴纸。")
+    main = (obj or sticker)["files"]["preview"]
+    if obj and sticker:
+        with (
+            Image.open(main) as im,
+            Image.open(sticker["files"]["preview"]) as mark,
+        ):
+            im = im.convert("RGBA")
+            mark = mark.convert("RGBA")
+            mark.thumbnail(
+                (im.width // 3, im.height // 3), Image.Resampling.LANCZOS
+            )
+            anchors = obj.get("tokens", {}).get("anchors", {})
+            tip = sticker.get("tokens", {}).get("anchor")
+            x, y = im.width - mark.width - 12, 12
+            point_marks = {
+                "pin",
+                "loupe",
+                "focus",
+                "leader",
+                "tap",
+                "dragtrail",
+                "rotatearc",
+                "dimension",
+                "level",
+            }
+            if sticker["id"] not in point_marks and tip:
+                bounds = im.getbbox()
+                if bounds:
+                    x = min(
+                        im.width - mark.width - 4, bounds[2] - mark.width // 3
+                    )
+                    y = max(4, bounds[1] - mark.height // 4)
+            if sticker["id"] in point_marks and anchors and tip:
+                target = (
+                    "tare"
+                    if sticker["id"] == "tap" and "tare" in anchors
+                    else next(iter(anchors))
+                )
+                u, v = anchors[target]
+                x = round(u * im.width - tip[0] / 192 * mark.width)
+                y = round(v * im.height - tip[1] / 128 * mark.height)
+                x = max(0, min(x, im.width - mark.width))
+                y = max(0, min(y, im.height - mark.height))
+                if sticker["id"] == "loupe":
+                    from PIL import ImageDraw
+
+                    radius = max(4, round(33 * mark.width / 192))
+                    cx, cy = round(u * im.width), round(v * im.height)
+                    half = max(2, radius // 2)
+                    zoom = im.crop(
+                        (cx - half, cy - half, cx + half, cy + half)
+                    ).resize((radius * 2, radius * 2), Image.Resampling.LANCZOS)
+                    mask = Image.new("L", zoom.size)
+                    ImageDraw.Draw(mask).ellipse(
+                        (0, 0, 2 * radius - 1, 2 * radius - 1), fill=255
+                    )
+                    im.paste(
+                        zoom,
+                        (
+                            x + round(78 * mark.width / 192) - radius,
+                            y + round(51 * mark.height / 128) - radius,
+                        ),
+                        mask,
+                    )
+            im.alpha_composite(mark, (x, y))
+            result = io.BytesIO()
+            im.save(result, format="PNG")
+            return result.getvalue()
+    return Path(main).read_bytes()
+
+
+def layout_html(spec):
+    style = spec["styles"]
+    palette = spec.get("palettes") or brief({"palettes": "atelier"})["palettes"]
+    def relative_entry(group):
+        entry = spec.get(group)
+        if not entry:
+            return None
+        return dict(entry, files={key: entry["id"] + Path(path).suffix
+                                  for key, path in entry["files"].items()})
+
+    inputs = [style, palette, relative_entry("objects"), relative_entry("stickers")]
+    args = json.dumps(inputs, ensure_ascii=False).replace("<", r"\u003c")
+    page = (LIBRARY / "index.html").read_text(encoding="utf8")
+    css = page.split('<style id="scene-css">', 1)[1].split("</style>", 1)[0]
+    script = (LIBRARY / "layout.js").read_text(encoding="utf8")
+    return ('<!doctype html><html lang="zh-CN"><meta charset="utf-8">'
+            '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            '<title>网页排版小样</title><style>body{margin:4vw auto;max-width:720px;padding:12px}'
+            + css + '</style><body><script>' + script
+            + '\ndocument.body.append(scene(...' + args + '))</script></body></html>')
+
+
+def from_library(root, raw):
+    spec = brief(raw)
+    obj, sticker = spec.get("objects"), spec.get("stickers")
     with tempfile.TemporaryDirectory() as tmp:
         bundle = Path(tmp) / "library.zip"
         with zipfile.ZipFile(bundle, "w", zipfile.ZIP_DEFLATED) as archive:
-            main = (obj or sticker)["files"]["preview"]
-            if obj and sticker:
-                with (
-                    Image.open(main) as im,
-                    Image.open(sticker["files"]["preview"]) as mark,
-                ):
-                    im = im.convert("RGBA")
-                    mark = mark.convert("RGBA")
-                    mark.thumbnail(
-                        (im.width // 3, im.height // 3), Image.Resampling.LANCZOS
-                    )
-                    anchors = obj.get("tokens", {}).get("anchors", {})
-                    tip = sticker.get("tokens", {}).get("anchor")
-                    x, y = im.width - mark.width - 12, 12
-                    point_marks = {
-                        "pin",
-                        "loupe",
-                        "focus",
-                        "leader",
-                        "tap",
-                        "dragtrail",
-                        "rotatearc",
-                        "dimension",
-                        "level",
-                    }
-                    if sticker["id"] not in point_marks and tip:
-                        bounds = im.getbbox()
-                        if bounds:
-                            x = min(
-                                im.width - mark.width - 4, bounds[2] - mark.width // 3
-                            )
-                            y = max(4, bounds[1] - mark.height // 4)
-                    if sticker["id"] in point_marks and anchors and tip:
-                        target = (
-                            "tare"
-                            if sticker["id"] == "tap" and "tare" in anchors
-                            else next(iter(anchors))
-                        )
-                        u, v = anchors[target]
-                        x = round(u * im.width - tip[0] / 192 * mark.width)
-                        y = round(v * im.height - tip[1] / 128 * mark.height)
-                        x = max(0, min(x, im.width - mark.width))
-                        y = max(0, min(y, im.height - mark.height))
-                        if sticker["id"] == "loupe":
-                            from PIL import ImageDraw
-
-                            radius = max(4, round(33 * mark.width / 192))
-                            cx, cy = round(u * im.width), round(v * im.height)
-                            half = max(2, radius // 2)
-                            zoom = im.crop(
-                                (cx - half, cy - half, cx + half, cy + half)
-                            ).resize((radius * 2, radius * 2), Image.Resampling.LANCZOS)
-                            mask = Image.new("L", zoom.size)
-                            ImageDraw.Draw(mask).ellipse(
-                                (0, 0, 2 * radius - 1, 2 * radius - 1), fill=255
-                            )
-                            im.paste(
-                                zoom,
-                                (
-                                    x + round(78 * mark.width / 192) - radius,
-                                    y + round(51 * mark.height / 128) - radius,
-                                ),
-                                mask,
-                            )
-                    im.alpha_composite(mark, (x, y))
-                    main = Path(tmp) / "stack.png"
-                    im.save(main)
-            archive.write(main, "media.png")
+            archive.writestr("media.png", overlay_png(spec))
+            refs = {group: entry["assetId"] for group, entry in spec.items()}
+            archive.writestr("sources/asset-ids.json", json.dumps(refs, ensure_ascii=False, indent=2))
+            if spec.get("styles"):
+                archive.writestr("sources/layout.html", layout_html(spec))
             for entry in (obj, sticker):
                 if entry:
                     for k, p in entry["files"].items():

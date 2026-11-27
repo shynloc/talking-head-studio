@@ -15,13 +15,14 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 from zipfile import BadZipFile, ZipFile
 
-from core import ROOT, write_json
+from core import ROOT, VERSION as STUDIO_VERSION, write_json
 
 ORIGIN = "https://videobuddy.acks.com.cn"
 GITHUB = "https://github.com/shynloc/acks-video-visionbuddy"
 GITHUB_API = "https://api.github.com/repos/shynloc/acks-video-visionbuddy/releases/latest"
 BUNDLED = "1.0.0"
 SCRIPTS = ("catalog.json", "visual/catalog.json", "visual/treatments.json")
+PAIR = json.loads((ROOT / "assets/workbench/motion/visionbuddy-pair.json").read_bytes())
 MAX_MANIFEST = 8 * 1024**2
 MAX_PACK = 384 * 1024**2
 VERSION = re.compile(r"\d{1,5}\.\d{1,5}\.\d{1,5}\Z")
@@ -42,11 +43,18 @@ def valid_path(name):
     )
 
 
+def version_key(version):
+    return tuple(map(int, valid_version(version).split(".")))
+
+
 def manifest(raw, version=None):
     data = json.loads(raw)
     if (not isinstance(data, dict) or data.get("schemaVersion") != 1
-            or data.get("rendererVersion") not in (1, 2, 3)):
+            or data.get("rendererVersion") not in PAIR["rendererVersions"]):
         raise ValueError("此素材库需要兼容的工作台版本。")
+    minimum = data.get("minimumWorkbench")
+    if minimum is not None and version_key(minimum) > version_key(STUDIO_VERSION):
+        raise ValueError("新版素材库需要先升级工作台。当前素材依然可用。")
     if valid_version(data.get("libraryRelease")) != (version or data["libraryRelease"]):
         raise ValueError("素材清单的版本不一致。")
     files = data.get("files")
@@ -180,6 +188,12 @@ class LibrarySources:
     def active(self):
         settings = self.settings()
         return self.for_version(settings[settings["mode"]])
+
+    def refresh(self):
+        with self.lock:
+            if not self.settings_path.is_file() or self.settings()["mode"] == "online":
+                return self.use_online()
+            return self.check_local()
 
     def status(self):
         settings = self.settings()

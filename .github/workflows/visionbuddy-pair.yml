@@ -1,0 +1,38 @@
+name: VisionBuddy compatibility
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'VERSION'
+      - 'compatibility.json'
+      - 'site/visual/**'
+      - 'assets/workbench/motion/**'
+      - 'scripts/core.py'
+      - 'scripts/vision_library.py'
+      - 'scripts/vision_sync.py'
+      - '.github/workflows/visionbuddy-pair.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  shared-catalog-and-renderer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          repository: shynloc/talking-head-studio
+          ref: main
+          path: studio
+      - uses: actions/checkout@v7
+        with:
+          repository: shynloc/acks-video-visionbuddy
+          ref: main
+          path: library
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: python -X utf8 studio/scripts/vision_sync.py --source library

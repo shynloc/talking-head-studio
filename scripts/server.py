@@ -57,7 +57,7 @@ class Handler(BaseHTTPRequestHandler):
             state = self.server.library.status()
             if query.get('refresh') == ['1']:
                 try:
-                    state = self.server.library.use_online() if state['mode'] == 'online' else self.server.library.check_local()
+                    state = self.server.library.refresh()
                 except ValueError as error:
                     state['warning'] = str(error)
             return self.respond(200, state)

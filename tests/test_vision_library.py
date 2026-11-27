@@ -34,6 +34,22 @@ def package(version, corrupt=False):
 
 
 class LibrarySourceTests(unittest.TestCase):
+    def test_first_open_uses_online_without_overriding_an_explicit_local_choice(self):
+        with tempfile.TemporaryDirectory() as temp:
+            service = vision.LibrarySources(temp)
+            with patch.object(service, "use_online") as online, patch.object(service, "check_local") as local:
+                self.assertIs(service.refresh(), online.return_value)
+                service.use_local()
+                self.assertIs(service.refresh(), local.return_value)
+                online.assert_called_once()
+                local.assert_called_once()
+
+    def test_manifest_cannot_require_a_newer_workbench(self):
+        metadata, _ = fixture("1.3.1")
+        metadata["minimumWorkbench"] = "99999.0.0"
+        with self.assertRaisesRegex(ValueError, "升级工作台"):
+            vision.manifest(json.dumps(metadata))
+
     def test_matching_content_is_reused_across_releases(self):
         with tempfile.TemporaryDirectory() as temp:
             service = vision.LibrarySources(temp)

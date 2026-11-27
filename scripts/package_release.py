@@ -52,8 +52,10 @@ def verify(path):
 
 def build(output):
     revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+    # Keep shared asset bytes independent of the builder's Git line-ending settings.
     tracked = subprocess.check_output([
-        'git', 'archive', '--format=zip', revision, '--', *PACKAGE_DIRS, *PACKAGE_FILES,
+        'git', '-c', 'core.autocrlf=false', '-c', 'core.eol=lf',
+        'archive', '--format=zip', revision, '--', *PACKAGE_DIRS, *PACKAGE_FILES,
     ], cwd=ROOT)
     with zipfile.ZipFile(io.BytesIO(tracked)) as source:
         module = ast.parse(source.read('scripts/core.py'))

@@ -2,7 +2,7 @@
 
 从稿件、提词和录制计划开始，把一条口播做成可发布的视频。你可以使用完整的三阶段流程，也可以从已有定稿或已经粗剪好的视频开始。
 
-当前工作台与 Skill 为 **V3.20.2**，配套 **VisionBuddy 1.3.1**。通用 Skill ZIP 可在已安装 Python 的 Windows 和 macOS 使用。带 Python 的平台安装包以各版发行页列出的文件为准。
+当前工作台与 Skill 为 **V3.21.0**，配套 **VisionBuddy 1.3.1**。通用 Skill ZIP 可在已安装 Python 的 Windows 和 macOS 使用。带 Python 的平台安装包以各版发行页列出的文件为准。
 
 [下载安装包与 Skill](https://github.com/shynloc/talking-head-studio/releases/latest)
 
@@ -277,7 +277,7 @@ V3.7 的 Windows 浏览器验收用了真实口播节选和配套字幕。由录
 | Intel Mac 和 Windows 11 ARM | 两种架构的虚拟机均已从稿件创建项目并导出独立 HTML 提词页。 | 原生安装包的完整安装体验和视频三阶段。Windows 桌面包目标为 x64。 |
 | Windows 上的 WorkBuddy 与 ChatCut | V3.5 在 WorkBuddy 原对话领取待办，在 ChatCut 装配主画面、字幕、两条透明动画和独立音效，改字、保存、导出 MP4 并回写。V3.6 另测了工作台待办、回写与交接包。 | Mac 上的相同组合、其他客户端版本。 |
 
-Windows 与 Apple 芯片 macOS 可以用完整工程 ZIP 互相迁移，并从随包的原片重新渲染。当前发行的 macOS 安装包为本地签名的预览 DMG，尚未取得 Apple Developer ID 公证。 [V3.6 验收运行](https://github.com/shynloc/talking-head-studio/actions/runs/44983980291) · [V3.5 验收运行](https://github.com/shynloc/talking-head-studio/actions/runs/44946232710)
+Windows 与 Apple 芯片 macOS 已用完整包、轻量包和 v1 旧包做双向迁移，每次都保留稿件、剪点、时间线和校对过的字幕并重新导出 MP4。验收使用合成素材，在 GitHub Actions 执行。 [双向迁移验收记录](https://github.com/shynloc/talking-head-studio/actions/runs/46023618284)
 
 ### 怎样从正在看的那句话开始改？
 
@@ -304,6 +304,6 @@ Windows 与 Apple 芯片 macOS 可以用完整工程 ZIP 互相迁移，并从�
 
 ### 如何重新制作系统安装包？
 
-从已提交的发行源码运行 `python scripts/package_release.py --output dist`，再运行 `python packaging/build_installers.py windows --archive dist/talking-head-studio-v3.20.2.zip --out native`。Mac 构建时将平台参数改为 `macos`。构建器使用 Python 官方安装程序及固定 SHA-256。Mac 应用包含 Intel 和 Apple 芯片可执行文件。[Python 安装程序来源](https://www.python.org/downloads/release/python-31314/)
+从已提交的发行源码运行 `python scripts/package_release.py --output dist`，再运行 `python packaging/build_installers.py windows --archive dist/talking-head-studio-v3.21.0.zip --out native`。Mac 构建时将平台参数改为 `macos`。构建器使用 Python 官方安装程序及固定 SHA-256。Mac 应用包含 Intel 和 Apple 芯片可执行文件。[Python 安装程序来源](https://www.python.org/downloads/release/python-31314/)
 
 有 Developer ID 的发布者可在 Mac 钥匙串中配置签名身份和 notarytool 配置，构建时提供 `--identity` 与 `--notary-profile`。发布流程会分别签署应用和磁盘映像，等待 Apple 接受并附加公证票据。GitHub Actions 可通过仓库 Secrets 配置相同流程。[Apple 公证说明](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)

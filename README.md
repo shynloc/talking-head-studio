@@ -2,7 +2,7 @@
 
 从稿件、提词和录制计划开始，把一条口播做成可发布的视频。你可以使用完整的三阶段流程，也可以从已有定稿或已经粗剪好的视频开始。
 
-本地源码与 Skill 版本为 **V3.17.1**。公开发行包版本见下载页。Windows 安装包和 macOS 磁盘映像包含首次启动所需的 Python 安装程序。已安装 Python 的创作者也可使用通用 Skill ZIP。
+本地源码与 Skill 版本为 **V3.18.0**。公开发行包版本见下载页。Windows 安装包和 macOS 磁盘映像包含首次启动所需的 Python 安装程序。已安装 Python 的创作者也可使用通用 Skill ZIP。
 
 [下载安装包与 Skill](https://github.com/shynloc/talking-head-studio/releases/latest)
 
@@ -13,6 +13,10 @@
 想先试效果，可以点首页「浏览动效词库」里的「本次新增」，或直接搜「修图前后」「长按」「调档」。点卡片选动作，在「看搭配」里改文字、换图并试看，满意后点「导出这组动画」。解压即可得到透明 MOV 和定格 PNG，试贴的背景图仅供预览。以后要改，在「用稿件做素材」里打开导出的 ZIP。
 
 打开「只做口播素材」，粘贴整篇稿件就会发起推荐。手动输入完稿后点「推荐配画面的原句」。助手通读全文，选出最多五句值得配图的原话，说明理由，并为每句配好可以播放的透明小样。你可以直接采用、换效果或跳过，再点「导出已采用的 N 款」。需要补配别的句子，展开「从全部原句手动挑」。
+
+### 切换素材来源
+
+在素材库或「只做口播素材」页面打开「素材来源」，可选择来自 VisionBuddy 网站的在线库，也可以下载或导入本地 ZIP。在线库在打开时检查新版。本地库安装后可离线使用，工作台定期从 GitHub 检查更新，显示新版本后可手动下载。采用的素材在导出清单中记录库版本。 [VisionBuddy 网站](https://videobuddy.acks.com.cn/) · [离线库下载](https://github.com/shynloc/acks-video-visionbuddy/releases)
 
 ### 在稿件里指定画面
 
@@ -292,6 +296,6 @@ Windows 与 Apple 芯片 macOS 可以用完整工程 ZIP 互相迁移，并从�
 
 ### 如何重新制作系统安装包？
 
-从已提交的发行源码运行 `python scripts/package_release.py --output dist`，再运行 `python packaging/build_installers.py windows --archive dist/talking-head-studio-v3.17.1.zip --out native`。Mac 构建时将平台参数改为 `macos`。构建器使用 Python 官方安装程序及固定 SHA-256。Mac 应用包含 Intel 和 Apple 芯片可执行文件。[Python 安装程序来源](https://www.python.org/downloads/release/python-31314/)
+从已提交的发行源码运行 `python scripts/package_release.py --output dist`，再运行 `python packaging/build_installers.py windows --archive dist/talking-head-studio-v3.18.0.zip --out native`。Mac 构建时将平台参数改为 `macos`。构建器使用 Python 官方安装程序及固定 SHA-256。Mac 应用包含 Intel 和 Apple 芯片可执行文件。[Python 安装程序来源](https://www.python.org/downloads/release/python-31314/)
 
 有 Developer ID 的发布者可在 Mac 钥匙串中配置签名身份和 notarytool 配置，构建时提供 `--identity` 与 `--notary-profile`。发布流程会分别签署应用和磁盘映像，等待 Apple 接受并附加公证票据。GitHub Actions 可通过仓库 Secrets 配置相同流程。[Apple 公证说明](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)

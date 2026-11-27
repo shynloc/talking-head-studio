@@ -1,0 +1,9 @@
+.library-source { width: min(1220px, 94%); margin: 10px auto; font: inherit; }
+.library-source summary { cursor: pointer; color: var(--blue, #2044c5); text-align: right; }
+.library-options { margin: 8px 0; border: 1px solid var(--line, #cfc6af); border-radius: 10px; padding: 10px 14px; background: var(--paper, #fff9ec); }
+.library-options p { margin: 0 0 6px; }
+.library-options p:empty { display: none; }
+.library-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.library-actions button { min-height: 36px; font: inherit; }
+.library-options a { color: var(--blue, #2044c5); }
+.library-options [role=status] { margin-top: 8px; }

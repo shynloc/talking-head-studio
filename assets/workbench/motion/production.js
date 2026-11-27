@@ -32,7 +32,7 @@ function openPicker(value, quote, title, apply, tab) {
   if (frame.contentWindow?.setVisualSelection) select()
   else {
     frame.onload = select
-    frame.src = 'visual/index.html?picker=1'
+    frame.src = libraryPath('visual/index.html?picker=1')
   }
   $('visual-dialog').showModal()
 }

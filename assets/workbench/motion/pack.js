@@ -3,6 +3,7 @@
 async function session() {
   token = (await jsonResponse(await fetch('/api/bootstrap', { cache: 'no-store' }))).token
 }
+window.beforeLibraryReload = save
 function reviewedCopy(item) {
   const copy = clone(item)
   delete copy.thumb
@@ -70,6 +71,7 @@ function parseItem(raw) {
       producer: raw.producer,
       productionTask: raw.productionTask,
       treatment: raw.treatment,
+      libraryRelease: raw.libraryRelease || '1.0.0',
       binding: raw.binding,
       ids: [],
       sample: raw.sample,
@@ -107,6 +109,8 @@ function parseItem(raw) {
   if (Array.isArray(raw.values) && raw.values.length === 2 && raw.values.every(Number.isFinite))
     item.values = raw.values.slice()
   item.visual = raw.visual || {}
+  item.libraryRelease = raw.libraryRelease || '1.0.0'
+  item.renderColors = raw.renderColors || null
   item.binding = raw.binding
   item.overlay = raw.overlay === true
   item.ids = raw.ids.slice()

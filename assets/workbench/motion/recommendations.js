@@ -104,6 +104,7 @@ function buildRows(plans, units, previous = []) {
     const before = previous.find((x) => x.item.offset === offset && x.item.quote === quote)
     const saved = state.items.find((x) => x.offset === offset && x.quote === quote && isActiveMaterial(x))
     const item = createItem({ quote, offset })
+    item.libraryRelease = plan.libraryRelease || item.libraryRelease
     for (const field of ['ids', 'title', 'seconds', 'a', 'b', 'labels', 'values', 'theme'])
       if (plan[field] !== undefined) item[field] = clone(plan[field])
     item.poster = Math.round((countFrames(item) - 1) * 0.55)
@@ -419,7 +420,7 @@ async function agentRequest(url, body) {
       method: body ? 'POST' : 'GET',
       cache: 'no-store',
       headers: { 'Content-Type': 'application/json', 'X-Studio-Token': token },
-      ...(body ? { body: JSON.stringify(body) } : {}),
+      ...(body ? { body: JSON.stringify({libraryRelease: window.STUDIO_LIBRARY.libraryRelease, ...body}) } : {}),
     })
   let response = await call()
   if (response.status === 403) {

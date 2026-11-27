@@ -3,6 +3,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /><title>
     通用动效词库 · 口播导演工作台</title
   ><link rel="stylesheet" href="gallery.css" />
+  <link rel="stylesheet" href="library-source.css" />
   <header>
     <a href="/" class="brand"><i aria-hidden="true">◧</i>口播导演工作台</a>
     <nav aria-label="工作区">
@@ -13,6 +14,22 @@
     </nav>
     <button id="refs" class="textbtn">词条出处 ↗</button>
   </header>
+  <details id="library-source" class="library-source">
+    <summary>素材来源</summary>
+    <div class="library-options">
+      <p data-library-version></p>
+      <div class="library-actions">
+        <button type="button" data-library-action="online">使用在线库／检查在线更新</button>
+        <button type="button" data-library-action="local">使用本地库</button>
+        <button type="button" data-library-action="update">下载或更新本地库</button>
+        <button type="button" data-library-import>导入离线 ZIP</button>
+        <input type="file" accept=".zip,application/zip" hidden>
+      </div>
+      <a data-vision-website target="_blank" rel="noopener noreferrer">打开 VisionBuddy 网站 ↗</a>
+      <p role="status"></p>
+    </div>
+  </details>
+
   <main>
     <section class="hero">
       <div class="headline">
@@ -181,5 +198,6 @@
     <div id="sources-list"></div>
   </dialog>
   <script src="../overlay-easing.js"></script>
+  <script src="library-source.js"></script>
   <script src="boot.js"></script>
 </html>

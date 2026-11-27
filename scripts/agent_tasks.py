@@ -13,6 +13,7 @@ from agent_hosts import AGENTS
 import motion_recommend as motion
 import motion_samples as samples
 import motion_treatments as treatments
+import vision_library as vision
 
 
 def text_value(value, label, limit):
@@ -38,13 +39,14 @@ def project_context(project, included=None):
 
 
 class AgentTasks:
-    def __init__(self, store, codex):
+    def __init__(self, store, codex, library=None):
         self.store = store
         self.root = store.root / 'agent-tasks'
         self.root.mkdir(exist_ok=True)
         self.lock = threading.RLock()
         self.pool = ThreadPoolExecutor(max_workers=1)
         self.codex = codex
+        self.library = library
         for path in self.root.glob('handoff_*.json'):
             task = json.loads(path.read_text(encoding='utf-8'))
             if task.get('status')=='rendering':
@@ -176,7 +178,9 @@ class AgentTasks:
             for path in self.root.glob("handoff_*.json"):
                 old = self._get(path.stem)
                 if old["project_id"] == workspace and old["request_id"] == request:
-                    if old["context_hash"] != digest(context) or old["agent"] != agent:
+                    old_context = dict(old.get("context") or {})
+                    old_context.setdefault("libraryRelease", vision.BUNDLED)
+                    if digest(old_context) != digest(context) or old["agent"] != agent:
                         raise Conflict("稿件或助手已变化，请重新推荐。")
                     return self._public(old)
             if agent == "service" and not service.config()["ready"]:
@@ -216,6 +220,7 @@ class AgentTasks:
         if route not in ("library", "imagegen", "html", "gif"):
             raise ValueError("请选择制作方式。")
         context = {
+            "libraryRelease": vision.current().version,
             "sentence": i,
             "quote": lines[i],
             "manuscript": data["text"],
@@ -237,7 +242,9 @@ class AgentTasks:
         with self.lock:
             if self._path(key).exists():
                 job = self._get(key)
-                if job.get("context_hash") != digest(context):
+                old_context = dict(job.get("context") or {})
+                old_context.setdefault("libraryRelease", vision.BUNDLED)
+                if digest(old_context) != digest(context):
                     raise Conflict("原句或风格已变化。")
                 return self._public(job)
             job = {
@@ -272,7 +279,8 @@ class AgentTasks:
     def _render_treatment(self,key):
         try:
             context=self._get(key)['context']
-            sample=treatments.render(self.store.root,context)
+            with vision.using(self.library_for(context)):
+                sample=treatments.render(self.store.root,context)
             update=dict(status='ready',sample=sample)
         except Exception as exc:
             update=dict(status='failed',error='这版未生成，请重选效果。'+str(exc)[:200])
@@ -284,6 +292,7 @@ class AgentTasks:
     def planned(self, task, rows):
         ctx = task["context"]
         for row in rows:
+            row["libraryRelease"] = ctx.get("libraryRelease", vision.BUNDLED)
             if row.get("route", "catalog") != "catalog":
                 job = self.production(
                     dict(
@@ -300,6 +309,13 @@ class AgentTasks:
                 if job.get("sample"):
                     row["sample"] = job["sample"]
         return rows
+
+    def library_for(self, context):
+        return self.library.for_version(context.get("libraryRelease")) if self.library else vision.current()
+
+    def motion_reply(self, task, result):
+        with vision.using(self.library_for(task["context"])):
+            return self.planned(task, motion.recommendations(task["context"], result))
 
     def check_delivery(self, key, agent, receipt):
         with self.lock:
@@ -329,7 +345,7 @@ class AgentTasks:
     def _model_motion(self, task_id, context, service):
         try:
             result = service.model_reply(motion.INSTRUCTION, json.dumps(context, ensure_ascii=False))
-            rows = self.planned(self._get(task_id),motion.recommendations(context, result))
+            rows = self.motion_reply(self._get(task_id), result)
             update = {"status": "ready", "result": result, "recommendations": rows}
         except Exception as exc:
             update = {"status": "failed", "error": str(exc)[:450]}
@@ -366,7 +382,7 @@ class AgentTasks:
             if task['status'] != 'claimed':
                 raise Conflict('这条待办已有结果。')
             if task.get('kind')=='motion':
-                task['recommendations']=self.planned(task,motion.recommendations(task['context'],result))
+                task['recommendations']=self.motion_reply(task, result)
             task.update(status='ready', result=result)
             self._save(task)
             return self._public(task)
@@ -381,7 +397,7 @@ class AgentTasks:
             if task['status'] == 'ready' or task['delivery'] == 'sending':
                 raise Conflict('待办已有结果或正在投递，请刷新后查看。')
             if task.get('kind')=='motion':
-                task['recommendations']=self.planned(task,motion.recommendations(task['context'],result))
+                task['recommendations']=self.motion_reply(task, result)
             task.pop('claim', None)
             task.update(status='ready', result=result, manual_result=True)
             self._save(task)

@@ -139,6 +139,7 @@ function createItem(line) {
   const states = text.match(/从(.{1,16}?)(?:变成|换成|切换到)(.{1,16}?)[。！？!?]?$/)
   return {
     id: key(),
+    libraryRelease: window.STUDIO_LIBRARY.libraryRelease,
     quote: text,
     offset: line.offset,
     title: (parts.find((s) => s.length > 2) || text).slice(0, 32),
@@ -164,7 +165,7 @@ function paint(canvas, item, f, imgs) {
     b: item.b,
     labels: item.labels,
     values: item.values,
-    colors: VISUAL.palettes.find(p => p.id === item.visual?.palettes)?.colors,
+    colors: item.renderColors || VISUAL.palettes.find(p => p.id === item.visual?.palettes)?.colors,
     overlay: item.overlay,
     ...imgs,
   })
@@ -184,7 +185,7 @@ async function loadImages(item) {
   const loaded = Object.fromEntries(pairs)
   if (item.overlay && !loaded.imageA) {
     const query = new URLSearchParams(item.visual)
-    loaded.imageA = await decode('/api/motion/library-preview?' + query)
+    loaded.imageA = await decode(libraryPath('/api/motion/library-preview?' + query, item.libraryRelease || '1.0.0'))
   }
   return loaded
 }
@@ -396,6 +397,7 @@ function putReviewed(d, poster, imgs) {
     }
   }
   d.poster = poster
+  d.renderColors = d.renderColors || clone(VISUAL.palettes.find(p => p.id === d.visual?.palettes)?.colors || null)
   d.changed = false
   updatePrompt(d)
   paint(c, d, poster, imgs)

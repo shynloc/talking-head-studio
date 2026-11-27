@@ -6,6 +6,8 @@ const names={styles:'网页风格',palettes:'配色',objects:'3D 物件',sticker
 const roles={surface:'局部底板',text:'正文与轮廓',object:'主体与结构',accent:'当前重点'}
 const defaults={styles:'field',palettes:'atelier',objects:'pot',stickers:''}
 const params = new URLSearchParams(location.search)
+const libraryRelease = document.querySelector('meta[name="library-release"]')?.content
+const versioned = path => libraryRelease ? path + (path.includes('?')?'&':'?') + 'library=' + encodeURIComponent(libraryRelease) : path
 const inline = params.get('inline') === '1'
 const storageKey = inline ? 'visual-recipes/gallery/' + (params.get('desk') || 'local') : 'visual-recipes/1'
 document.documentElement.classList.toggle('inline', inline)
@@ -13,7 +15,9 @@ const galleryDefaults={styles:'signalcard',palettes:'tidal',objects:'mic',sticke
 let selected={...(inline?galleryDefaults:defaults)},tab=inline?'objects':'styles', previewMode=inline?'overlay':'layout'
 try{const prior=JSON.parse(localStorage.getItem(storageKey));for(const k in selected)if(prior&&(catalog[k].some(t=>t.id===prior[k])||(!prior[k]&&['objects','stickers'].includes(k))))selected[k]=prior[k]||''}catch{}
 function tinted(e,color=selected.palettes){if(!e?.variants)return e
- const {variants,...meta}=e;return {...meta,files:variants[color],paletteId:color,variantId:e.assetId+"@"+catalog.palettes.find(p=>p.id===color).assetId}}
+ const {variants,...meta}=e
+ const files=Object.fromEntries(Object.entries(variants[color]).map(([key,path])=>[key,versioned(path)]))
+ return {...meta,files,paletteId:color,variantId:e.assetId+"@"+catalog.palettes.find(p=>p.id===color).assetId}}
 const item=k=>tinted(catalog[k].find(e=>e.id===selected[k]))
 function uiButton(label,action){const b=node('button',label);b.type='button';b.onclick=action;return b}
 function link(url,label,download=false){const a=node('a',label);a.href=url;if(download)a.download='';else{a.target='_blank';a.rel='noopener'}return a}
@@ -114,7 +118,7 @@ function showPreview(r){
  const query=new URLSearchParams({palettes:r.palette.assetId})
  if(r.object)query.set('objects',r.object.assetId)
  if(r.sticker)query.set('stickers',r.sticker.assetId)
- const src='/api/motion/library-preview?'+query
+ const src=versioned('/api/motion/library-preview?'+query)
  if(image.getAttribute('src')===src)return
  image.hidden=true;message.textContent='正在加载透明小样…'
  image.onload=()=>{image.hidden=false;message.textContent=''}

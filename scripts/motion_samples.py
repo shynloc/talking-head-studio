@@ -14,6 +14,7 @@ from functools import lru_cache
 
 from core import ROOT, write_json
 from runtime import refresh_installed_tools
+import vision_library as vision
 
 LIBRARY = ROOT / "assets/workbench/motion/visual"
 LIMIT = 192 * 1024**2
@@ -33,9 +34,13 @@ SOURCE_TYPES = {
 }
 
 
-@lru_cache(maxsize=1)
 def catalog():
-    return json.loads((LIBRARY / "catalog.json").read_text(encoding="utf8"))
+    return read_catalog(vision.data_path("visual/catalog.json"))
+
+
+@lru_cache(maxsize=12)
+def read_catalog(path):
+    return json.loads(path.read_text(encoding="utf8"))
 
 
 def resolve_entry(group, key):
@@ -77,7 +82,7 @@ def brief(raw):
             palette = resolve_entry("palettes", selected.get("palettes", "atelier"))
             result[kind]["variantId"] = entry["assetId"] + "@" + palette["assetId"]
             result[kind]["files"] = {
-                k: str(LIBRARY / v)
+                k: str(vision.data_path("visual/" + v))
                 for k, v in entry["variants"][
                     selected.get("palettes", "atelier")
                 ].items()

@@ -448,7 +448,7 @@
     $('#copy-to-script').disabled = open ? !visualAnnotation : !ids.length
     if (!open) return
     $('#nav-lib').setAttribute('aria-pressed','false')
-    if (!frame.hasAttribute('src')) frame.src = 'visual/index.html?inline=1' + (scoped ? '&desk=' + desk : '')
+    if (!frame.hasAttribute('src')) frame.src = libraryPath('visual/index.html?inline=1' + (scoped ? '&desk=' + desk : ''))
     go('#visual-library')
   }
   window.addEventListener('message', event => {
@@ -746,6 +746,7 @@
         })
       if (poster === undefined) throw Error('这一组还没有可见画面，请先加文字、图片或换一个效果。')
       const item = {
+        libraryRelease: window.STUDIO_LIBRARY.libraryRelease,
         id: crypto.randomUUID(),
         quote,
         standalone: !quote,

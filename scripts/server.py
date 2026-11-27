@@ -15,6 +15,7 @@ import v2_api
 import agent_api
 import motion_package
 import motion_samples
+import vision_library as vision
 import tempfile
 
 
@@ -44,6 +45,40 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self.valid_host():return self.respond(403,{'error':'仅允许本机访问'})
         url=urllib.parse.urlparse(self.path);path=url.path;query=urllib.parse.parse_qs(url.query)
+        try:
+            release = query.get('library', [None])[0]
+            with vision.using(self.server.library.for_version(release) if release else self.server.library.active()):
+                return self.get_path(path, query)
+        except (ValueError,KeyError,StopIteration,FileNotFoundError) as e:self.respond(404,{'error':str(e) or '文件不存在'})
+        except (BrokenPipeError,ConnectionResetError,ConnectionAbortedError):pass
+
+    def get_path(self, path, query):
+        if path == '/api/motion/library-source':
+            state = self.server.library.status()
+            if query.get('refresh') == ['1']:
+                try:
+                    state = self.server.library.use_online() if state['mode'] == 'online' else self.server.library.check_local()
+                except ValueError as error:
+                    state['warning'] = str(error)
+            return self.respond(200, state)
+        if path.startswith('/motion/'):
+            name = urllib.parse.unquote(path[len('/motion/'):])
+            if (name in vision.SCRIPTS or name == 'sample-pack.zip' or
+                name.startswith('visual/') and Path(name).suffix.lower() in ('.png','.glb','.svg','.webp')):
+                return self.send_file(vision.data_path(name))
+            if name == 'visual/index.html':
+                template = (motion_samples.LIBRARY / 'index.html').read_text(encoding='utf8')
+                data = json.dumps(motion_samples.catalog(), ensure_ascii=False).replace('<', r'\u003c')
+                start = '<script id="catalog" type="application/json">'
+                before, after = template.split(start, 1)
+                meta = '<meta name="library-release" content="' + vision.current().version + '">'
+                body = (before + meta + start + data + '</script>' + after.split('</script>', 1)[1]).encode()
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.send_header('Cache-Control', 'no-cache')
+                self.send_header('Content-Length', str(len(body)))
+                self.end_headers()
+                return self.wfile.write(body)
         try:
             if path == '/api/motion/library-preview':
                 chosen = {key: values[0] for key, values in query.items()}
@@ -118,6 +153,19 @@ class Handler(BaseHTTPRequestHandler):
 
     def handle_post(self):
         try:
+            if self.path == '/api/motion/library-install':
+                size = int(self.headers.get('Content-Length', 0))
+                if not 0 < size <= vision.MAX_PACK:
+                    raise ValueError('离线素材包大小不正确。')
+                with tempfile.TemporaryFile() as archive:
+                    while size:
+                        chunk = self.rfile.read(min(1024**2, size))
+                        if not chunk:
+                            raise ValueError('离线素材包传输中断。')
+                        archive.write(chunk)
+                        size -= len(chunk)
+                    archive.seek(0)
+                    return self.respond(200, self.server.library.install(archive))
             if self.path.startswith('/api/motion/deliver?') or self.path == '/api/motion/restore':
                 limit=motion_samples.LIMIT if 'deliver?' in self.path else motion_package.MAX_BYTES
                 size=int(self.headers.get('Content-Length',0))
@@ -139,16 +187,27 @@ class Handler(BaseHTTPRequestHandler):
                         return self.respond(200,self.server.agent_tasks.finish_delivery(*claim,sample))
                     return self.respond(200,motion_package.restore(root,bundle))
             if self.path == '/api/motion/export':
-                return self.respond(200, motion_package.export(self.server.store.root, self.rfile, int(self.headers.get('Content-Length', 0))))
+                return self.respond(200, motion_package.export(self.server.store.root, self.rfile, int(self.headers.get('Content-Length', 0)), self.server.library))
             if self.path.startswith('/api/upload?'):return self.upload()
             length=int(self.headers.get('Content-Length',0))
             if length>16*1024*1024:raise ValueError('请求过大')
             data=json.loads(self.rfile.read(length) or b'{}');store=self.server.store
+            if self.path == '/api/motion/library-source':
+                action = data.get('action')
+                if action == 'online':
+                    return self.respond(200, self.server.library.use_online())
+                if action == 'local':
+                    return self.respond(200, self.server.library.use_local())
+                if action == 'update':
+                    return self.respond(200, self.server.library.update_local())
+                raise ValueError('请选择在线素材库或本地素材库。')
             if self.path == '/api/motion/annotations':
                 from motion_recommend import annotation_review
-                return self.respond(200, annotation_review(store.root, data.get('text')))
+                with vision.using(self.ask_library(data)):
+                    return self.respond(200, annotation_review(store.root, data.get('text')))
             if self.path.startswith('/api/agents/'):
-                return self.respond(200, agent_api.post(self.server, self.path, data))
+                with vision.using(self.ask_library(data)):
+                    return self.respond(200, agent_api.post(self.server, self.path, data))
             if self.path == '/api/shutdown':
                 return self.shutdown_instance(data)
             if self.path.startswith('/api/v2/'):return self.respond(200,v2_api.post(self.server,self.path,data))
@@ -167,6 +226,9 @@ class Handler(BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):return
         except Conflict as e:self.respond(409,{'error':str(e)})
         except Exception as e:self.respond(400,{'error':str(e)})
+
+    def ask_library(self, data):
+        return self.server.library.for_version(data['libraryRelease']) if data.get('libraryRelease') else self.server.library.active()
 
     def shutdown_instance(self, data):
         server = self.server
@@ -244,7 +306,8 @@ def serve(data, port, open_page):
         server.token = secrets.token_urlsafe(32)
         server.instance_id = secrets.token_urlsafe(16)
         server.manuscripts = Manuscripts(store)
-        server.agent_tasks = AgentTasks(store, CodexHandoff())
+        server.library = vision.LibrarySources(store.root)
+        server.agent_tasks = AgentTasks(store, CodexHandoff(), server.library)
         server.speech = LiveSpeech(store.root)
         server.lifecycle = threading.Lock()
         server.stopping = False

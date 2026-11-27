@@ -9,15 +9,18 @@ import tempfile
 import zipfile
 
 import motion_samples as samples
+import vision_library as vision
 
 
-@lru_cache(maxsize=1)
 def catalog():
+    return read_catalog(vision.data_path("visual/treatments.json"))
+
+
+@lru_cache(maxsize=12)
+def read_catalog(path):
     return {
         row["id"]: row
-        for row in json.loads(
-            (samples.LIBRARY / "treatments.json").read_text(encoding="utf8")
-        )
+        for row in json.loads(path.read_text(encoding="utf8"))
     }
 
 

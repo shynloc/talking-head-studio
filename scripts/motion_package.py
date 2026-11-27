@@ -13,6 +13,7 @@ from runtime import refresh_installed_tools
 import motion_samples as samples
 import motion_recommend
 import motion_treatments
+import vision_library as vision
 
 FPS = 25
 SIZE = (960, 360)
@@ -109,13 +110,12 @@ def encode(packet, item, folder, archive, stem):
     archive.write(movie, '透明动画/' + stem + '.mov')
 
 
-def export(data, stream, size):
+def export(data, stream, size, sources=None):
     packet = Packet(stream, size)
     manifest = json.loads(packet.block(MAX_HEADER))
     items = validate(manifest)
     if any("sample" not in x for x in items) and not status()["ready"]:
         raise ValueError("导出动效需要 FFmpeg。")
-    effects = {term["id"]: term["assetId"] for term in motion_recommend.catalog()["terms"]}
     pack_id = uuid.uuid4().hex
     dest = download(data, pack_id)
     dest.parent.parent.mkdir(parents=True, exist_ok=True)
@@ -127,63 +127,67 @@ def export(data, stream, size):
             partial, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=2
         ) as archive:
             for index, item in enumerate(items, 1):
-                name = (
-                    re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", item["title"])[:28].strip(" .")
-                    or "口播素材"
-                )
-                stem = f"{index:02d}-{name}"
-                if item.get("sample"):
-                    key = item["sample"]["id"]
-                    item["sample"] = samples.metadata(data, key)
-                    home = samples.folder(data, key)
-                    image = item["sample"]["kind"] == "image"
-                    filename = "media.png" if image else "media.mov"
-                    relative = (
-                        ("透明图片/" if image else "透明动画/")
-                        + stem
-                        + (".png" if image else ".mov")
+                release = sources.for_version(item.get("libraryRelease")) if sources else vision.current()
+                with vision.using(release):
+                    item["libraryRelease"] = release.version
+                    effects = {term["id"]: term["assetId"] for term in motion_recommend.catalog()["terms"]}
+                    name = (
+                        re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", item["title"])[:28].strip(" .")
+                        or "口播素材"
                     )
-                    archive.write(home / filename, relative)
-                    item["packageMedia"] = relative
-                    item["packageSources"] = {}
-                    for source in sorted((home / "sources").rglob("*")):
-                        if source.is_file():
-                            name = source.relative_to(home / "sources").as_posix()
-                            target = "可编辑源件/" + stem + "/" + name
-                            archive.write(source, target)
-                            item["packageSources"][name] = target
-                else:
-                    encode(packet, item, folder, archive, stem)
-                    if item.get("overlay"):
-                        item["packageSources"] = samples.library_sources(
-                            archive, samples.brief(item.get("visual")), "可编辑源件/" + stem + "/"
+                    stem = f"{index:02d}-{name}"
+                    if item.get("sample"):
+                        key = item["sample"]["id"]
+                        item["sample"] = samples.metadata(data, key)
+                        home = samples.folder(data, key)
+                        image = item["sample"]["kind"] == "image"
+                        filename = "media.png" if image else "media.mov"
+                        relative = (
+                            ("透明图片/" if image else "透明动画/")
+                            + stem
+                            + (".png" if image else ".mov")
                         )
-                refs = {k: v["assetId"] for k, v in samples.brief(item.get("visual")).items()}
-                source_ids = home / "sources" / "asset-ids.json" if item.get("sample") else None
-                if source_ids and source_ids.is_file():
-                    # Other producers can supply their own source files with the same name.
-                    try:
-                        origin = samples.selection(json.loads(source_ids.read_text(encoding="utf8")))
-                    except (ValueError, UnicodeError):
-                        origin = {}
-                    refs.update({k: v["assetId"] for k, v in samples.brief(origin).items()})
-                if item.get("ids"):
-                    refs["effects"] = [effects[k] for k in item["ids"] if k in effects]
-                if item.get("treatment"):
-                    refs["treatment"] = motion_treatments.resolve(item["treatment"])["assetId"]
-                item["assetRefs"] = refs
-                if refs.get("objects") or refs.get("stickers"):
-                    palette = refs.get("palettes") or samples.resolve_entry("palettes", "atelier")["assetId"]
-                    item["variantIds"] = {k: refs[k] + "@" + palette for k in ("objects", "stickers") if k in refs}
-                duration = (
-                    "静态图片"
-                    if item.get("sample", {}).get("kind") == "image"
-                    else f"{item['seconds']} 秒"
-                )
-                lines.append(f"{stem}（{duration}）\n{item['quote'] or '自由搭配，可放在需要的位置。'}\n")
-                binding = item.get("binding")
-                if isinstance(binding, dict) and isinstance(binding.get("cue"), str) and binding["cue"]:
-                    lines[-1] += f"说到「{binding['cue']}」时出现\n"
+                        archive.write(home / filename, relative)
+                        item["packageMedia"] = relative
+                        item["packageSources"] = {}
+                        for source in sorted((home / "sources").rglob("*")):
+                            if source.is_file():
+                                name = source.relative_to(home / "sources").as_posix()
+                                target = "可编辑源件/" + stem + "/" + name
+                                archive.write(source, target)
+                                item["packageSources"][name] = target
+                    else:
+                        encode(packet, item, folder, archive, stem)
+                        if item.get("overlay"):
+                            item["packageSources"] = samples.library_sources(
+                                archive, samples.brief(item.get("visual")), "可编辑源件/" + stem + "/"
+                            )
+                    refs = {k: v["assetId"] for k, v in samples.brief(item.get("visual")).items()}
+                    source_ids = home / "sources" / "asset-ids.json" if item.get("sample") else None
+                    if source_ids and source_ids.is_file():
+                        # Other producers can supply their own source files with the same name.
+                        try:
+                            origin = samples.selection(json.loads(source_ids.read_text(encoding="utf8")))
+                        except (ValueError, UnicodeError):
+                            origin = {}
+                        refs.update({k: v["assetId"] for k, v in samples.brief(origin).items()})
+                    if item.get("ids"):
+                        refs["effects"] = [effects[k] for k in item["ids"] if k in effects]
+                    if item.get("treatment"):
+                        refs["treatment"] = motion_treatments.resolve(item["treatment"])["assetId"]
+                    item["assetRefs"] = refs
+                    if refs.get("objects") or refs.get("stickers"):
+                        palette = refs.get("palettes") or samples.resolve_entry("palettes", "atelier")["assetId"]
+                        item["variantIds"] = {k: refs[k] + "@" + palette for k in ("objects", "stickers") if k in refs}
+                    duration = (
+                        "静态图片"
+                        if item.get("sample", {}).get("kind") == "image"
+                        else f"{item['seconds']} 秒"
+                    )
+                    lines.append(f"{stem}（{duration}）\n{item['quote'] or '自由搭配，可放在需要的位置。'}\n")
+                    binding = item.get("binding")
+                    if isinstance(binding, dict) and isinstance(binding.get("cue"), str) and binding["cue"]:
+                        lines[-1] += f"说到「{binding['cue']}」时出现\n"
             if packet.remaining:
                 raise ValueError("收到的帧数与搭配不一致，请重试。")
             archive.writestr("原句对照.txt", "\n".join(lines))

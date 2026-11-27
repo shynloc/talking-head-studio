@@ -6,7 +6,7 @@ import hashlib
 from playwright.sync_api import expect
 
 
-def correct_recording(page,state,out,mode):
+def correct_recording(page,state,out,mode,check_resume=False):
     spans=state['caption_spans']
     assert len(spans)>=3 and state['caption_review']['issues']
     assert all(s['text'].strip()!='是' or s['end']-s['start']<1.3 for s in spans)
@@ -18,6 +18,26 @@ def correct_recording(page,state,out,mode):
     page.locator('#caption-desk-open').click()
     audio=page.locator('#caption-audio')
     page.wait_for_function("document.querySelector('#caption-audio')?.currentTime>0")
+    if check_resume:
+        middle=len(spans)//2
+        chosen=spans[middle]['id']
+        page.locator('#caption-jump').select_option(str(middle))
+        expect(page.locator('#preview-text')).to_have_attribute('data-caption-id',chosen)
+        page.reload()
+        expect(page.locator('#preview-text')).to_have_attribute('data-caption-id',chosen)
+        page.locator('#close-dialog').click()
+        if mode=='ready':
+            pid=page.evaluate('P.id')
+            page.locator('#new-project').click()
+            page.wait_for_function('prior=>P.id!==prior',arg=pid)
+            page.locator('#projects').select_option(pid)
+            page.wait_for_function('prior=>P.id===prior',arg=pid)
+            page.locator('[data-workflow=caption-desk]').click()
+            expect(page.locator('#preview-text')).to_have_attribute('data-caption-id',chosen)
+            page.locator('#close-dialog').click()
+        page.locator('[data-v2=home]').click()
+        page.locator('.resume-project').get_by_role('button',name='继续校字幕').click()
+        expect(page.locator('#preview-text')).to_have_attribute('data-caption-id',chosen)
     page.locator('#caption-next').click()
     changed=[]
     for i in (0,len(spans)//2,len(spans)-1):

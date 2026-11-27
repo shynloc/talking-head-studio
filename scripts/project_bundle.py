@@ -1,7 +1,7 @@
 """Portable ZIP format and compatibility reader for the original project ZIP."""
 
-import materials
 import copy
+import hashlib
 import json
 import re
 import shutil
@@ -9,12 +9,15 @@ import tempfile
 import zipfile
 from pathlib import Path, PurePosixPath
 
-from core import Store, source, uid
+import agent_portable
+import materials
+from core import Conflict, LOCK, Store, edl_digest, file_digest, rough_current, source, uid
 
 
 FORMAT = 'talking-head-studio'
-VERSION = 1
+VERSION = 2
 METADATA_LIMIT = 64 * 1024**2
+CHUNK = 1024**2
 
 
 def _clear_previews(project):
@@ -28,7 +31,17 @@ def _link(item, path=''):
     item['external'] = not path
 
 
-def _write_media(archive, item, destination, copied, label):
+def _copy_digest(stream, out):
+    digest = hashlib.sha256()
+    size = 0
+    while block := stream.read(CHUNK):
+        out.write(block)
+        digest.update(block)
+        size += len(block)
+    return {'size': size, 'sha256': digest.hexdigest()}
+
+
+def _write_media(archive, item, destination, copied, files, label):
     path = Path(item.get('path') or '.')
     if not path.is_file():
         raise ValueError(f'{label}文件不存在，请先重新关联或重新生成。')
@@ -36,15 +49,20 @@ def _write_media(archive, item, destination, copied, label):
     if identity not in copied:
         suffix = path.suffix.lower()
         suffix = suffix if re.fullmatch(r'\.[a-z0-9]{1,12}', suffix) else '.bin'
-        copied[identity] = destination + suffix
-        archive.write(path, copied[identity], compress_type=zipfile.ZIP_STORED)
-    _link(item, copied[identity])
+        name = copied[identity] = destination + suffix
+        entry = zipfile.ZipInfo.from_file(path, name)
+        with path.open('rb') as stream, archive.open(entry, 'w', force_zip64=True) as out:
+            files[name] = _copy_digest(stream, out)
+    name = copied[identity]
+    _link(item, name)
+    return files[name]['sha256']
 
 
-def export_bundle(store, project, report, include_source=False):
+def export_bundle(store, project, report, include_source=False, include_tasks=False):
     snapshot = copy.deepcopy(project)
     snapshot["assets"] = [materials.portable(item) for item in snapshot["assets"]]
     _clear_previews(snapshot)
+    snapshot.pop('migration', None)
     primary = source(snapshot)
     with_source = bool(primary and include_source)
     rough = snapshot.get('rough')
@@ -52,20 +70,30 @@ def export_bundle(store, project, report, include_source=False):
     out = store.folder(project['id']) / 'exports' / f"studio-project-{project['version']}{suffix}.zip"
     out.parent.mkdir(exist_ok=True)
     report(.1, '打包工程、素材与原片' if with_source else '打包工程与素材')
-    copied = {}
+    copied, checksums = {}, {}
+    reviewed = bool(rough_current(project) and project['approvals'].get('rough'))
+    if not reviewed and primary and not primary.get('path'):
+        reviewed = bool(project.get('migration', {}).get('rough_reviewed'))
     with tempfile.TemporaryDirectory(dir=out.parent) as tmp:
         staged = Path(tmp) / 'project.zip'
         with zipfile.ZipFile(staged, 'w', zipfile.ZIP_DEFLATED) as archive:
             for i, asset in enumerate(snapshot['assets']):
-                _write_media(archive, asset, f'assets/{i:04d}', copied, asset['name'])
+                _write_media(archive, asset, f'assets/{i:04d}', copied, checksums, asset['name'])
             if primary:
+                expected = primary.get('sha256')
                 if with_source:
-                    _write_media(archive, primary, 'media/source', copied, '原片')
+                    fingerprint = _write_media(archive, primary, 'media/source', copied, checksums, '原片')
                 else:
+                    original = Path(primary.get('path') or '.')
+                    fingerprint = file_digest(original) if original.is_file() else expected
                     _link(primary)
+                if expected and expected != fingerprint:
+                    raise ValueError('原片内容已变化，请重新关联原片后再打包。')
+                if fingerprint:
+                    primary['sha256'] = fingerprint
             if rough:
                 if with_source:
-                    _write_media(archive, rough, 'media/rough', copied, '粗剪')
+                    _write_media(archive, rough, 'media/rough', copied, checksums, '粗剪')
                 else:
                     _link(rough)
 
@@ -79,8 +107,16 @@ def export_bundle(store, project, report, include_source=False):
                     _link(item, packed_path)
                     media.append(item)
             snapshot['media'] = media
+            task_snapshot = agent_portable.export_tasks(store, project['id']) if include_tasks else None
+            if task_snapshot is not None:
+                task_data = json.dumps(task_snapshot, ensure_ascii=False).encode('utf-8')
+                if len(task_data) > METADATA_LIMIT:
+                    raise ValueError('随包待办资料过大，请先导出工程文件。')
+                archive.writestr('agent-tasks.json', task_data)
             archive.writestr('bundle.json', json.dumps({
                 'format': FORMAT, 'version': VERSION, 'source_included': with_source,
+                'files': checksums, 'rough_reviewed': reviewed,
+                'agent_tasks': task_snapshot is not None,
             }))
             archive.writestr('project.json', json.dumps(snapshot, ensure_ascii=False, indent=2))
             readme = '工程含稿件、字幕、轨道与素材。'
@@ -135,10 +171,14 @@ def _path_ids(project):
 
 
 def import_bundle(store, path):
-    with zipfile.ZipFile(path) as archive:
+    try:
+        package = zipfile.ZipFile(path)
+    except zipfile.BadZipFile as error:
+        raise ValueError('工程 ZIP 不完整或已损坏，请重新获取文件。') from error
+    with package as archive:
         files = _members(archive)
         manifest = _read_metadata(archive, files, 'bundle.json') if 'bundle.json' in files else None
-        if manifest is not None and (manifest.get('format'), manifest.get('version')) != (FORMAT, VERSION):
+        if manifest is not None and (manifest.get('format') != FORMAT or manifest.get('version') not in (1, VERSION)):
             raise ValueError('不支持的工程包格式。')
         project = _read_metadata(archive, files, 'project.json')
         if project.get('schema_version') not in (1, 2):
@@ -147,6 +187,9 @@ def import_bundle(store, path):
         old_id = project['id']
         project.update(id=uid('project'), version=0)
         _clear_previews(project)
+        project.pop('example', None)
+        reviewed = bool(manifest and manifest.get('version') == VERSION and manifest.get('rough_reviewed') is True)
+        project['migration'] = {'rough_reviewed': reviewed, 'edl_hash': edl_digest(project.get('edl', []))}
         folder = store.folder(project['id'])
         needed = {}
 
@@ -170,8 +213,39 @@ def import_bundle(store, path):
             else:
                 _link(project['rough'])
 
+        primary = source(project)
+        hashes = None
+        task_snapshot = None
+        if manifest and manifest.get('version') == VERSION:
+            hashes = manifest.get('files')
+            if not isinstance(hashes, dict) or set(hashes) != set(needed):
+                raise ValueError('工程包的媒体清单与实际引用不一致。')
+            for name, info in needed.items():
+                record = hashes[name]
+                if (not isinstance(record, dict) or record.get('size') != info.file_size
+                        or not re.fullmatch('[0-9a-f]{64}', str(record.get('sha256', '')))):
+                    raise ValueError('工程包的媒体校验信息有误。')
+            if primary:
+                fingerprint = primary.get('sha256')
+                if fingerprint and not re.fullmatch('[0-9a-f]{64}', str(fingerprint)):
+                    raise ValueError('工程包的原片校验信息有误。')
+                if primary.get('path') and (not fingerprint or not any(
+                        Path(primary['path']) == folder / name and record['sha256'] == fingerprint
+                        for name, record in hashes.items())):
+                    raise ValueError('工程包的原片校验信息与媒体清单不一致。')
+            if manifest.get('agent_tasks') is True:
+                task_snapshot = _read_metadata(archive, files, 'agent-tasks.json')
+        elif primary:
+            primary.pop('sha256', None)
+
+        if reviewed and primary and primary.get('path') and (project.get('rough') or {}).get('path') and rough_current(project):
+            project['approvals']['rough'] = {'kind': 'migrated'}
+
         if sum(info.file_size for info in needed.values()) > shutil.disk_usage(store.root).free:
             raise ValueError('剩余磁盘空间不足，无法解包工程。')
+        from timeline import validate
+        validate(project)
+        task_count = 0
         with tempfile.TemporaryDirectory(prefix='.import-', dir=store.root) as tmp:
             staging_store = Store(tmp)
             staging = staging_store.folder(project['id'])
@@ -179,7 +253,60 @@ def import_bundle(store, path):
                 dest = staging / name
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 with archive.open(info) as stream, dest.open('wb') as out:
-                    shutil.copyfileobj(stream, out, length=1024**2)
+                    if hashes is None:
+                        shutil.copyfileobj(stream, out, length=CHUNK)
+                    elif _copy_digest(stream, out) != hashes[name]:
+                        raise ValueError(f'工程包中的媒体校验失败：{name}')
+            if task_snapshot is not None:
+                task_count = agent_portable.import_tasks(task_snapshot, project, staging)
             staging_store.save(project, label='导入工程')
             staging.replace(folder)
-    return {'project_id': project['id'], 'original_id': old_id}
+    return {'project_id': project['id'], 'original_id': old_id, 'agent_tasks': task_count}
+
+
+def relink_recording(store, pid, path, report):
+    import media
+
+    project = store.load(pid)
+    original = source(project)
+    if not original:
+        raise ValueError('工程尚无原片，请先导入。')
+    path = Path(path).resolve()
+    if not path.is_file():
+        raise ValueError('找不到所选文件。')
+    fingerprint = original.get('sha256')
+    if fingerprint:
+        report(.08, '核对原片内容')
+        if file_digest(path) != fingerprint:
+            raise ValueError('这不是工程包中的原片。请选择打包时使用的文件。')
+    meta = media.probe(path)
+    if (abs(meta['duration'] - original['duration']) > .08
+            or (meta['width'], meta['height']) != (original['width'], original['height'])):
+        raise ValueError('新文件的时长或画幅与原片不符，请选择原片。')
+
+    with LOCK:
+        project = store.load(pid)
+        if source(project) != original:
+            raise Conflict('原片已变化，请重新选择。')
+        source(project).update(path=str(path), name=path.name, external=False)
+        rough = project.get('rough')
+        relinking_migration = bool(project.get('migration') and not original.get('path'))
+        restore_rough = relinking_migration and rough_current(project)
+        if rough:
+            if rough['media_id'] == original['id']:
+                rough['path'] = str(path)
+            elif not Path(rough.get('path') or '.').is_file():
+                project['previous_rough'], project['rough'] = rough, None
+        project['approvals'] = {}
+        store.save(project, label='重新关联原片，保留稿件和剪点')
+    if restore_rough and not project.get('rough'):
+        media.render_rough(store, pid, report)
+    if restore_rough and fingerprint and project['migration']['rough_reviewed']:
+        with LOCK:
+            latest = store.load(pid)
+            if (source(latest)['path'] == str(path) and latest['edl'] == project['edl']
+                    and rough_current(latest)):
+                latest['approvals']['rough'] = {'kind': 'migrated'}
+                store.save(latest, label='恢复已确认的剪点')
+    latest = store.load(pid)
+    return {'ok': True, 'next_stage': 3 if relinking_migration and rough_current(latest) else 2}

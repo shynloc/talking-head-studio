@@ -29,26 +29,25 @@ async function importRecordingFiles(files, fresh, use_as) {
     const path = await uploadRecordingFile(pid, recordings[0]);
     const subtitle_path = subtitles.length ? await uploadRecordingFile(pid, subtitles[0]) : undefined;
     if (P?.id !== pid || homeMode) return;
-    await importRecording({path, subtitle_path, use_as});
+    await startFirstPreview({entry:'import', path, subtitle_path, use_as});
   } finally { if (button) button.disabled = false; }
-}
-
-function importRecording(args) {
-  return (['raw','captions'].includes(args.use_as) || !doctorInfo.tools.ffmpeg || !doctorInfo.tools.ffprobe) ? startFirstPreview({entry:'import', ...args}) : act('import_media',args);
 }
 
 async function startFirstPreview(args) {
   const pid = P.id;
   const previousSource = P.source_id;
   const job = await act('first_preview', args, pid);
-  localStorage.setItem('studio-preview-task-'+pid, JSON.stringify({id:job.id,entry:args.entry,previousSource}));
+  localStorage.setItem('studio-preview-task-'+pid, JSON.stringify({
+    id:job.id, entry:args.entry, previousSource, sourceId:args.source_id, useAs:args.use_as,
+  }));
 }
 
 async function presentFirstPreview(pid, list) {
   const key = 'studio-preview-task-'+pid;
   const saved = localStorage.getItem(key);
   if (!saved) return;
-  const pending = JSON.parse(saved);
+  const pending = readReviewRecord(key);
+  if (!pending) return;
   const job = list.find(item=>item.id===pending.id);
   const available = ()=>P?.id===pid && !homeMode && !dirty && !saving && !$('#dialog').open && !busy;
   if (!job || !available() || openingPreview.has(pid) || ['queued','running'].includes(job.status)) return;
@@ -62,7 +61,7 @@ async function presentFirstPreview(pid, list) {
     if (result.source_id && result.source_id !== P.source_id) return;
     if (job.status!=='done' && pending.entry==='import' && P.source_id===pending.previousSource) {
       goToWorkflowStage(2);
-      mediaDialog();
+      mediaDialog(false,pending.useAs);
       const message=document.createElement('p');
       message.setAttribute('role','alert');
       message.textContent=job.error || job.message;
@@ -79,11 +78,25 @@ async function presentFirstPreview(pid, list) {
     if (result.next==='recording') { goToWorkflowStage(2); return; }
     if (job.status!=='done' && (!P.approvals.rough || !P.rough)) {
       goToWorkflowStage(2);
-      toast(job.error || job.message,true);
+      const retryCuts = pending.sourceId===P.source_id &&
+        ['keep','find_cuts','use_cuts'].includes(pending.entry);
+      if (!retryCuts) return toast(job.error || job.message,true);
+      openDialog('整理视频还没完成',`<p role="alert">${esc(job.error || job.message)}</p>
+        <div class="action-row"><button class="key" id="guided-cut-retry">重试这一步</button>
+        <button class="ghost" id="guided-cut-back">返回整理视频</button></div>`);
+      $('#guided-cut-back').onclick=closeDialog;
+      $('#guided-cut-retry').onclick=()=>{
+        if (pending.entry==='use_cuts') {
+          if (reviewableCuts(P.edl).length) return openCutReview();
+          closeDialog();
+          return;
+        }
+        startFirstPreview({entry:pending.entry, source_id:P.source_id}).catch(e=>toast(e.message,true));
+      };
       return;
     }
     goToWorkflowStage(3,'captions');
-    if (result.next==='review') { await openFinishReview(undefined,null,true); return; }
+    if (result.next==='review') { await openFinishReview({replay:true}); return; }
     const setup = result.next==='setup';
     const title = setup ? '准备本机自动字幕' : result.next==='subtitles' ? '选择字幕来源' : '字幕预览还没完成';
     const message = setup ? [result.install ? '需要安装本地语音识别组件。' : '',

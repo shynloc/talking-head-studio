@@ -96,11 +96,11 @@ def validate_output(p):
             raise ValueError('剪辑清单已变化，请重新校准录制')
     return tl
 
-def calibrate(p):
+def calibrate(p, preserve_captions=False):
     from core import uid, time_map, build_captions, edl_digest
     tl=sync(p)
     p.setdefault('timeline_before_alignment',copy.deepcopy(tl))
-    if p.get('transcript'):p['captions']=build_captions(p)
+    if p.get('transcript') and not preserve_captions:p['captions']=build_captions(p)
     mapping=time_map(p['edl'])
     previous=[c for c in tl['clips'] if c['track']=='main']
     recordings=[c for c in previous if c.get('source_id') and not c.get('asset_id')]

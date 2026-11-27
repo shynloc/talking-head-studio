@@ -46,10 +46,13 @@ function openCutReview() {
   const dialog = $('#dialog');
   const video = $('#cut-video');
   const pid = P.id, sourceId = P.source_id;
-  let index = 0, ranges = [], range = 0, mode = 'sequence';
+  const savedIndex = points.indexOf(reviewPosition(P,'cuts')?.id);
+  let index = Math.max(0,savedIndex), ranges = [], range = 0, mode = 'sequence';
   let frame = 0, pass = 0, finished = false;
   const current = () => P.edl.find(row => row.id === points[index]);
   const active = () => dialog.open && video.isConnected && P?.id === pid && P.source_id === sourceId;
+  localStorage.setItem(openReviewKey(pid),'cuts');
+  saveReviewPosition(P,'cuts',points[index]);
   function labels() {
     if (!active()) return;
     const row = current();
@@ -73,16 +76,17 @@ function openCutReview() {
       labels();
     });
   }
-  function start(nextMode = 'sequence') {
+  function start(nextMode = 'sequence', autoplay = true) {
     if (!active() || !current()) return;
     pass++;
     mode = nextMode;
     ranges = cutPreviewRanges(P.edl, mode==='full'?null:current(), mode==='original');
     range = 0;
     finished = false;
+    saveReviewPosition(P,'cuts',points[index]);
     if (ranges.length) {
       video.currentTime = ranges[0][0];
-      play();
+      if (autoplay) play();
     } else {
       video.pause();
       finished = true;
@@ -121,6 +125,7 @@ function openCutReview() {
   $('#cut-next').onclick = () => { if (index<points.length-1) { index++; start(); } };
   $('#cut-play').onclick = () => {
     if (finished) { if (mode==='sequence') index=0; start(mode); }
+    else if (!ranges.length) start(mode);
     else if (video.paused) play();
     else video.pause();
   };
@@ -152,7 +157,7 @@ function openCutReview() {
     if (P?.id === pid && stage===2 && !homeMode) render();
   }, {once:true});
   video.src = fileURL(P.proxy_id || sourceId);
-  video.onloadedmetadata = () => { if (!ranges.length && active()) start(); };
+  video.onloadedmetadata = () => { if (!ranges.length && active()) start('sequence',savedIndex<0); };
   labels();
   frame = requestAnimationFrame(tick);
 }

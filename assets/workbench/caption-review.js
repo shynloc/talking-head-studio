@@ -15,7 +15,9 @@ function openCaptionDesk(review,state,initialId) {
   let draft=null;
   try{draft=JSON.parse(localStorage.getItem(draftKey));}catch{}
   if(draft?.layout!==audit.layout)draft=null;
-  const first=draft?.id || initialId || spans.find(s=>audit.issues[s.id])?.id || audit.pending[0];
+  const position=reviewPosition(P,'captions');
+  const savedId=position?.layout===audit.layout ? position.id : null;
+  const first=draft?.id || initialId || savedId || spans.find(s=>audit.issues[s.id])?.id || audit.pending[0];
   let index=Math.max(0,spans.findIndex(s=>s.id===first));
   let queue=Promise.resolve(), timer, alarm, original, playing=false, manual=false;
   $('#finish-panel video')?.pause();
@@ -35,7 +37,7 @@ function openCaptionDesk(review,state,initialId) {
     <button class="ghost" id="caption-auto-bulk" hidden></button>
     <button class="ghost" id="caption-undo" hidden>撤销上一次批量修改</button>
     <div class="action-row"><button class="key" id="caption-proof"></button></div>
-    <p id="caption-warning" role="alert"></p></fieldset>`))return;
+    <p id="caption-warning" role="alert"></p></fieldset>`,'captions'))return;
   const desk=$('.caption-desk'), field=$('#preview-text'), audio=$('#caption-audio');
   const jump=$('#caption-jump'), status=$('#caption-save-state'), warning=$('#caption-warning');
   const active=()=>desk.isConnected && finishPanelActive(review);
@@ -86,6 +88,7 @@ function openCaptionDesk(review,state,initialId) {
   }
   function show(){
     const row=cap();original=row.text;field.dataset.captionId=row.id;field.value=row.text;manual=false;
+    saveReviewPosition(P,'captions',row.id,audit.layout);
     status.textContent='';warning.textContent='';$('#caption-names').open=false;
     $('#caption-old').value='';$('#caption-new').value='';
     $('#caption-reason').textContent=audit.issues[row.id]||'可以边听边改，文字会自动保存。';
@@ -187,7 +190,8 @@ function openCaptionDesk(review,state,initialId) {
     else warning.textContent='这句在其他窗口改过。上次没保存的文字是「'+draft.text+'」。';
   }
   $('#caption-listen').disabled=!source()?.audio;
-  if(source()?.audio)listen().catch(e=>{if(active())warning.textContent=e.message;});
+  if(source()?.audio&&!review.restored)listen().catch(e=>{if(active())warning.textContent=e.message;});
+  review.restored=false;
 }
 
 function bindCorrectionPlayback(review,state,video) {

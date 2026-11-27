@@ -75,6 +75,9 @@ body:not(.dashboard-mode) #timeline { position:relative; inset:auto; margin:16px
 .workflow-actions {flex-direction:row;align-items:center;flex-wrap:wrap;}
 .resume-project {display:flex;gap:16px;align-items:center;justify-content:space-between;background:#fff7eb;border:1px solid #ddc2a0;padding:14px 18px;border-radius:16px;}
 .resume-project p {margin:.25em 0 0;}
+.resume-project strong {overflow-wrap:anywhere;}
+.resume-actions {flex-shrink:0;}
+@media(max-width:420px){.resume-actions {flex-shrink:1;}}
 .text-action {display:inline-block;margin:.6em 0;color:#002fa7;background:transparent;border:0;text-decoration:underline;text-underline-offset:3px;}
 .import-text {width:100%;min-height:110px;margin:.5rem 0;}
 .import-actions,.caption-line {display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
@@ -107,6 +110,13 @@ input::placeholder,textarea::placeholder {color:#705c47;opacity:1;}
 #preview-edit-tools {margin:10px 0}
 #finish-panel [hidden],#note-options[hidden],#note-media[hidden],#dialog button[hidden]{display:none}
 
+.recording-choices { min-width:0; margin:0; padding:0; border:0; display:grid; gap:8px; }
+.recording-choices legend { margin-bottom:8px; padding:0; font-weight:600; }
+.recording-choices label { display:flex; align-items:center; gap:12px; margin:0; padding:9px 12px; cursor:pointer;
+  border:1px solid #bd9f80; border-radius:10px; background:#fffbf3; color:#443a2e; font-size:14px; }
+.recording-choices label:has(input:checked) { border-color:var(--klein); background:#f0f3ff; }
+#dialog .recording-choices input { flex:none; width:16px; height:16px; margin:0; padding:0; accent-color:var(--klein); }
+.recording-choices small { display:block; color:#624a35; font-size:12px; }
 .recording-drop { margin: 1em 0; padding: 1em; border: 2px dashed #c18254; border-radius: 14px; }
 .recording-drop.over { border-color: #002fa7; background: #f1f1ff; }
 .recording-drop .hint { margin: .75em 0 0; }

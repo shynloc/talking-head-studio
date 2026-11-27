@@ -51,6 +51,7 @@ def import_media(store, pid, path, source_video=True, subtitle_path=None):
         p = store.load(pid); item = {'id': uid('file'), 'name': path.name, 'path': str(path), 'kind': 'source', **meta}
         p['media'].append(item)
         if source_video:
+            p.pop('migration', None)
             if p.get('source_id') and p.get('timeline',{}).get('mode')=='actual':
                 p['timeline']['needs_alignment']=True
             p.update(source_id=item['id'], transcript=transcript, edl=[], proxy_id=None, previous_rough=None, rough=None, captions=[], scenes=[], approvals={})

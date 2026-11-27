@@ -10,9 +10,9 @@ function previewableMaterials() {
 }
 
 function previewTimelineMaterial(clip) {
-  return openFinishReview(Math.max(0,clip.start-.5), {
+  return openFinishReview({start:Math.max(0,clip.start-.5), material:{
     name:clip.name, duration:Math.min(30,Math.max(2,clip.duration+1)),
-  });
+  }});
 }
 
 function openMaterialPreview() {
@@ -26,11 +26,12 @@ function openMaterialPreview() {
   }
 }
 
-function finishPanel(review, html) {
-  if (finishReview !== review || P?.id !== review.projectId || !$('#dialog').open) return false;
+function finishPanel(review, html, view = 'finish') {
+  if (homeMode || finishReview !== review || P?.id !== review.projectId || !$('#dialog').open) return false;
   const panel = $('#finish-panel');
   if (!panel) return false;
   panel.innerHTML = html;
+  localStorage.setItem(openReviewKey(review.projectId),view);
   return true;
 }
 
@@ -38,14 +39,18 @@ function finishURL(review, fileId, download = false) {
   return '/file/' + encodeURIComponent(review.projectId) + '/' + encodeURIComponent(fileId) + (download ? '?download=1' : '');
 }
 
-function finishError(review, error) {
+function finishError(review, error, retry = null) {
   if (!finishPanel(review, `
     <p class="finish-error" role="alert">${esc(error.message)}</p>
     <div class="action-row">
-      <button class="key" id="finish-check-again">重新检查</button>
+      <button class="key" id="finish-check-again">${retry ? '重试这一步' : '查看当前版本'}</button>
       <button class="ghost" id="finish-back">返回编辑</button>
     </div>`)) return;
-  $('#finish-check-again').onclick = () => refreshFinishReview(review).catch(e => finishError(review,e));
+  $('#finish-check-again').onclick = retry || (() => {
+    review.startedSample=false;
+    review.downloadWhenReady=false;
+    return refreshFinishReview(review,false).catch(e => finishError(review,e));
+  });
   $('#finish-back').onclick = closeDialog;
 }
 
@@ -160,19 +165,27 @@ function finishSampleForm(review, state, replace = false) {
   if (replace) $('#finish-return-review').onclick = () => finishSampleReview(review,state);
 }
 
+function finishFinal(review, final) {
+  localStorage.removeItem('studio-review-'+review.projectId);
+  if (!finishPanel(review, `<h3>成片已导出</h3>
+      <video class="finish-video" controls playsinline preload="metadata" src="${finishURL(review,final.id)}" aria-label="完整成片"></video>
+      <div class="action-row"><a class="key" href="${finishURL(review,final.id,true)}">下载完整成片</a>
+      <button class="ghost" id="finish-review-again">回看预览</button>
+      <button class="ghost" id="finish-edit">回工作台</button></div>`))return;
+  $('#finish-edit').onclick=closeDialog;
+  $('#finish-review-again').onclick=()=>{
+    review.preferFinal=false;
+    refreshFinishReview(review,false).catch(e=>finishError(review,e));
+  };
+  if (review.downloadWhenReady) {
+    review.downloadWhenReady = false;
+    $('#finish-panel a.key').click();
+  }
+}
+
 function finishSampleReview(review, state) {
   const {sample, final, approved} = state;
   localStorage.removeItem('studio-review-'+review.projectId);
-  if (final && approved && review.showFinal) {
-    finishPanel(review, `<h3>成片已导出</h3><p>完整视频也可在当前项目的「下载」中找到。</p>
-      <video class="finish-video" controls playsinline preload="metadata" src="${finishURL(review,final.id)}"></video>
-      <div class="action-row"><a class="key" href="${finishURL(review,final.id,true)}">下载完整成片</a></div>`);
-    if (review.downloadWhenReady && finishPanelActive(review)) {
-      review.downloadWhenReady = false;
-      $('#finish-panel a[download], #finish-panel a.key')?.click();
-    }
-    return;
-  }
   const range = sample.start != null && sample.duration != null
     ? `<p class="hint">预览 ${sec(sample.start)}–${sec(Math.min(state.duration,sample.start+sample.duration))} 秒 · 完整视频 ${sec(state.duration)} 秒</p>` : '';
   const confirmLabel = '导出完整 MP4';
@@ -250,8 +263,7 @@ function finishDelivery(review, job) {
 }
 
 async function watchFinishJob(review, job) {
-  const dialogTitle = job.action === 'caption_proof' ? '正在生成改完的预览' : job.action === 'timeline_sample' ? '正在生成样片'
-    : ['timeline_final','confirm_timeline_final'].includes(job.action) ? '正在导出成片' : finishDeliveries[job.action]?.busy ?? '等待当前任务结束';
+  const dialogTitle = finishDeliveries[job.action]?.busy || projectJobTitle(job);
   if (!finishPanel(review, `<h3>${dialogTitle}</h3><progress id="finish-progress" max="1" value="0"></progress>
       <p id="finish-progress-text" role="status"></p><p class="hint">关闭窗口后任务会继续，可随时重新打开查看。</p>`)) return;
   for (;;) {
@@ -260,7 +272,7 @@ async function watchFinishJob(review, job) {
     $('#finish-progress-text').textContent = job.message;
     if (job.status === 'done') {
       if (finishDeliveries[job.action]) { finishDelivery(review,job); return; }
-      review.showFinal = ['timeline_final','confirm_timeline_final'].includes(job.action);
+      if (finalActions.includes(job.action)) review.preferFinal=true;
       if (['render_rough','approve_rough','caption_proof'].includes(job.action)) {
         const updated=await api('/api/project?id='+review.projectId);
         if(!finishPanelActive(review))return;
@@ -269,7 +281,9 @@ async function watchFinishJob(review, job) {
       await refreshFinishReview(review, false);
       return;
     }
-    if (job.status === 'error' || job.status === 'interrupted') throw Error(job.error || job.message);
+    if (job.status === 'error' || job.status === 'interrupted') {
+      return refreshFinishReview(review,false,job);
+    }
     await new Promise(resolve => setTimeout(resolve,650));
     if (!finishPanelActive(review)) return;
     const jobs = await api('/api/jobs?id='+review.projectId);
@@ -279,17 +293,33 @@ async function watchFinishJob(review, job) {
 }
 
 function finishPanelActive(review) {
-  return finishReview === review && P?.id === review.projectId && $('#dialog').open && !!$('#finish-panel');
+  return !homeMode && finishReview === review && P?.id === review.projectId && $('#dialog').open && !!$('#finish-panel');
 }
 
-async function refreshFinishReview(review, inspectJobs = true) {
+async function refreshFinishReview(review, inspectJobs = true, failedJob = null) {
+  const request = savedFinishRequest(review.projectId);
   if (inspectJobs) {
     const jobs = await api('/api/jobs?id='+review.projectId);
-    const active = jobs.find(job => job.status === 'running' || job.status === 'queued');
+    if(!finishPanelActive(review))return;
+    const active = activeProjectJob(jobs);
     if (active) return watchFinishJob(review, active);
+    failedJob = jobs.find(job => job.id === request.id && ['error','interrupted'].includes(job.status));
   }
   const state = await api('/api/v2/finish?id='+review.projectId);
   if(!finishPanelActive(review))return;
+  if (state.final && state.approved && review.preferFinal && !review.material && !review.selectRange && !review.captions) {
+    return finishFinal(review,state.final);
+  }
+  if (failedJob) {
+    const sameSource = request.id===failedJob.id && request.sourceId===P.source_id && state.state==='ready';
+    const args = request.args;
+    const canRetry = sameSource && args && (
+      failedJob.action==='timeline_sample' ||
+      (args.hash===state.hash && (failedJob.action==='caption_proof' ||
+        (failedJob.action==='confirm_timeline_final' && args.sample_id===state.sample?.id))));
+    const retry = canRetry ? () => submitFinishJob(review,failedJob.action,args) : null;
+    return finishError(review,Error(failedJob.error||failedJob.message),retry);
+  }
   if(state.state==='rough'&&review.rebuild){
     review.rebuild=false;
     return submitFinishJob(review,'render_rough',{});
@@ -302,7 +332,12 @@ async function refreshFinishReview(review, inspectJobs = true) {
     return refreshFinishReview(review,false);
   }
   if (state.state !== 'ready') return finishPreparation(review,state);
-  if (!state.sample && state.caption_review.pending.length && state.caption_spans.length) return openCaptionDesk(review,state);
+  if (state.caption_spans.length && (review.captions || (!state.sample && state.caption_review.pending.length))) {
+    const position = reviewPosition(P,'captions');
+    const resumeCaption = !review.restored || position?.layout===state.caption_review.layout;
+    review.captions=false;
+    if (resumeCaption || state.caption_review.pending.length) return openCaptionDesk(review,state);
+  }
   if (review.selectRange || !state.sample) {
     review.selectRange=false;
     if(review.startedSample)return finishSampleForm(review,state,!!state.sample);
@@ -319,16 +354,21 @@ async function submitFinishJob(review, action, args) {
   try {
     await save();
     if (!finishPanelActive(review)) return;
+    const sourceId = P.source_id;
     const job = await api('/api/action',{project_id:review.projectId,action,args});
-    if(['timeline_sample','confirm_timeline_final','caption_proof'].includes(action))localStorage.setItem('studio-review-'+review.projectId,job.id);
+    if(finishActions.includes(action)){
+      localStorage.setItem('studio-review-'+review.projectId,JSON.stringify({id:job.id,sourceId,args}));
+    }
     await watchFinishJob(review,job);
   } catch (error) { finishError(review,error); }
 }
 
-async function openFinishReview(start, material = null, replay = false) {
-  const review = {projectId:P.id,start,material,replay,showFinal:false,selectRange:start != null,rebuild:stage===3&&((!P.rough&&!!P.previous_rough)||(!!P.rough&&P.rough_current===false))};
+async function openFinishReview({start,material,replay=false,captions=false,restored=false} = {}) {
+  const review = {projectId:P.id,start,material,replay,captions,restored,preferFinal:start==null && !material,
+    selectRange:start!=null,rebuild:stage===3&&((!P.rough&&!!P.previous_rough)||(!!P.rough&&P.rough_current===false))};
   finishReview = review;
   openDialog('看成片效果','<div id="finish-panel" class="finish-panel"><p role="status">正在检查视频…</p></div>');
+  localStorage.setItem(openReviewKey(review.projectId),captions?'captions':'finish');
   try {
     await save();
     if (finishPanelActive(review)) await refreshFinishReview(review);

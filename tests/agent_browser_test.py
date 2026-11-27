@@ -42,7 +42,7 @@ def main():
             [sys.executable, '-X', 'utf8', str(ROOT / 'scripts/studio.py'), '--url', args.url, operation, *values],
             timeout=30,
         )
-        return json.loads(output.decode('utf-8'))
+        return json.loads(output.decode('ascii' if '--ascii-json' in values else 'utf-8'))
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(channel='msedge', headless=True)
@@ -66,7 +66,10 @@ def main():
         expect(page.locator('[data-agent="resume"]')).to_have_count(0)
         page.get_by_role('button', name='复制任务卡').click()
         expect(page.locator('#agent-copy-area')).to_contain_text('原来的 WorkBuddy 对话')
-        assert '独立的测试口播稿' in page.locator('#agent-copy-area textarea').input_value()
+        card = page.locator('#agent-copy-area textarea').input_value()
+        assert '独立的测试口播稿' in card
+        if sys.platform == 'win32':
+            assert '--ascii-json' in card
         found, claim = mcp(args.url, 'workbuddy',
                            [('studio_list_tasks', {}), ('studio_claim_task', {'id': task_id})])
         assert any(item['id'] == task_id for item in found)
@@ -84,7 +87,8 @@ def main():
         task_id = create('codex', '帮我检查字幕里的专有名词。')
         expect(page.get_by_role('button', name='连接 Codex 原对话')).to_be_visible()
         expect(page.locator('[data-agent="resume"]')).to_have_count(0)
-        claim = cli('agent-claim', task_id, '--agent', 'codex')
+        claim = cli('agent-claim', task_id, '--agent', 'codex', '--ascii-json')
+        assert claim['instruction'] == '帮我检查字幕里的专有名词。'
         suggestion = args.out / 'result.txt'
         suggestion.write_text('建议保持原稿的称呼。', encoding='utf-8')
         cli('agent-complete', task_id, '--agent', 'codex', '--receipt', claim['receipt'], '--file', str(suggestion))

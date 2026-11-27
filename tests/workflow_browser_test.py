@@ -77,7 +77,7 @@ def main():
             page.locator('[data-v2="home"]').click()
             page.locator('[data-v2="video-new"]').click()
             expect(page.locator('#dialog-title')).to_have_text('导入录制')
-            page.locator('#recording-use').select_option(mode)
+            page.locator(f'#recording-{mode}').check()
             with page.expect_file_chooser() as chooser:
                 page.locator('#video-file').click()
             chooser.value.set_files([video,caption])

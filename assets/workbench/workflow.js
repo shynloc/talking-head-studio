@@ -45,7 +45,23 @@ function exportStep() {
   if (!P.rough || P.rough_current === false || !P.approvals.rough) {
     return ['先确认要使用哪版视频', '整理视频后确认预览。已有剪好的版本可以直接使用。', '去整理视频', 'organize'];
   }
+  const priorFinal = P.exports.some(item => item.kind==='timeline_final');
+  const approvedFinal = P.approvals.timeline?.hash &&
+    P.exports.some(item => item.kind==='timeline_final' && item.hash===P.approvals.timeline.hash);
+  if (approvedFinal) {
+    return ['成片已导出','可以查看并下载完整 MP4。','查看成片','finish',
+      P.captions.length?[['继续校字幕','caption-desk'],['检查字幕','edit-captions']]:[]];
+  }
+  if (!P.approvals.timeline && priorFinal) {
+    return ['成片有修改','先看这次的改动，确认后再导出新版。','更新预览','finish',
+      P.captions.length?[['继续校字幕','caption-desk']]:[]];
+  }
   if (P.captions.length) {
+    const position=reviewPosition(P,'captions');
+    if (position && P.captions.some(caption=>caption.id===position.id)) {
+      return ['继续校字幕','可以回到上次听过的那句，也可以先看成片效果。','继续校字幕','caption-desk',
+        [['看成片效果','finish'],['检查字幕','edit-captions']]];
+    }
     if(P.settings.caption_only)return ['校完字幕就可以导出','播放预览时暂停，可以直接改听错的字。','看成片效果','finish',[['检查字幕','edit-captions']]];
     return ['检查字幕，预览后导出', '可以改错字或补充素材。满意后先看一小段，再导出完整视频。',
       '看成片效果', 'finish', [['检查字幕', 'edit-captions']]];
@@ -62,13 +78,16 @@ function exportStep() {
     '自动加字幕', 'auto-captions', [['导入字幕文件', 'caption-file'], ['暂不加字幕，去预览', 'finish']]];
 }
 
+function hasManuscript(project) {
+  return project.pages.some(page => page.text?.trim() || page.media_id ||
+    (page.type !== 'speech' && (page.notes?.trim() || page.duration > 0)));
+}
+
 function workflowStep() {
   if (stage === 2) return recordingStep();
   if (stage === 3) return exportStep();
-  const hasScript = P.pages.some(page => page.text?.trim() || page.media_id ||
-    (page.type !== 'speech' && (page.notes?.trim() || page.duration > 0)));
   const next = source()?.video ? ['继续整理视频', 'organize'] : ['我已录好视频', 'recording'];
-  return hasScript
+  return hasManuscript(P)
     ? ['用提词器开始录制', '打开提词器后，用手机或相机录制。录好再回这里导入视频。',
       '打开提词器', 'prompt', [next]]
     : ['从第一段口播稿开始', '在下方写第一段，也可以导入文章或已经写好的口播稿。',
@@ -103,7 +122,7 @@ function goToWorkflowStage(next, panel = 'plan') {
 
 document.addEventListener('click', async event => {
   const button = event.target.closest('button[data-workflow]');
-  if (!button) return;
+  if (!button || homeMode || !P) return;
   const action = button.dataset.workflow;
   button.disabled = true;
   try {
@@ -175,6 +194,9 @@ document.addEventListener('click', async event => {
         break;
       case 'finish':
         await openFinishReview();
+        break;
+      case 'caption-desk':
+        await openFinishReview({captions:true});
         break;
       case 'material-preview':
         openMaterialPreview();

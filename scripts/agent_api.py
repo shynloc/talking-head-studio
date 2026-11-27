@@ -25,7 +25,8 @@ def task_card(task, url):
                 f'请完成：{task["instruction"]}\n以下是参考资料：\n'
                 + json.dumps(task['context'],ensure_ascii=False)
                 + '\n请直接回复处理结果，方便我粘贴回工作台。')
-    claim = command(url, 'agent-claim', task_id, '--agent', agent)
+    claim = command(url, 'agent-claim', task_id, '--agent', agent,
+                    *(('--ascii-json',) if os.name == 'nt' else ()))
     complete = command(url, 'agent-complete', task_id, '--agent', agent,
                        '--receipt', 'RECEIPT', '--file', 'RESULT.txt')
     if task.get('kind')=='production':
@@ -101,6 +102,8 @@ def post(server, path, data):
         return tasks.complete_manually(data)
     if path == '/api/agents/retry':
         return tasks.reset_claim(data['id'])
+    if path == '/api/agents/reactivate':
+        return tasks.reactivate(data['id'])
     if path == '/api/agents/bind':
         return tasks.bind_codex(data['project_id'], data['thread_id'], bool(data.get('replace')))
     if path == '/api/agents/card':

@@ -25,12 +25,16 @@ load=async function(id,initialStage){
   location.hash='project='+id;
   await legacyLoad(id);
 };
-closeDialog=function(){clearInterval(draftPoll);draftPoll=null;mdGeneration++;const closingEditor=mdEditor;mdEditor=null;clearTimeout(closingEditor?._save);if(closingEditor?._ready)closingEditor.destroy();else if(closingEditor)closingEditor._disposed=true;if(micTester){micTester.stop();micTester=null;}$('#dialog').classList.remove('manuscript-dialog');legacyClose();};
+closeDialog=function(){clearInterval(draftPoll);draftPoll=null;mdGeneration++;const closingEditor=mdEditor;mdEditor=null;clearTimeout(closingEditor?._save);if(closingEditor?._ready)closingEditor.destroy();else if(closingEditor)closingEditor._disposed=true;if(micTester){micTester.stop();micTester=null;}$('#dialog').classList.remove('manuscript-dialog');if(P && $('#dialog').open)localStorage.removeItem(openReviewKey(P.id));legacyClose();};
 $('#close-dialog').onclick=()=>safeClose();$('#dialog').addEventListener('cancel',e=>{e.preventDefault();safeClose()});
 async function safeClose(){if(finishReview?.flushCaptions)try{await finishReview.flushCaptions()}catch(e){toast(e.message,true);return;}if(mdEditor&&manuscript&&manuscript.status!=='running')try{await saveManuscript()}catch(e){toast(e.message,true);return;}closeDialog();}
 function refreshAnnotations(){const doc=new DOMParser().parseFromString(stageOne(),'text/html');const next=doc.querySelector('.annotations');if(next&&$('.annotations')){next.open=$('.annotations').open;$('.annotations').replaceWith(next);}syncTimeline();renderTimeline();const metrics=$$('.hero-metrics .metric strong');if(metrics[2])metrics[2].textContent=P.pages.reduce((n,p)=>n+p.tags.length,0);}
 async function dashboard(){
+  if(!homeMode)$('#main').replaceChildren();
   homeMode=true;
+  busy=false;
+  $('#jobbar').hidden=true;
+  document.body.classList.remove('busy');
   $('#agent-inbox').textContent='AI 待办';
   $('#agent-inbox').dataset.agent='list';
   document.body.classList.add('dashboard-mode');
@@ -40,33 +44,59 @@ async function dashboard(){
   if(!homeMode)return;
   projectList=bootstrap.projects;
   const recentId=localStorage.getItem('studio-current-project');
-  const recent=projectList.find(p=>p.id===recentId&&!p.example);
-  let reviewDraft=null;
-  if(recent){
-    const drafts=await api('/api/v2/drafts?project_id='+encodeURIComponent(recent.id)+'&summary=1');
-    if(!homeMode)return;
-    reviewDraft=drafts.find(d=>d.status==='review');
-  }
-  const pendingPreview=recent&&localStorage.getItem('studio-review-'+recent.id);
-  const preparing=recent&&localStorage.getItem('studio-preview-task-'+recent.id);
-  const resumeText=reviewDraft?'查看润稿或分页建议':(pendingPreview||preparing)?'继续看成片效果':'继续创作';
+  const recent=projectList.find(p=>p.id===recentId&&!p.example) || projectList.find(p=>!p.example);
   const stageName=id=>workSteps[Number(localStorage.getItem('studio-stage-'+id)||1)-1]||workSteps[0];
   const projectButton=p=>`<button class="recent-card" data-open-project="${esc(p.id)}"><strong>${esc(p.title)}</strong><small>${stageName(p.id)} · 继续编辑</small></button>`;
   const examples=projectList.filter(p=>p.example);
   const others=projectList.filter(p=>!p.example&&p!==recent);
   $('#main').innerHTML=`<div class="dashboard">
-    ${recent?`<section class="resume-project"><div><strong>继续上次的视频</strong><p>${esc(recent.title)} · ${stageName(recent.id)}</p></div><button class="key" data-open-project="${esc(recent.id)}" data-resume-draft="${esc(reviewDraft?.id||'')}" data-resume-preview="${pendingPreview?1:0}">${resumeText}</button></section>`:''}
+    ${recent?`<section class="resume-project" data-recent-project="${esc(recent.id)}"><div><strong>${esc(recent.title)}</strong><p role="status" class="resume-status">${stageName(recent.id)}</p></div><div class="action-row resume-actions"><button class="key" data-open-project="${esc(recent.id)}">打开项目</button></div></section>`:''}
     <div class="dash-intro"><h1>你手里<em>有什么？</em></h1><div class="dash-sculpture" aria-hidden="true"></div></div>
     <div class="entry-grid">
       <div class="entry-start"><button class="entry-card featured" data-v2="import-new">${icon('import')}<strong>有稿件</strong><small>导入或粘贴，分成提词页。</small></button><button class="text-action" data-v2="polish-new">想先润色稿件？</button></div>
       <button class="entry-card" data-v2="video-new">${icon('recording')}<strong>有录音或视频</strong><small>录音可以变成稿件，视频可以剪停顿、加字幕。</small></button>
       <div class="entry-start"><a class="entry-card motion-entry" href="/motion/index.html?view=desk"><svg viewBox="0 0 30 30" aria-hidden="true"><path d="m3 10 12-6 12 6-12 6zM3 15l12 6 12-6M3 20l12 6 12-6"/></svg><strong>只做口播素材</strong><small>贴整篇稿，挑喜欢的小样，一次导出透明动画。</small></a><a class="text-action" href="/motion/index.html">浏览动效词库</a></div>
-      <button class="entry-card" data-v2="blank">${icon('new')}<strong>从空白开始</strong><small>写下第一段口播。</small></button>
+      <div class="entry-start"><button class="entry-card" data-v2="blank">${icon('new')}<strong>从空白开始</strong><small>写下第一段口播。</small></button><button class="text-action" data-v2="import-project">导入工程包</button></div>
     </div>
     ${others.length?`<h2>我的项目</h2><div class="recent-grid">${others.map(projectButton).join('')}</div>`:''}
     ${examples.length?`<details class="workflow-tools"><summary>看看示例</summary><div class="recent-grid">${examples.map(projectButton).join('')}</div></details>`:''}
     </div>`;
   $('#footer-meta').textContent='';
+  await refreshDashboardResume($('#main [data-recent-project]'));
+}
+
+async function refreshDashboardResume(card) {
+  if (!card || card.loading) return;
+  card.loading = true;
+  const id = card.dataset.recentProject;
+  const current = () => homeMode && card.isConnected;
+  try {
+    const jobs = await api('/api/jobs?id='+id);
+    if (!current()) return;
+    const active = activeProjectJob(jobs);
+    const [project,drafts] = active ? [{id},[]] : await Promise.all([
+      api('/api/project?id='+id),
+      api('/api/v2/drafts?project_id='+id+'&summary=1'),
+    ]);
+    const next = await projectResume(project,jobs,drafts.find(d=>d.status==='review'));
+    if (!current()) return;
+    const status = card.querySelector('.resume-status');
+    if (status.textContent !== next.status) status.textContent = next.status;
+    const actions = card.querySelector('.resume-actions');
+    const open = `data-open-project="${esc(id)}"`;
+    const html = next.fileId
+      ? `<a class="key" href="${finishURL({projectId:id},next.fileId,true)}">${next.label}</a><button class="ghost" ${open} data-resume="editor">打开项目</button>`
+      : `<button class="key" ${open} data-resume="${next.action}" data-resume-draft="${esc(next.draftId||'')}">${next.label}</button>`;
+    if (actions._view !== html) {
+      const focused = actions.contains(document.activeElement);
+      actions.innerHTML = html;
+      actions._view = html;
+      if (focused) actions.querySelector('.key')?.focus({preventScroll:true});
+    }
+    card.dataset.activeJob = active ? 'true' : 'false';
+  } catch (error) {
+    if (current()) card.querySelector('.resume-status').textContent = '暂时无法查看进度';
+  } finally { card.loading = false; }
 }
 async function newBlank(title='新的口播项目',initialStage=1){await save();const p=await api('/api/new',{title});await refreshProjects();await load(p.id,initialStage);return p;}
 async function openManuscript(intent='polish',fresh=false,draft=null,initialText=null){
@@ -192,10 +222,18 @@ async function listDrafts(){const drafts=await api('/api/v2/drafts'+(homeMode?''
 async function microphoneDialog(){openDialog('麦克风与本地语音测试',`<p class="mic-note">选择设备后开始测试。浏览器会请求麦克风权限；声音由本地识别处理，测试不保存录音。</p><select id="mic-device" class="mic-device" aria-label="麦克风"><option value="">系统默认麦克风</option></select><div class="mic-meter"><i id="mic-level"></i></div><div class="action-row"><button class="key" id="mic-start">开始语音测试</button><button class="ghost" id="mic-level-only">仅测试音量</button><button class="ghost" id="mic-stop">停止</button></div><p class="mic-note" id="mic-state">尚未启动麦克风</p><div class="mic-transcript" id="mic-text">读一句话，识别结果会显示在这里。</div>`);micTester=new StudioMicrophone({onLevel:n=>{if($('#mic-level'))$('#mic-level').style.width=n*100+'%'},onStatus:s=>{if($('#mic-state'))$('#mic-state').textContent=s},onText:s=>{if($('#mic-text'))$('#mic-text').textContent=s}});async function devices(){const d=await micTester.devices();const val=$('#mic-device').value;$('#mic-device').innerHTML='<option value="">系统默认麦克风</option>'+d.map((x,i)=>`<option value="${esc(x.deviceId)}">${esc(x.label||'麦克风 '+(i+1))}</option>`).join('');$('#mic-device').value=val;}async function start(asr){try{const owner=micTester;const ready=await owner.start($('#mic-device').value,asr);if(ready&&micTester===owner)await devices()}catch(e){}}$('#mic-start').onclick=()=>start(true);$('#mic-level-only').onclick=()=>start(false);$('#mic-stop').onclick=async()=>{await micTester.stop();$('#mic-state').textContent='已停止，麦克风已释放'};$('#mic-device').onchange=()=>{if(micTester.active)start(true)};try{await devices()}catch(e){} }
 async function aiSettings(){const c=(await api('/api/v2/status')).ai;openDialog('AI 服务 · 默认 Codex 协作',`<p class="hint">不配置时使用 Codex 待办协作。可选配置兼容 Chat Completions 的模型服务，密钥仅保存在本机服务设置，不进入工程包。</p><div class="field"><label>完整 API 地址</label><input id="ai-url" value="${esc(c.url)}" placeholder="https://…/v1/chat/completions"></div><div class="field"><label>模型名称</label><input id="ai-model" value="${esc(c.model)}"></div><div class="field"><label>密钥 ${c.has_key?'（已保存；留空保留）':''}</label><input id="ai-key" type="password" autocomplete="off"></div><button class="key" id="ai-save">保存本机设置</button>`);$('#ai-save').onclick=async()=>{try{await api('/api/v2/settings',{url:$('#ai-url').value,model:$('#ai-model').value,key:$('#ai-key').value});closeDialog();if(homeMode)dashboard();toast('AI 设置已保存')}catch(e){toast(e.message,true)}};}
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-v2],[data-open-project]');if(!b)return;try{if(b.dataset.openProject){
-  await save();await load(b.dataset.openProject);
+  const action = b.dataset.resume;
+  const targetStage = {manuscript:1,prompter:1,recording:2,'import-recording':2,relink:2,cuts:2,editor:3,captions:3,finish:3}[action];
+  await save();await load(b.dataset.openProject,targetStage);
+  if($('#dialog').open)return;
   if(b.dataset.resumeDraft){const draft=await api('/api/v2/draft?id='+b.dataset.resumeDraft);await openManuscript('polish',false,draft);}
-  else if(b.dataset.resumePreview==='1'){goToWorkflowStage(3,'captions');await openFinishReview();}
-  return;}switch(b.dataset.v2){case 'home':await save();await dashboard();break;case 'blank':await newBlank();break;case 'video-new':mediaDialog(true);break;case 'import-new':await openManuscript('import',true);break;case 'polish-new':await openManuscript('polish',true);break;case 'import':await openManuscript('import');break;case 'polish':await openManuscript('polish');break;case 'mic':await microphoneDialog();break;case 'drafts':await listDrafts();break;case 'ai-settings':await aiSettings();break;}}catch(e){toast(e.message,true)}});
+  else if(action==='prompter')await launchPrompt();
+  else if(action==='manuscript')$('#page-text')?.focus();
+  else if(action==='import-recording')mediaDialog();
+  else if(action==='relink')relinkDialog();
+  else if(action==='cuts'&&!busy)openCutReview();
+  else if(action==='finish'||action==='captions')await openFinishReview({captions:action==='captions'});
+  return;}switch(b.dataset.v2){case 'home':await save();await dashboard();break;case 'import-project':projectImportDialog();break;case 'blank':await newBlank();break;case 'video-new':mediaDialog(true);break;case 'import-new':await openManuscript('import',true);break;case 'polish-new':await openManuscript('polish',true);break;case 'import':await openManuscript('import');break;case 'polish':await openManuscript('polish');break;case 'mic':await microphoneDialog();break;case 'drafts':await listDrafts();break;case 'ai-settings':await aiSettings();break;}}catch(e){toast(e.message,true)}});
 scriptDialog=()=>openManuscript('import');rewriteDialog=()=>openManuscript('polish');
 launchPrompt=async function(){await save();promptWindow=window.open(`/prompter?id=${P.id}&page=${selected}`,'studio-prompter','width=1200,height=900');if(!promptWindow)toast('请允许本站弹出提词窗口',true);};
 $('#new-project').onclick=()=>newBlank();const oldSettings=$('#settings').onclick;$('#settings').onclick=()=>{
@@ -206,6 +244,18 @@ $('#new-project').onclick=()=>newBlank();const oldSettings=$('#settings').onclic
     <button class="ghost" data-v2="ai-settings">自定义 AI 服务</button></div>`);
 };
 const homeBtn=document.createElement('button');homeBtn.className='v2-top-home';homeBtn.textContent='工作台首页';homeBtn.dataset.v2='home';$('.top-actions').prepend(homeBtn);
-init=async function(){try{await refreshProjects();const id=new URLSearchParams(location.hash.slice(1)).get('project');if(id)await load(id);else await dashboard();$('#agent-inbox').disabled=false;setInterval(()=>{if(!homeMode)poll()},1600);}catch(e){toast(e.message,true)}};
+init=async function(){
+  try {
+    await refreshProjects();
+    const id=new URLSearchParams(location.hash.slice(1)).get('project');
+    if(id){await load(id);restoreOpenReview();}
+    else await dashboard();
+    $('#agent-inbox').disabled=false;
+    setInterval(()=>{
+      if(homeMode)refreshDashboardResume($('[data-recent-project][data-active-job="true"]'));
+      else poll();
+    },1600);
+  } catch(e) {toast(e.message,true);}
+};
 
 const legacyAct=act;act=async function(action,args={}){if(P?.timeline?.mode==='actual')action=({sample:'timeline_sample',final:'timeline_final',approve_final:'approve_timeline'}[action]||action);return legacyAct(action,args);};

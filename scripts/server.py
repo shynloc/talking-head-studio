@@ -155,6 +155,20 @@ class Handler(BaseHTTPRequestHandler):
 
     def handle_post(self):
         try:
+            if self.path == '/api/projects/import':
+                from project_bundle import import_bundle
+                size = int(self.headers.get('Content-Length', 0))
+                if not 0 < size <= 20*1024**3:
+                    raise ValueError('请选择不超过 20 GB 的工程包。')
+                with tempfile.TemporaryFile(dir=self.server.store.root) as bundle:
+                    while size:
+                        chunk = self.rfile.read(min(1024**2, size))
+                        if not chunk:
+                            raise ValueError('工程包上传中断。')
+                        bundle.write(chunk)
+                        size -= len(chunk)
+                    bundle.seek(0)
+                    return self.respond(200, import_bundle(self.server.store, bundle))
             if self.path == '/api/motion/lesson-input':
                 from motion_lesson import MAX_INPUT, package_input
                 size = int(self.headers.get('Content-Length', 0))

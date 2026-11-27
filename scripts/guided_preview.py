@@ -1,5 +1,5 @@
 """Prepare the first playable captioned sample for a selected recording."""
-from core import Conflict, LOCK, rough_current, source
+from core import Conflict, LOCK, edl_digest, rough_current, source
 from jobs import doctor
 from timeline_render import review_state
 
@@ -29,11 +29,11 @@ def prepare(jobs, pid, args, report):
                 return {'next':'tools','options':options,'source_id':store.load(pid).get('source_id')}
             run('prepare_video_tools', {}, 0, .06)
         item = run('import_media', options, .06, .08)
-        if options['use_as'] == 'raw' and item.get('video'):
-            entry = 'find_cuts'
-        elif options['use_as'] != 'captions':
-            return {'next':'editor' if item.get('ready_for_captions') else 'recording','source_id':item['id']}
         if not item.get('video'):
+            return {'next':'recording', 'source_id':item['id']}
+        if options['use_as'] == 'raw':
+            entry = 'find_cuts'
+        elif not item.get('ready_for_captions'):
             return {'next':'recording', 'source_id':item['id']}
     else:
         p = store.load(pid)
@@ -93,9 +93,12 @@ def prepare(jobs, pid, args, report):
         if not recognition['segments']:
             return dict(result, next='subtitles', message='没有识别到说话声。')
     state = review_state(store.load(pid))
-    if replacing or entry in ('approve','keep','use_cuts','find_cuts') or not p['captions'] or state['state'] == 'align':
+    migrated_review = (entry == 'approve' and p['captions'] and
+        p.get('migration', {}).get('edl_hash') == edl_digest(p['edl']))
+    if (replacing or (entry in ('approve','keep','use_cuts','find_cuts') and not migrated_review)
+            or not p['captions'] or state['state'] == 'align'):
         report(.64, '正在把字幕对到剪后画面')
-        run('plan', {}, .64, .7)
+        run('plan', {'preserve_existing': bool(migrated_review)}, .64, .7)
         state = review_state(store.load(pid))
     if state['state'] != 'ready':
         return dict(result, next='review')

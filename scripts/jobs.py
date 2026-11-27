@@ -105,16 +105,7 @@ class Jobs:
                 return dict(item, ready_for_captions=True)
             return item
         if action=='relink_source':
-            original=source(p);path=Path(args['path']).resolve()
-            if not original:raise ValueError('工程尚无原片，请先导入')
-            meta=media.probe(path)
-            if abs(meta['duration']-original['duration'])>.08 or (meta['width'],meta['height'])!=(original['width'],original['height']):
-                raise ValueError('新文件的时长或画幅与原片不符，不能直接复用剪点；请使用导入新视频')
-            original['path']=str(path);original['name']=path.name;original['external']=False
-            if p.get('rough'):
-                if p['rough']['media_id']==original['id']:p['rough']['path']=str(path)
-                elif not Path(p['rough']['path']).is_file():p['previous_rough']=p['rough'];p['rough']=None
-            p['approvals']={};store.save(p,label='重新关联原片，保留稿件和剪点');return {'ok':True}
+            return project_bundle.relink_recording(store, pid, args['path'], report)
         if action=='import_document':
             text=media.extract_document(args['path']);pages=script_pages(text,args.get('mode','original'))
             store.patch(pid,{'source_text':text,'pages':pages,'approvals':{}},'文档导入与排页');return {'pages':len(pages)}
@@ -185,9 +176,14 @@ class Jobs:
             p['approvals']['rough']={'at':now(),'hash':digest(p['rough'])};store.save(p,label='用户确认粗剪');return {'ok':True}
         if action=='plan':
             if not rough_current(p) or not p['approvals'].get('rough'):raise ValueError('请先确认粗剪，或选择已粗剪输入')
+            import timeline
+            if args.get('preserve_existing') and p['captions'] and p.get('migration', {}).get('edl_hash') == edl_digest(p['edl']):
+                timeline.calibrate(p, preserve_captions=True)
+                timeline.validate(p)
+                store.save(p,label='按迁入的字幕恢复时间线')
+                return {'captions':len(p['captions']),'scenes':len(p['scenes'])}
             if not p['transcript']:raise ValueError('请先转写视频，才能制作实际语音字幕')
             p['captions']=build_captions(p);p['scenes']=scene_plan(p);p['approvals'].pop('final',None)
-            import timeline
             timeline.calibrate(p)
             # Replace generated suggestions by identity; keep the last edited legacy
             # duplicate and leave unrelated user-created clips alone.
@@ -228,7 +224,8 @@ class Jobs:
                     if file.is_file() and file!=archive:z.write(file,file.relative_to(work).as_posix())
             return store.register(pid,archive,'deliverable')
         if action=='package':
-            return project_bundle.export_bundle(store, p, report, include_source=args.get('include_source') is True)
+            return project_bundle.export_bundle(store, p, report,
+                include_source=args.get('include_source') is True, include_tasks=args.get('include_tasks') is True)
         if action=='restore':
             version=int(args['version']);rev=folder/'revisions'/f'{version:06}.json'
             if not rev.is_file():raise ValueError('没有这个历史版本')

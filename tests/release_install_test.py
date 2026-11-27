@@ -14,9 +14,18 @@ from urllib.request import Request, urlopen
 from zipfile import ZipFile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-from core import ROOT, VERSION
+from core import ROOT, VERSION, file_digest
 from launch import running_instance
+from media import probe
 from package_release import verify
+from project_migration_fixtures import write_legacy_lightweight
+
+
+MIGRATION_PACKS = (
+    ('full', 'portable-project.zip', 2, False),
+    ('lightweight', 'lightweight-project.zip', 2, True),
+    ('legacy', 'legacy-project.zip', 1, True),
+)
 
 
 def run(*args, env=None, cwd=None):
@@ -101,22 +110,71 @@ def expand(bundle, folder):
             archive.extractall(folder)
 
 
-def prove_import(fixture, api, archive, name):
+def upload_project(fixture, api, archive):
+    url = json.loads((fixture.data / 'server.json').read_text(encoding='utf-8'))['url']
+    with archive.open('rb') as body:
+        request = Request(url + '/api/projects/import', data=body, headers={
+            'Content-Length': str(archive.stat().st_size), 'Content-Type': 'application/zip',
+            'X-Studio-Token': api('/api/bootstrap')['token'],
+        })
+        with urlopen(request, timeout=60) as response:
+            return json.load(response)
+
+
+def prove_import(fixture, api, archive, name, original_recording=None):
     with ZipFile(archive) as package:
         original = json.loads(package.read('project.json'))
-    new_id = complete(api, original['id'] if (fixture.data / original['id']).is_dir() else
-                      api('/api/new', {'title': '导入验收工位'})['id'],
-                      'import_project', {'path': str(archive)})['project_id']
-    new = api('/api/project?id=' + new_id)
+        manifest = json.loads(package.read('bundle.json')) if 'bundle.json' in package.namelist() else {}
+    new_id = upload_project(fixture, api, archive)['project_id']
+    path = '/api/project?id=' + new_id
+    new = api(path)
     assert new_id != original['id'] and new['title'] == original['title']
     assert new['pages'] == original['pages'] and new['timeline'] == original['timeline']
-    assert new['captions'] == original['captions'] and not new['approvals']
+    assert new['edl'] == original['edl'] and new['captions'] == original['captions']
+    for asset in new['assets']:
+        local_asset = Path(asset['path'])
+        assert local_asset.is_relative_to(fixture.data / new_id) and local_asset.is_file()
+    restored_rough = bool(manifest.get('version') == 2 and manifest.get('rough_reviewed'))
     recording = next(item for item in new['media'] if item['id'] == new['source_id'])
-    assert Path(recording['path']).is_relative_to(fixture.data / new_id)
-    preview = complete(api, new_id, 'timeline_sample', {'start': 1.75, 'duration': 2.5})
-    run('ffmpeg', '-v', 'error', '-i', preview['path'], '-f', 'null', '-')
-    print(f'{name}: imported project and decoded preview from packaged media', flush=True)
-    return preview['path']
+    if original_recording:
+        assert not recording['path'] and not new['approvals']
+        complete(api, new_id, 'relink_source', {'path': str(original_recording)})
+        new = api(path)
+        assert new['rough_current'] and new['captions'] == original['captions']
+    else:
+        local_recording = Path(recording['path'])
+        assert local_recording.is_relative_to(fixture.data / new_id) and local_recording.is_file()
+        if manifest.get('version') == 2:
+            assert file_digest(local_recording) == recording['sha256']
+    expected = {'rough': {'kind': 'migrated'}} if restored_rough else {}
+    assert new['approvals'] == expected
+    if not restored_rough:
+        run('ffmpeg', '-v', 'error', '-xerror', '-i', new['rough']['path'], '-f', 'null', '-')
+        complete(api, new_id, 'approve_rough', {})
+    duration = original['timeline']['duration']
+    preview = complete(api, new_id, 'timeline_sample', {'start': 0, 'duration': duration})
+    complete(api, new_id, 'approve_timeline', {})
+    final = complete(api, new_id, 'timeline_final', {})
+    run('ffmpeg', '-v', 'error', '-xerror', '-i', final['path'], '-f', 'null', '-')
+    output = probe(final['path'])
+    assert output['video'] and output['audio'] and abs(output['duration'] - duration) < .15
+    new = api(path)
+    assert new['edl'] == original['edl'] and new['captions'] == original['captions']
+    assert not any(job['action'] in ('transcribe', 'analyze_cuts') for job in api('/api/jobs?id=' + new_id))
+    print(f'{name}: imported, preserved edits and decoded {output["duration"]:.2f}s of exported video', flush=True)
+    return {'id': new_id, 'preview': preview['path'], 'final': final['path'], 'duration': output['duration'],
+            'version': manifest.get('version'), 'source_relinked': bool(original_recording)}
+
+
+def prove_migration_set(fixture, api, incoming):
+    results = {}
+    for name, filename, version, relink in MIGRATION_PACKS:
+        recording = incoming / 'recording.mp4' if relink else None
+        result = prove_import(fixture, api, incoming / filename, name, recording)
+        assert result['version'] == version
+        results[name] = result
+    assert len({result['id'] for result in results.values()}) == len(MIGRATION_PACKS)
+    return results
 
 
 def stage_run(args, fresh, api):
@@ -130,12 +188,18 @@ def stage_run(args, fresh, api):
         assert args.speech_one and args.speech_two
         run(fresh.python, fresh.app / 'scripts/setup.py', '--speech', env=fresh.env)
     stage = args.out / '三阶段'
-    archive = args.out / 'portable-project.zip'
+    fixtures = args.out / 'migration-fixtures'
+    fixtures.mkdir()
+    archive = fixtures / 'portable-project.zip'
+    lightweight = fixtures / 'lightweight-project.zip'
     run(fresh.python, '-X', 'utf8', ROOT / 'tests/three_stage_test.py',
         '--url', control(fresh.data)[0], '--out', stage, '--speech-one', voices[0], '--speech-two', voices[1],
-        '--portable-out', archive, '--skip-jianying', *([] if args.whisper else ['--timed-fixture']), env=fresh.env)
+        '--portable-out', archive, '--lightweight-out', lightweight,
+        '--skip-jianying', *([] if args.whisper else ['--timed-fixture']), env=fresh.env)
+    write_legacy_lightweight(lightweight, fixtures / 'legacy-project.zip')
+    shutil.copy2(stage / 'recording.mp4', fixtures / 'recording.mp4')
     bundle = prove_import(fresh, api, archive, 'same-platform')
-    return {'source_project': str(archive), 'migrated_preview': bundle,
+    return {'source_project': str(archive), 'migrated_preview': bundle['preview'],
             'three_stage': json.loads((stage / 'results.json').read_text(encoding='utf-8'))}
 
 
@@ -207,7 +271,12 @@ def main():
         assert Path(running_instance(fresh.data)['code_root']) == fresh.app
         report.update(fresh_install=True, native_launcher=True, skill_registration_upgrade=True)
         if args.migrate:
-            report['cross_platform_preview'] = prove_import(fresh, api, args.migrate.resolve(), 'cross-platform')
+            incoming = args.migrate.resolve()
+            if incoming.is_dir():
+                report['cross_platform_migration'] = prove_migration_set(fresh, api, incoming)
+                report['cross_platform_preview'] = report['cross_platform_migration']['full']['preview']
+            else:
+                report['cross_platform_preview'] = prove_import(fresh, api, incoming, 'cross-platform')['preview']
         else:
             report.update(stage_run(args, fresh, api))
         if args.upgrade:

@@ -39,6 +39,7 @@ def main():
     sub.add_parser('agent-config').add_argument('--agent', choices=tuple(AGENTS), required=True)
     sub.add_parser('agent-list').add_argument('--agent', choices=tuple(AGENTS), required=True)
     claim=sub.add_parser('agent-claim');claim.add_argument('id');claim.add_argument('--agent', choices=tuple(AGENTS), required=True)
+    claim.add_argument('--ascii-json', action='store_true', help='输出 ASCII JSON，兼容旧版 PowerShell 管道')
     result=sub.add_parser('agent-complete');result.add_argument('id');result.add_argument('--agent', choices=tuple(AGENTS), required=True)
     result.add_argument('--receipt', required=True);result.add_argument('--file', required=True)
     delivery=sub.add_parser('agent-deliver');delivery.add_argument('task');delivery.add_argument('--agent',choices=('workbuddy','codex'),required=True)
@@ -52,7 +53,7 @@ def main():
             raise SystemExit(json.loads(exc.read()).get('error', str(exc))) from None
         except (OSError, ValueError) as exc:
             raise SystemExit(str(exc)) from None
-        print(json.dumps(result,ensure_ascii=False,indent=2))
+        print(json.dumps(result,ensure_ascii=getattr(args,'ascii_json',False),indent=2))
         return
     token=''
     def req(path,data=None):

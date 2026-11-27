@@ -89,7 +89,33 @@ def main():
         workbench.wait_for_function("document.querySelector('.finish-video').currentTime > .2")
         workbench.locator('.finish-video').evaluate('(video) => video.pause()')
         workbench.screenshot(path=str(output/'02-sample-review.png'))
+
+        interrupted = {'id':'job_resume_interrupted','project_id':pid,'action':'confirm_timeline_final',
+                       'status':'running','message':'正在导出。','progress':.4,'created':'2020-01-01'}
+        def intercept_export(route):
+            payload = route.request.post_data_json
+            if payload.get('action')=='confirm_timeline_final':
+                route.fulfill(status=202,json=interrupted)
+            else:
+                route.continue_()
+        def include_interrupted(route):
+            route.fulfill(json=route.fetch().json()+[interrupted])
+        workbench.route('**/api/action',intercept_export)
+        workbench.route('**/api/jobs?*',include_interrupted)
         workbench.locator('#finish-confirm').click()
+        workbench.locator('#finish-progress').wait_for()
+        workbench.locator('#close-dialog').click()
+        workbench.locator('[data-v2=home]').click()
+        workbench.get_by_text('正在导出成片 · 40%',exact=True).wait_for()
+        workbench.get_by_role('button',name='查看进度').click()
+        workbench.locator('#finish-progress').wait_for()
+        interrupted.update(status='interrupted',message='导出中断，请重试。')
+        workbench.get_by_text('重试这一步',exact=True).wait_for()
+        workbench.reload()
+        workbench.get_by_text('重试这一步',exact=True).wait_for()
+        workbench.unroute('**/api/action',intercept_export)
+        workbench.unroute('**/api/jobs?*',include_interrupted)
+        workbench.get_by_text('重试这一步',exact=True).click()
         workbench.get_by_text('下载完整成片', exact=True).wait_for(timeout=90000)
         final = api('/api/v2/finish?id=' + pid)
         assert final['final'] and final['approved'] and final['final']['duration'] > 3.8
@@ -97,6 +123,15 @@ def main():
         checks.append('guided rough/align/sample, playback, explicit confirmation and real final encode')
 
         workbench.locator('#close-dialog').click()
+        workbench.locator('[data-v2=home]').click()
+        workbench.get_by_role('link',name='下载成片',exact=True).wait_for()
+        workbench.locator('.resume-project').get_by_role('button',name='打开项目').click()
+        open_advanced_export()
+        workbench.get_by_text('下载完整成片',exact=True).wait_for()
+        workbench.locator('#finish-review-again').click()
+        workbench.locator('#finish-confirm').wait_for()
+        workbench.locator('#close-dialog').click()
+        checks.append('the dashboard shows active export progress, interrupted export can be retried after reload, and completed export reopens at the download')
         state = api(project_path)
         state['timeline']['tracks']['voice'] = {'muted': True}
         api('/api/save', state)
@@ -105,10 +140,15 @@ def main():
         assert '已变化' in failure['error']
         workbench.reload()
         workbench.locator('#workflow-guide').wait_for()
-        workbench.locator('[data-stage="3"]').click()
-        workbench.locator('[data-workflow="finish"]').click()
+        workbench.locator('[data-v2=home]').click()
+        workbench.locator('.resume-project').get_by_role('button',name='更新预览',exact=True).click()
         workbench.locator('#finish-confirm').wait_for(timeout=90000)
-        assert api('/api/v2/finish?id='+pid)['sample']['id'] != sample['sample']['id']
+        refreshed = api('/api/v2/finish?id='+pid)
+        assert refreshed['sample']['id'] != sample['sample']['id']
+        assert not refreshed['approved'] and not refreshed['final']
+        workbench.locator('#finish-confirm').click()
+        workbench.get_by_text('下载完整成片',exact=True).wait_for(timeout=90000)
+        assert api('/api/v2/finish?id='+pid)['final']['id'] != final['final']['id']
         checks.append('changed timeline hides old confirmation and stale API confirmation is rejected')
 
         workbench.locator('#close-dialog').click()

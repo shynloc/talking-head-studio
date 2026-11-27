@@ -101,3 +101,13 @@ class AgentTaskTests(unittest.TestCase):
         self.tasks.pool.shutdown()
         self.assertEqual(self.tasks.get(task['id'])['delivery'], 'fallback')
         self.assertEqual(self.tasks.claim({'id': task['id'], 'agent': 'codex'})['status'], 'claimed')
+
+    def test_uncertain_delivery_keeps_card_without_sending_again(self):
+        task = self.create()
+        self.adapter.outcome = 'unconfirmed'
+        self.tasks.bind_codex(self.project['id'], 'original')
+        self.tasks.resume(task['id'], lambda _: 'card')
+        self.tasks.pool.shutdown()
+        self.assertEqual(self.tasks.resume(task['id'], lambda _: 'duplicate')['delivery'], 'unconfirmed')
+        self.assertEqual(len(self.adapter.sent), 1)
+        self.assertEqual(self.tasks.manual_card(task['id'])['context']['pages'][0]['text'], '初稿')

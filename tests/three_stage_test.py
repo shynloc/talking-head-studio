@@ -1,5 +1,5 @@
 """Run against an ISOLATED server only. All approvals are synthetic test-fixture actions."""
-import argparse,json,sys,time,urllib.request,urllib.error,zipfile
+import argparse,json,shutil,sys,time,urllib.request,urllib.error,zipfile
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'scripts'))
 import media
@@ -7,7 +7,7 @@ from core import normalized
 from PIL import Image
 
 def main():
- ap=argparse.ArgumentParser();ap.add_argument('--url',required=True);ap.add_argument('--out',required=True);ap.add_argument('--speech-one',required=True);ap.add_argument('--speech-two',required=True);ap.add_argument('--timed-fixture',action='store_true');ap.add_argument('--portable-out',type=Path);ap.add_argument('--skip-jianying',action='store_true');a=ap.parse_args()
+ ap=argparse.ArgumentParser();ap.add_argument('--url',required=True);ap.add_argument('--out',required=True);ap.add_argument('--speech-one',required=True);ap.add_argument('--speech-two',required=True);ap.add_argument('--timed-fixture',action='store_true');ap.add_argument('--portable-out',type=Path);ap.add_argument('--lightweight-out',type=Path);ap.add_argument('--skip-jianying',action='store_true');a=ap.parse_args()
  out=Path(a.out).resolve();out.mkdir(parents=True,exist_ok=True)
  boot=json.load(urllib.request.urlopen(a.url+'/api/bootstrap'));token=boot['token'];checks=[]
  def api(path,data=None):
@@ -75,12 +75,15 @@ def main():
  p=get(pid);p['timeline']['clips'][0]['enabled']=False;save(p);job(pid,'timeline_sample',expect_error='主轨不支持禁用')
  p=get(pid);p['timeline']['clips'][0]['enabled']=True;save(p);record('A7: disabled legacy main clip blocks output; re-enabling repairs project')
  # Multiple visual layers, GIF factory and music remain covered by v2_media_test.
+ p=get(pid);p['captions'][0]['text']='这句字幕经过人工校对。';p=save(p)
  job(pid,'timeline_sample',{'start':0,'duration':p['timeline']['duration']});job(pid,'approve_timeline');final=job(pid,'timeline_final')
  info=media.probe(final['path']);assert (info['width'],info['height'])==(360,640);assert abs(info['duration']-(rough_duration+2))<.12
  package=job(pid,'package',{'include_source':True});job(pid,'import_project',{'path':package['path']})
  if a.portable_out:
-  import shutil
   shutil.copy2(package['path'],a.portable_out)
+ if a.lightweight_out:
+  lightweight=job(pid,'package',{'include_source':False})
+  shutil.copy2(lightweight['path'],a.lightweight_out)
  record('stage 3: full sample, fixture approval, full final, ratio preservation, project package roundtrip')
  # Replacement source cannot reuse old footage, even before manual recalibration.
  blue=out/'replacement-blue.mp4';media.run(['ffmpeg','-v','error','-f','lavfi','-i',f'color=c=blue:s=360x640:r=12:d={duration}','-i',audio,'-c:v','libx264','-pix_fmt','yuv420p','-c:a','aac','-shortest','-y',blue])

@@ -16,7 +16,7 @@ def inspect_video(path):
     return video['width'], video['height'], float(meta['format']['duration'])
 
 
-def check_cut_review(page,out,expect_two):
+def check_cut_review(page,out,expect_two,check_resume=False):
     open_review = page.locator('[data-workflow=review-cuts]')
     expect(open_review).to_be_visible(timeout=120000)
     rows = page.evaluate('P.edl.filter(c=>!c.keep)')
@@ -31,6 +31,12 @@ def check_cut_review(page,out,expect_two):
         in_range(first['end'],first['end']+1.6)
         expect(page.locator('#cut-count')).to_have_text('第 2 处，共 2 处',timeout=15000)
         in_range(last['end'],last['end']+1.6)
+        if check_resume:
+            page.reload()
+            expect(page.locator('#cut-count')).to_have_text('第 2 处，共 2 处')
+            expect(page.locator('#cut-play')).to_have_text('播放')
+            page.locator('#cut-play').click()
+            in_range(last['end'],last['end']+1.6)
         page.locator('#cut-compare').click()
         in_range(last['start']+.05,last['end'])
         page.locator('#cut-compare').click()
@@ -68,6 +74,7 @@ def main():
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--video', type=Path, required=True, help='A recording longer than 10 seconds with a long pause')
     parser.add_argument('--proofread',action='store_true',help='Check V3.9 caption corrections on the 26-second regression recording')
+    parser.add_argument('--resume',action='store_true',help='Check reopening cut review, caption review and completed export')
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
     w,h,total = inspect_video(args.video)
@@ -77,15 +84,15 @@ def main():
         page = browser.new_page(viewport={'width':1280,'height':850})
         errors = []
         page.on('pageerror',lambda e:errors.append(str(e)))
-        for mode in ('captions','raw'):
+        for mode in ('captions','ready','raw'):
             page.goto(args.url)
             page.locator('[data-v2=video-new]').click()
-            page.locator('#recording-use').select_option(mode)
+            page.locator(f'#recording-{mode}').check()
             with page.expect_file_chooser() as picker:
                 page.locator('#video-file').click()
             picker.value.set_files(args.video)
             if mode == 'raw':
-                review = check_cut_review(page,args.out,expect_two=args.proofread)
+                review = check_cut_review(page,args.out,expect_two=args.proofread,check_resume=args.resume)
             else:
                 page.wait_for_function("P && localStorage.getItem('studio-preview-task-'+P.id)",timeout=60000)
                 page.reload()
@@ -96,6 +103,7 @@ def main():
             player.evaluate('v=>v.pause()')
             state = page.evaluate("api('/api/v2/finish?id='+P.id)")
             jobs = page.evaluate("api('/api/jobs?id='+P.id)")
+            assert page.evaluate('Boolean(P.settings.caption_only)') == (mode=='captions')
             guided = [j['result'] for j in jobs if j['action']=='first_preview' and j['status']=='done']
             if mode=='raw':
                 assert [g.get('next') for g in guided].count('cuts')==1
@@ -111,14 +119,29 @@ def main():
             correction={}
             if args.proofread:
                 from caption_desk_flow import correct_recording, check_final
-                correction=correct_recording(page,state,args.out,mode)
-            with page.expect_download(timeout=180000) as saved:
+                correction=correct_recording(page,state,args.out,mode,check_resume=args.resume)
+            if args.resume:
                 page.locator('#finish-confirm').click()
-            dest = args.out/('已剪视频加字幕.mp4' if mode=='captions' else '原始录像粗剪加字幕.mp4')
+                page.wait_for_function("savedFinishRequest(P.id).id || document.querySelector('#finish-panel a.key')")
+                page.locator('#close-dialog').click()
+                page.locator('[data-v2=home]').click()
+                download=page.locator('.resume-project').get_by_role('link',name='下载成片',exact=True)
+                expect(download).to_be_visible(timeout=180000)
+                assert page.evaluate("api('/api/jobs?id='+P.id).then(jobs=>jobs.filter(j=>j.action==='confirm_timeline_final').length)") == 1
+                with page.expect_download() as saved:
+                    download.click()
+            else:
+                with page.expect_download(timeout=180000) as saved:
+                    page.locator('#finish-confirm').click()
+            dest = args.out/({
+                'captions':'已剪视频只加字幕.mp4',
+                'ready':'已剪视频加字幕和画面.mp4',
+                'raw':'原始录像粗剪加字幕.mp4',
+            }[mode])
             saved.value.save_as(dest)
             width,height,duration = inspect_video(dest)
             assert (width,height)==(w,h) and abs(duration-state['duration'])<.15
-            assert (abs(duration-total)<.15 if mode=='captions' else duration<total-.3)
+            assert (duration<total-.3 if mode=='raw' else abs(duration-total)<.15)
             subprocess.run(['ffmpeg','-nostdin','-v','error','-xerror','-i',str(dest),'-f','null','-'],check=True)
             if args.proofread:check_final(page,dest,correction,args.out,mode)
             evidence['routes'][mode]=dict(corrections=correction,project=page.evaluate('P.id'),recognition=guided[0]['recognition'],
@@ -132,6 +155,7 @@ def main():
             else:
                 assert not page.locator('#cut-review').count()
                 assert all(j['action']!='prepare_rough' for j in jobs)
+                assert page.evaluate('P.rough.media_id===P.source_id')
             print(mode, duration, guided[0]['recognition'], flush=True)
         assert not errors, errors
         browser.close()

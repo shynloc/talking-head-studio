@@ -42,10 +42,11 @@ function closeDialog(){
   }
 }
 async function act(action,args={},pid=P.id){try{await save();if(P?.id!==pid||homeMode)throw Error('项目已切换，请回到原项目继续。');const job=await api('/api/action',{project_id:pid,action,args});if(P?.id!==pid||homeMode)return job;busy=true;document.body.classList.add('busy');showJob(job);closeDialog();return job}catch(e){toast(e.message,true);throw e}}
-function showJob(j){$('#jobbar').hidden=false;$('#job-title').textContent={first_preview:'正在整理视频',auto_captions:'正在自动加字幕',captions_from_file:'正在导入字幕',prepare_rough:'正在准备剪后试听',prepare_video_tools:'准备视频工具',prepare_transcription:'准备自动字幕',prepare_follow:'准备跟读',transcribe:'识别说话内容',analyze_cuts:'查找长停顿',render_rough:'生成整理后的预览',plan:'生成字幕',sample:'生成代表样片',final:'输出完整成片',gif:'GIF 工厂制作'}[j.action]||'工作台正在处理';$('#job-message').textContent=j.message;$('#job-percent').textContent=Math.round(j.progress*100)+'%';$('.job-progress i').style.width=j.progress*100+'%'}
-async function poll(){if(!P||homeMode)return;const pid=P.id;try{const list=await api('/api/jobs?id='+pid);if(homeMode||P.id!==pid)return;const active=list.find(j=>['running','queued'].includes(j.status));busy=!!active;document.body.classList.toggle('busy',busy);if(active)showJob(active);else $('#jobbar').hidden=true;
-let reload=false;for(const j of list){if(['done','error','interrupted'].includes(j.status)&&!jobsSeen.has(j.id)){jobsSeen.add(j.id);if(Date.now()-Date.parse(j.created)<1800000){reload=true;toast(j.status==='done'?(j.result?.message||'任务完成'):(j.error||j.message),j.status!=='done');if(j.result?.project_id){await refreshProjects();await load(j.result.project_id);return}}}}
+function showJob(j){$('#jobbar').hidden=false;$('#job-title').textContent=projectJobTitle(j);$('#job-message').textContent=j.message;$('#job-percent').textContent=Math.round(j.progress*100)+'%';$('.job-progress i').style.width=j.progress*100+'%'}
+async function poll(){if(!P||homeMode)return;const pid=P.id;try{const list=await api('/api/jobs?id='+pid);if(homeMode||P.id!==pid)return;const active=activeProjectJob(list);busy=!!active;document.body.classList.toggle('busy',busy);if(active)showJob(active);else $('#jobbar').hidden=true;
+let reload=false,relinked=false;for(const j of list){if(['done','error','interrupted'].includes(j.status)&&!jobsSeen.has(j.id)){jobsSeen.add(j.id);if(Date.now()-Date.parse(j.created)<1800000){reload=true;toast(j.status==='done'?(j.result?.message||'任务完成'):(j.error||j.message),j.status!=='done');if(j.result?.next_stage===3&&j.action==='relink_source')relinked=true;if(j.result?.project_id){await openImportedProject(j.result.project_id);return}}}}
 if(reload&&!dirty&&!saving){const latest=await api('/api/project?id='+pid);if(homeMode||P.id!==pid||dirty||saving)return;P=latest;
+if(relinked&&stage===2){stage=3;tab='captions';previewMode='auto';}
 const direct=list.find(j=>j.result?.ready_for_captions&&j.result.id===P.source_id);
 if(direct&&localStorage.getItem('studio-routed-'+pid)!==direct.id){
   localStorage.setItem('studio-routed-'+pid,direct.id);
@@ -151,25 +152,47 @@ case 'add-caption':snapshot();{let end=P.captions.at(-1)?.end||0;P.captions.push
 }}
 function scriptDialog(){openDialog('把内容变成口播页面',`<p class="hint">直接粘贴定稿，或导入文章。音频 / 视频请进入第二阶段转写后，再用转写结果排页。</p><div class="action-row"><button class="ghost" id="document-file">导入 TXT / DOCX / PDF / PPTX</button><button class="ghost" id="use-transcript">使用实际转写</button></div><div class="field"><textarea id="script-input" placeholder="粘贴文章或已处理好的口播稿…">${esc(P.source_text)}</textarea></div><label>处理方式</label><select id="script-mode"><option value="original">原稿直接使用 · 按语义自动排页</option><option value="light">规则口语化 · 清理格式和书面连接词</option></select><p class="hint">需要按主题深度改写或调整时长，可在排页后使用“AI 润稿”。重新排页会替换当前页面，可从历史版本恢复。</p><button class="key" id="make-script">生成口播工作台 →</button>`);$('#document-file').onclick=()=>chooseFile('document','.txt,.md,.docx,.pdf,.pptx');$('#use-transcript').onclick=()=>$('#script-input').value=P.transcript.map(s=>s.text).join('\n');$('#make-script').onclick=()=>act('script',{text:$('#script-input').value,mode:$('#script-mode').value}).catch(()=>{})}
 function rewriteDialog(){const drafts=P.tasks.filter(t=>t.status==='draft_ready');openDialog('AI 润稿与待办',`<p class="hint">${doctorInfo.llm_configured?'已配置模型服务，可联网生成草稿。':'当前使用 Codex 协作模式：生成改稿任务后，在聊天中让 AI 处理待办，再回到这里采用草稿。'}</p>${drafts.map(t=>`<div class="task-draft">${esc(t.result)}</div><button class="key small" data-apply-task="${t.id}">采用这份草稿</button>`).join('')}<div class="field"><label>改写要求</label><textarea id="rewrite-instruction" style="min-height:100px">保留事实，改成自然易讲的中文口播。句子不要太长，保持我的表达习惯。</textarea></div>${doctorInfo.llm_configured?'<label class="checkline"><input id="allow-network" type="checkbox">允许将本次稿件发送给已配置的模型服务</label>':''}<button class="key" id="rewrite-go">${doctorInfo.llm_configured?'生成改稿草案':'创建 AI 改稿任务'}</button>`);$$('[data-apply-task]').forEach(b=>b.onclick=()=>act('apply_task',{task_id:b.dataset.applyTask}).catch(()=>{}));$('#rewrite-go').onclick=()=>act('rewrite',{instruction:$('#rewrite-instruction').value,allow_network:$('#allow-network')?.checked||false}).catch(()=>{})}
-function mediaDialog(fresh=false){
-  openDialog('导入录制',`<p>选择已经录好的视频。录音也可以用来整理口播稿。</p>
-    <label for="recording-use">这份录制怎么用</label><select id="recording-use">
-      <option value="raw">原始录像，帮我剪掉长停顿</option><option value="ready">已经剪好，去做字幕和画面</option><option value="captions">已经剪好，只加字幕</option></select>
+function mediaDialog(fresh=false, initialUse='raw'){
+  const choices = [
+    ['raw', '原始录像', '先查看长停顿，确认后继续加字幕。'],
+    ['ready', '已剪好，加字幕和画面', '自动准备字幕预览，还可以加画面和音效。'],
+    ['captions', '已剪好，只加字幕', '自动准备字幕预览，可校对并导出。'],
+  ];
+  const selectedUse = choices.some(([value])=>value===initialUse) ? initialUse : 'raw';
+  openDialog('导入录制',`
+    <fieldset class="recording-choices"><legend>你的视频剪好了吗？</legend>
+      ${choices.map(([value,label,description])=>`<label for="recording-${value}">
+        <input id="recording-${value}" name="recording-use" type="radio" value="${value}"
+          aria-labelledby="recording-${value}-label" aria-describedby="recording-${value}-hint" ${value===selectedUse?'checked':''}>
+        <span><strong id="recording-${value}-label">${label}</strong><small id="recording-${value}-hint">${description}</small></span>
+      </label>`).join('')}
+    </fieldset>
     <div id="recording-drop" class="recording-drop"><button class="key" id="video-file">选择本机文件</button>
-    <p class="hint">也可以把视频拖到这里。已有字幕时，和视频一起选入 SRT 或 VTT 即可。</p></div>
+    <p class="hint">可以拖入视频或录音。已有字幕可随视频一起选入 SRT 或 VTT，录音可用来整理口播稿。</p></div>
     <details class="workflow-tools"><summary>大文件可按路径导入</summary>
     <p class="hint">填写本机路径可直接引用文件，节省一份复制空间。</p>
     <input id="media-path" aria-label="本机文件路径" placeholder="粘贴本机文件的完整路径">
     <button class="ghost" id="media-path-go">按路径导入</button></details>`);
-  $('#video-file').onclick=()=>chooseFile((fresh?'new-video':'video')+'|'+$('#recording-use').value,recordingAccept);
+  const recordingUse = () => $('input[name="recording-use"]:checked').value;
+  $('#video-file').onclick=()=>chooseFile((fresh?'new-video':'video')+'|'+recordingUse(),recordingAccept);
   const drop=$('#recording-drop');
   drop.ondragover=e=>{e.preventDefault();drop.classList.add('over')};
   drop.ondragleave=()=>drop.classList.remove('over');
-  drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');importRecordingFiles([...e.dataTransfer.files],fresh,$('#recording-use').value).catch(e=>toast(e.message,true))};
-  $('#media-path-go').onclick=async()=>{const path=$('#media-path').value.trim();if(!path)return;const use_as=$('#recording-use').value;if(fresh)await newBlank('新的口播视频',2);await importRecording({path,use_as}).catch(e=>toast(e.message,true))};
+  drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');importRecordingFiles([...e.dataTransfer.files],fresh,recordingUse()).catch(e=>toast(e.message,true))};
+  $('#media-path-go').onclick=async()=>{
+    const path=$('#media-path').value.trim();
+    if(!path)return;
+    const use_as=recordingUse();
+    try {
+      if(fresh)await newBlank('新的口播视频',2);
+      await startFirstPreview({entry:'import',path,use_as});
+    } catch(e) { toast(e.message,true); }
+  };
 }
 function relinkDialog(){
+  const legacy = P.migration && !source()?.sha256;
   openDialog('重新选择原视频',`<p>请选择之前用于这个项目的视频，工作台会保留已有剪辑和字幕。</p>
+    ${legacy?'<p class="hint">旧工程包会核对时长和画幅。请选择原来的文件，再试看并确认。</p>':''}
     <button class="key" id="relink-file">选择本机视频</button>
     <details class="workflow-tools"><summary>使用文件路径</summary>
     <input id="relink-path" aria-label="原视频路径" placeholder="粘贴新的完整路径">
@@ -230,8 +253,9 @@ function gifDialog(aid){openDialog('GIF 工厂 · 制作轻动效',`<p class="hi
 function visualDialog(){const s=P.settings;openDialog('构图与字幕设置',`<p class="hint">比例以源视频为准。先确定人物所在区域，再安排上方动画。保护区使用相对画面比例。</p><div class="form-grid">${[['caption_y','字幕底部位置（0–1）'],['caption_size','字号 / 画面高度'],['overlay_y','动画距顶部（0–1）'],['overlay_height','动画区域高度（0–1）']].map(([k,l])=>`<div class="field"><label>${l}</label><input type="number" step=".01" id="set-${k}" value="${s[k]}"></div>`).join('')}<div class="field"><label>人物保护区顶部（0–1）</label><input type="number" step=".01" id="protect-y" value="${s.protected_rect[1]}"></div><div class="field"><label>人物保护区高度（0–1）</label><input type="number" step=".01" id="protect-h" value="${s.protected_rect[3]}"></div><div class="field"><label>动画强调色</label><input type="color" id="set-accent" value="${s.accent}"></div><label class="checkline"><input id="set-sfx" type="checkbox" ${s.sfx?'checked':''}>动画入场配轻音效</label></div><div class="divider"></div><button class="key" id="visual-save">保存构图设置</button>`);$('#visual-save').onclick=async()=>{snapshot();['caption_y','caption_size','overlay_y','overlay_height'].forEach(k=>s[k]=Number($('#set-'+k).value));s.protected_rect[1]=Number($('#protect-y').value);s.protected_rect[3]=Number($('#protect-h').value);s.accent=$('#set-accent').value;s.sfx=$('#set-sfx').checked;mark();await save();closeDialog();render()}}
 function chooseFile(purpose,accept){filePurpose=purpose;$('#file-picker').multiple=/^(new-video|video)\|/.test(purpose);$('#file-picker').accept=accept;$('#file-picker').value='';$('#file-picker').click()}
 $('#file-picker').onchange=async e=>{const file=e.target.files[0];if(!file)return;const [purpose,use_as]=filePurpose.split('|');try{if(['video','new-video'].includes(purpose))return await importRecordingFiles([...e.target.files],purpose==='new-video',use_as);
+if(purpose==='project')return await importProjectFile(file);
 if(purpose==='guided-subtitles'){const pid=P.id,source_id=P.source_id;const subtitle_path=await uploadRecordingFile(pid,file);if(P.id===pid&&!homeMode)await startFirstPreview({entry:'resume',source_id,subtitle_path});return}
-toast('正在导入文件…');const r=await fetch(`/api/upload?project=${P.id}&name=${encodeURIComponent(file.name)}`,{method:'POST',headers:{'X-Studio-Token':token},body:file});const data=await r.json();if(!r.ok)throw Error(data.error);const action={document:'import_document',asset:'add_asset',relink:'relink_source',project:'import_project',transcript:'import_transcript','caption-file':'captions_from_file'}[purpose];await act(action,{path:data.path,use_as})}catch(e){toast(e.message,true)}};
+toast('正在导入文件…');const r=await fetch(`/api/upload?project=${P.id}&name=${encodeURIComponent(file.name)}`,{method:'POST',headers:{'X-Studio-Token':token},body:file});const data=await r.json();if(!r.ok)throw Error(data.error);const action={document:'import_document',asset:'add_asset',relink:'relink_source',transcript:'import_transcript','caption-file':'captions_from_file'}[purpose];await act(action,{path:data.path,use_as})}catch(e){toast(e.message,true)}};
 async function launchPrompt(){await save();const win=window.open('','studio-prompter','width=1200,height=850');if(!win)return toast('请允许本站弹出提词窗口',true);const template=await (await fetch('/prompter.html')).text();const data=JSON.parse(JSON.stringify(P));data.start_page_id=selected;data.asset_urls=Object.fromEntries(P.assets.map(a=>[a.id,new URL(assetURL(a.id),location.href).href]));const blob=new Blob([template.replace('__PROJECT__',JSON.stringify(data).replaceAll('</','<\\/'))],{type:'text/html'});win.location=URL.createObjectURL(blob);promptWindow=win}
 window.addEventListener('message',e=>{
   if(e.origin!==location.origin || e.source!==promptWindow || !P || homeMode || e.data?.projectId!==P.id)return;
@@ -251,13 +275,16 @@ $('#undo').onclick=async()=>{if(!undo.length)return toast('当前没有可撤销
 $('#package').onclick=()=>{
   const hasSource=Boolean(source()?.path);
   openDialog('导出工程包',`
-    <p class="hint">工程包包含稿件、字幕、时间线和素材。默认生成轻量包，换电脑后可重新关联原片。</p>
-    <label class="checkline"><input type="checkbox" id="package-source" ${hasSource?'':'disabled'}> 同时打包当前原片和已有粗剪文件</label>
-    <p class="hint">${hasSource?'在另一台电脑继续剪辑时，可以勾选此项。':'导入或关联原片后可将原片一同打包。'}</p>
+    <p>轻量包包含稿件、字幕、剪点、时间线和素材。换机后再选择原片。</p>
+    <label class="checkline"><input type="checkbox" id="package-source" ${hasSource?'':'disabled'}> 完整包 · 带上原片和已有粗剪</label>
+    <label class="checkline"><input type="checkbox" id="package-agent-tasks"> 附带 AI 文字待办和已返回的建议</label>
+    <p class="hint">${hasSource?'生成的 ZIP 可在「下载」里找到。':'关联原片后，可选择完整包。'}</p>
     <button class="key" id="package-go">生成工程 ZIP</button>`);
-  $('#package-go').onclick=()=>act('package',{include_source:$('#package-source').checked}).catch(()=>{});
+  $('#package-go').onclick=()=>act('package',{
+    include_source:$('#package-source').checked,include_tasks:$('#package-agent-tasks').checked,
+  }).catch(()=>{});
 };
 $('#close-dialog').onclick=closeDialog;
-$('#settings').onclick=()=>{openDialog('项目与运行设置',`<div class="form-grid"><div class="field"><label>项目名称</label><input id="project-title" value="${esc(P.title)}"></div><div class="field"><label>语速估算（字 / 分钟）</label><input id="speech-rate" type="number" value="${P.settings.speech_rate}"></div><div class="field"><label>目标时长（秒）</label><input id="target-seconds" type="number" value="${P.settings.target_seconds}"></div><div class="field"><label>静音候选最短时长（秒）</label><input id="silence-seconds" type="number" step=".1" value="${P.settings.silence_seconds}"></div></div><div class="field"><button class="key" id="settings-save">保存设置</button></div><div class="divider"></div><p class="hint">FFmpeg ${doctorInfo.tools.ffmpeg?'✓':'缺失'} · 本地转写 ${doctorInfo.modules.whisper?'✓':'未安装'} · 浏览器渲染 ${doctorInfo.modules.playwright?'✓':'未安装'}<br>HCS ${doctorInfo.vendors['html-creator-studio']?'✓':'缺失'} · GIF 工厂 ${doctorInfo.vendors['gif-factory']?'✓':'缺失'} · 已下载模型：${doctorInfo.models.join('、')||'无'}</p><div class="action-row"><button class="ghost" id="import-project">导入工程 ZIP</button><button class="ghost" id="restore-draft">恢复浏览器草稿</button><button class="ghost" id="relink-source">重新定位原片</button></div><div class="field"><label>恢复历史版本（恢复后需重新确认）</label><select id="history-version">${[...P.history].reverse().map(h=>`<option value="${h.version}">V${h.version} · ${esc(h.label)} · ${esc(h.at)}</option>`).join('')}</select><button class="ghost" id="restore-version" style="margin-top:8px">恢复选中版本</button></div>`);$('#settings-save').onclick=async()=>{P.title=$('#project-title').value;P.settings.speech_rate=Math.max(60,Number($('#speech-rate').value));P.settings.target_seconds=Math.max(10,Number($('#target-seconds').value));P.settings.silence_seconds=Math.max(.2,Number($('#silence-seconds').value));mark();await save();await refreshProjects();closeDialog();render()};$('#import-project').onclick=()=>chooseFile('project','.zip');$('#relink-source').onclick=()=>{closeDialog();relinkDialog()};$('#restore-draft').onclick=async()=>{const d=localStorage.getItem('studio-draft-'+P.id);if(!d)return toast('没有待恢复的浏览器草稿');const old=JSON.parse(d);old.version=P.version;P=old;mark();await save();closeDialog();render()};$('#restore-version').onclick=()=>act('restore',{version:Number($('#history-version').value)}).catch(()=>{})};
+$('#settings').onclick=()=>{openDialog('项目与运行设置',`<div class="form-grid"><div class="field"><label>项目名称</label><input id="project-title" value="${esc(P.title)}"></div><div class="field"><label>语速估算（字 / 分钟）</label><input id="speech-rate" type="number" value="${P.settings.speech_rate}"></div><div class="field"><label>目标时长（秒）</label><input id="target-seconds" type="number" value="${P.settings.target_seconds}"></div><div class="field"><label>静音候选最短时长（秒）</label><input id="silence-seconds" type="number" step=".1" value="${P.settings.silence_seconds}"></div></div><div class="field"><button class="key" id="settings-save">保存设置</button></div><div class="divider"></div><p class="hint">FFmpeg ${doctorInfo.tools.ffmpeg?'✓':'缺失'} · 本地转写 ${doctorInfo.modules.whisper?'✓':'未安装'} · 浏览器渲染 ${doctorInfo.modules.playwright?'✓':'未安装'}<br>HCS ${doctorInfo.vendors['html-creator-studio']?'✓':'缺失'} · GIF 工厂 ${doctorInfo.vendors['gif-factory']?'✓':'缺失'} · 已下载模型：${doctorInfo.models.join('、')||'无'}</p><div class="action-row"><button class="ghost" id="import-project">导入工程 ZIP</button><button class="ghost" id="restore-draft">恢复浏览器草稿</button><button class="ghost" id="relink-source">重新定位原片</button></div><div class="field"><label>恢复历史版本（恢复后需重新确认）</label><select id="history-version">${[...P.history].reverse().map(h=>`<option value="${h.version}">V${h.version} · ${esc(h.label)} · ${esc(h.at)}</option>`).join('')}</select><button class="ghost" id="restore-version" style="margin-top:8px">恢复选中版本</button></div>`);$('#settings-save').onclick=async()=>{P.title=$('#project-title').value;P.settings.speech_rate=Math.max(60,Number($('#speech-rate').value));P.settings.target_seconds=Math.max(10,Number($('#target-seconds').value));P.settings.silence_seconds=Math.max(.2,Number($('#silence-seconds').value));mark();await save();await refreshProjects();closeDialog();render()};$('#import-project').onclick=projectImportDialog;$('#relink-source').onclick=()=>{closeDialog();relinkDialog()};$('#restore-draft').onclick=async()=>{const d=localStorage.getItem('studio-draft-'+P.id);if(!d)return toast('没有待恢复的浏览器草稿');const old=JSON.parse(d);old.version=P.version;P=old;mark();await save();closeDialog();render()};$('#restore-version').onclick=()=>act('restore',{version:Number($('#history-version').value)}).catch(()=>{})};
 window.addEventListener('beforeunload',e=>{if(dirty||saving){e.preventDefault();e.returnValue='尚有未保存修改'}});
 async function init(){try{const b=await refreshProjects();if(!b.projects.length){const p=await api('/api/new',{title:'我的第一条口播'});await refreshProjects();await load(p.id)}else await load(b.projects.some(p=>p.id===localStorage.getItem('studio-current-project'))?localStorage.getItem('studio-current-project'):b.projects[0].id);setInterval(poll,1600)}catch(e){$('#main').innerHTML=`<div class="empty">工作台连接失败：${esc(e.message)}<br>请通过启动脚本打开本地服务。</div>`}}

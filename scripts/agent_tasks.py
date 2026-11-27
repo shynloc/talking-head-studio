@@ -10,6 +10,7 @@ from core import Conflict, digest, now, uid, write_json
 
 
 from agent_hosts import AGENTS
+from agent_portable import task_paths
 import motion_recommend as motion
 import motion_samples as samples
 import motion_treatments as treatments
@@ -47,7 +48,7 @@ class AgentTasks:
         self.pool = ThreadPoolExecutor(max_workers=1)
         self.codex = codex
         self.library = library
-        for path in self.root.glob('handoff_*.json'):
+        for path in task_paths(self.store):
             task = json.loads(path.read_text(encoding='utf-8'))
             if task.get('status')=='rendering':
                 self.pool.submit(self._render_treatment,task['id'])
@@ -61,7 +62,11 @@ class AgentTasks:
     def _path(self, task_id):
         if not isinstance(task_id, str) or not re.fullmatch(r'handoff_[0-9a-f]{12}', task_id):
             raise ValueError('无效的任务编号。')
-        return self.root / (task_id + '.json')
+        name = task_id + '.json'
+        local = self.root / name
+        if local.is_file():
+            return local
+        return next(self.store.root.glob('project_*/agent-tasks/' + name), local)
 
     def _get(self, task_id):
         path = self._path(task_id)
@@ -92,7 +97,7 @@ class AgentTasks:
         if agent:
             agent_key(agent)
         with self.lock:
-            tasks = [json.loads(path.read_text(encoding='utf-8')) for path in self.root.glob('handoff_*.json')]
+            tasks = [json.loads(path.read_text(encoding='utf-8')) for path in task_paths(self.store)]
             return [self._public(task, detail=False) for task in sorted(tasks, key=lambda x: x['updated'], reverse=True)
                     if (not project_id or task['project_id'] == project_id) and (not agent or task['agent'] == agent) and (agent or task.get('kind') not in ('motion','production'))]
 
@@ -103,7 +108,19 @@ class AgentTasks:
     def manual_card(self, task_id):
         with self.lock:
             task = self._get(task_id)
+            self._require_handoff(task)
             return self._public(task) | {'context': task['context']}
+
+    def _require_handoff(self, task):
+        if task.get('needs_handoff'):
+            raise Conflict('请先在迁入的工程里点「重新交接」。')
+
+    def reactivate(self, task_id):
+        with self.lock:
+            task = self._get(task_id)
+            if task.pop('needs_handoff', False):
+                self._save(task)
+            return self._public(task)
 
     def _binding_path(self, project_id):
         if not re.fullmatch(r'motion_[0-9a-f]{32}',project_id):
@@ -358,6 +375,7 @@ class AgentTasks:
         agent = agent_key(data.get("agent"))
         with self.lock:
             task = self._get(data['id'])
+            self._require_handoff(task)
             if task['agent'] != agent:
                 raise Conflict(f"这条待办由 {AGENTS.get(task['agent'],'模型服务')} 领取。")
             if task['status'] != 'waiting':
@@ -391,6 +409,7 @@ class AgentTasks:
         result = text_value(data.get('result'), '处理结果', 120000)
         with self.lock:
             task = self._get(data['id'])
+            self._require_handoff(task)
             if task.get('kind')=='production':raise ValueError('请提交真实媒体文件。')
             if task.get('agent')=='service':
                 raise Conflict('此请求由模型服务处理。')
@@ -416,7 +435,8 @@ class AgentTasks:
     def resume(self, task_id, make_card):
         with self.lock:
             task = self._get(task_id)
-            if task['status'] != 'waiting' or task['delivery'] in ('sending', 'queued', 'unconfirmed', 'fallback'):
+            self._require_handoff(task)
+            if task['status'] != 'waiting' or task['delivery'] in ('sending', 'queued', 'unconfirmed'):
                 return self._public(task)
             binding = self._binding(task['project_id']) if task['agent'] == 'codex' else None
             if not binding or not self.codex.available():
@@ -430,7 +450,7 @@ class AgentTasks:
     def has_dispatches(self):
         with self.lock:
             return any(t['delivery']=='sending' or t['status'] in ('analyzing','rendering') for t in
-                       (self._get(path.stem) for path in self.root.glob('handoff_*.json')))
+                       (json.loads(path.read_text(encoding='utf-8')) for path in task_paths(self.store)))
 
     def _dispatch(self, task_id, binding, card):
         try:

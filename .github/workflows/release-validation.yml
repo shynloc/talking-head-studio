@@ -47,8 +47,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: clip-${{ matrix.label }}
-          path: qa/portable-project.zip
+          path: qa/migration-fixtures/
           retention-days: 7
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -62,7 +63,7 @@ jobs:
           if-no-files-found: ignore
 
   migrate:
-    name: Render project from the other platform (${{ matrix.label }})
+    name: Import and export all project bundles (${{ matrix.from }} to ${{ matrix.label }})
     needs: install
     strategy:
       fail-fast: false
@@ -95,8 +96,8 @@ jobs:
           path: inbound
       - name: Build the committed release ZIP
         run: python -X utf8 scripts/package_release.py --output dist
-      - name: Open the transferred project and render again
-        run: python -X utf8 tests/release_install_test.py --out qa --migrate inbound/portable-project.zip
+      - name: Open the full, lightweight and legacy bundles and export each
+        run: python -X utf8 tests/release_install_test.py --out qa --migrate inbound
       - uses: actions/upload-artifact@v4
         if: always()
         with:

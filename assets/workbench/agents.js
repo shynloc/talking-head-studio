@@ -5,7 +5,11 @@ function hostOptions(localOnly=false){
   return Object.entries(doctorInfo.agent_hosts || {}).filter(([,host])=>!localOnly || !host.cloud)
     .map(([key,host])=>`<option value="${esc(key)}">${esc(host.name)}</option>`).join('');
 }
-const taskLabels = {waiting:'等 AI 领取',claimed:'AI 已领取',ready:'结果已回来'};
+function agentTaskLabel(task) {
+  if (task.needs_handoff) return '待重新交接';
+  if (task.status === 'waiting' && task.delivery === 'queued') return '已排队';
+  return {waiting:'等 AI 领取',claimed:'AI 已领取',ready:'结果已返回'}[task.status];
+}
 let agentView = null;
 
 function agentDialog(title, html) {
@@ -35,7 +39,7 @@ async function openAgentInbox() {
       <button class="agent-row" data-agent="task" data-task="${task.id}">
         <strong>${esc(task.instruction)}</strong>
         <span>${esc(task.project_title)} · ${esc(hostName(task.agent))}</span>
-        <span class="agent-status">${taskLabels[task.status]}</span>
+        <span class="agent-status">${agentTaskLabel(task)}</span>
       </button>`).join('') || '<p class="hint">还没有交给 AI 的任务。</p>'}</div>`);
   agentView = view;
 }
@@ -92,34 +96,36 @@ async function renderAgentTask(view, task) {
   if (view.key === key) return;
   view.key = key;
   const canResume = task.agent === 'codex' && connection.codex_bound && connection.codex_available &&
-    !['sending','queued','unconfirmed','fallback'].includes(task.delivery);
+    !['sending','queued','unconfirmed'].includes(task.delivery);
   const deliveryText = {
     sending:'正在找原来的 Codex 对话…',
     queued:'已排入原对话。若没有自动开始，打开原对话即可继续。',
-    fallback:'这次没能续接原对话。待办还在，把任务卡粘贴到原对话即可继续。',
+    fallback:'这次未能验证原对话。可以重新检查连接，或把任务卡粘贴到原对话。',
     unconfirmed:'暂时无法确认是否投递成功。待办还在，可复制任务卡到原对话继续。',
     manual:task.agent === 'workbuddy'
       ? '打开原来的 WorkBuddy 对话，把任务卡粘贴进去。'
       : canResume ? '已连接该项目的原 Codex 对话。' : '复制任务卡，粘贴到你选定的对话。',
   }[task.delivery];
-  const waiting = task.status === 'waiting';
+  const waiting = task.status === 'waiting' && !task.needs_handoff;
   const ready = task.status === 'ready';
   agentDialog('AI 待办',`
     <div class="agent-detail">
-      <div class="agent-task-status"><strong>${taskLabels[task.status]}</strong>
+      <div class="agent-task-status"><strong>${agentTaskLabel(task)}</strong>
         <span>${esc(hostName(task.agent))} · ${esc(task.project_title)}</span></div>
       <p class="agent-instruction">${esc(task.instruction)}</p>
       ${waiting ? `<p class="hint">${deliveryText}</p>` : ''}
+      ${task.needs_handoff ? '<p class="hint">这条待办来自迁入工程。重新交接后，可选择原对话继续处理。</p>' : ''}
       ${task.status === 'claimed' ? '<p class="hint">处理结果回来后会显示在这里。</p>' : ''}
       ${ready ? `${task.project_changed ? '<p class="hint">项目已更新。这份建议基于提交时的内容，采用前请对照。</p>' : ''}
         <div class="agent-result">${esc(task.result)}</div>` : ''}
       <div class="action-row">
+        ${task.needs_handoff ? '<button class="key" data-agent="reactivate">重新交接</button>' : ''}
         ${waiting && canResume ? '<button class="key" data-agent="resume">继续原对话</button>' : ''}
         ${waiting ? `<button class="${canResume?'ghost':'key'}" data-agent="card">复制任务卡</button>` : ''}
         ${waiting && task.agent === 'codex' && !connection.codex_bound
           ? '<button class="ghost" data-agent="bind">连接 Codex 原对话</button>' : ''}
         ${task.status === 'claimed' ? '<button class="ghost" data-agent="retry">让 AI 重新领取</button>' : ''}
-        ${!ready && task.delivery !== 'sending' ? '<button class="ghost" data-agent="manual-result">粘贴 AI 的结果</button>' : ''}
+        ${!ready && !task.needs_handoff && task.delivery !== 'sending' ? '<button class="ghost" data-agent="manual-result">粘贴 AI 的结果</button>' : ''}
         ${ready ? '<button class="key" data-agent="copy-result">复制结果</button>' : ''}
         <button class="ghost" data-agent="list">返回待办</button>
       </div>
@@ -223,6 +229,9 @@ document.addEventListener('click',async event=>{
         break;
       case 'resume':
         await renderAgentTask(view,await api('/api/agents/resume',{id:view.id}));
+        break;
+      case 'reactivate':
+        await renderAgentTask(view,await api('/api/agents/reactivate',{id:view.id}));
         break;
       case 'retry':
         if (confirm('让 AI 重新领取？先前领取的结果将无法写回。')) {

@@ -93,4 +93,4 @@ class CodexHandoff:
         except subprocess.TimeoutExpired:
             return 'unconfirmed'
         # The native CLI may queue successfully even when activating the thread fails.
-        return 'queued' if result.returncode == 0 else 'manual'
+        return 'queued' if result.returncode == 0 else 'unconfirmed'

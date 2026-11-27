@@ -37,7 +37,7 @@ def main():
         page.locator('[data-workflow=recording]').click()
 
         def import_video(mode):
-            page.locator('#recording-use').select_option(mode)
+            page.locator(f'#recording-{mode}').check()
             if mode=='captions':
                 page.evaluate("let input=document.createElement('input');input.id='drop-fixture';input.type='file';input.multiple=true;document.body.append(input)")
                 files=page.locator('#drop-fixture')
@@ -50,10 +50,11 @@ def main():
                 assert all('recognition' not in job.get('result',{}) for job in jobs)
                 return
             with page.expect_file_chooser() as event:page.locator('#video-file').click()
-            event.value.set_files(args.video)
+            event.value.set_files([args.video,args.srt])
+            expect(page.locator('#finish-confirm')).to_be_visible(timeout=90000)
+            assert page.evaluate('P.captions.map(c=>c.text)')==rows
+            page.locator('#finish-edit').click()
             expect(page.locator('[data-stage="3"]')).to_have_attribute('aria-current','step',timeout=45000)
-            with page.expect_file_chooser() as event:page.locator('[data-workflow=caption-file]').click()
-            event.value.set_files(args.srt)
             expect(page.locator('[data-workflow=finish]')).to_be_visible(timeout=45000)
 
         import_video('ready')

@@ -1,0 +1,42 @@
+name: Build portable Skill release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Draft release tag
+        type: string
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Verify source and the named draft
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=$(python -c 'import sys; sys.path.insert(0,"scripts"); from core import VERSION; print("v"+VERSION)')
+          test "$RELEASE_TAG" = "$expected"
+          draft=$(gh release view "$RELEASE_TAG" --json isDraft,targetCommitish --jq 'select(.isDraft).targetCommitish')
+          test "$draft" = "$(git rev-parse HEAD)"
+      - name: Run the editor and prompter without media dependencies
+        run: python -S -X utf8 tests/portable_writing.py
+      - name: Create, verify and attach the Skill ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -X utf8 scripts/package_release.py --output dist
+          python -X utf8 scripts/package_release.py --verify "dist/talking-head-studio-$RELEASE_TAG.zip"
+          gh release upload "$RELEASE_TAG" "dist/talking-head-studio-$RELEASE_TAG.zip" "dist/talking-head-studio-$RELEASE_TAG.sha256"

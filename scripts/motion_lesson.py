@@ -9,8 +9,6 @@ from array import array
 import sys
 import tempfile
 
-from PIL import Image, ImageOps
-
 import motion_samples as samples
 
 MAX_INPUT = 12 * 1024**2
@@ -32,6 +30,10 @@ def package_input(root, kind, raw):
     if not raw or len(raw) > MAX_INPUT:
         raise ValueError("请选择不超过 12 MB 的截图或音频。")
     if kind == "image":
+        try:
+            from PIL import Image, ImageOps
+        except ImportError as exc:
+            raise ValueError("请先安装 Pillow，再导入截图。") from exc
         try:
             with Image.open(BytesIO(raw)) as original:
                 if original.width * original.height > 16_000_000:

@@ -2,7 +2,7 @@
 
 从稿件、提词和录制计划开始，把一条口播做成可发布的视频。你可以使用完整的三阶段流程，也可以从已有定稿或已经粗剪好的视频开始。
 
-当前工作台与 Skill 为 **V3.20.1**，配套 **VisionBuddy 1.3.1**。通用 Skill ZIP 可在已安装 Python 的 Windows 和 macOS 使用。带 Python 的平台安装包以各版发行页列出的文件为准。
+当前工作台与 Skill 为 **V3.20.2**，配套 **VisionBuddy 1.3.1**。通用 Skill ZIP 可在已安装 Python 的 Windows 和 macOS 使用。带 Python 的平台安装包以各版发行页列出的文件为准。
 
 [下载安装包与 Skill](https://github.com/shynloc/talking-head-studio/releases/latest)
 
@@ -300,6 +300,6 @@ Windows 与 Apple 芯片 macOS 可以用完整工程 ZIP 互相迁移，并从�
 
 ### 如何重新制作系统安装包？
 
-从已提交的发行源码运行 `python scripts/package_release.py --output dist`，再运行 `python packaging/build_installers.py windows --archive dist/talking-head-studio-v3.20.1.zip --out native`。Mac 构建时将平台参数改为 `macos`。构建器使用 Python 官方安装程序及固定 SHA-256。Mac 应用包含 Intel 和 Apple 芯片可执行文件。[Python 安装程序来源](https://www.python.org/downloads/release/python-31314/)
+从已提交的发行源码运行 `python scripts/package_release.py --output dist`，再运行 `python packaging/build_installers.py windows --archive dist/talking-head-studio-v3.20.2.zip --out native`。Mac 构建时将平台参数改为 `macos`。构建器使用 Python 官方安装程序及固定 SHA-256。Mac 应用包含 Intel 和 Apple 芯片可执行文件。[Python 安装程序来源](https://www.python.org/downloads/release/python-31314/)
 
 有 Developer ID 的发布者可在 Mac 钥匙串中配置签名身份和 notarytool 配置，构建时提供 `--identity` 与 `--notary-profile`。发布流程会分别签署应用和磁盘映像，等待 Apple 接受并附加公证票据。GitHub Actions 可通过仓库 Secrets 配置相同流程。[Apple 公证说明](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)

@@ -4,7 +4,7 @@ import copy, difflib, hashlib, json, math, os, re, threading, time, uuid
 from pathlib import Path
 from manuscript_annotations import spoken
 
-VERSION = '3.17.0'
+VERSION = '3.17.1'
 ROOT = Path(__file__).resolve().parents[1]
 LOCK = threading.RLock()
 

@@ -169,6 +169,24 @@ class Handler(BaseHTTPRequestHandler):
                         size -= len(chunk)
                     bundle.seek(0)
                     return self.respond(200, import_bundle(self.server.store, bundle))
+            if urllib.parse.urlsplit(self.path).path == '/api/visionbuddy/timeline':
+                from visionbuddy_timeline import arrange
+                query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query, max_num_fields=6)
+                size = int(self.headers.get('Content-Length', 0))
+                if not 0 < size <= motion_package.MAX_BYTES:
+                    raise ValueError('请选择不超过 512 MB 的 VisionBuddy 素材 ZIP。')
+                with tempfile.TemporaryFile(dir=self.server.store.root) as archive:
+                    while size:
+                        chunk = self.rfile.read(min(size, 1024**2))
+                        if not chunk:
+                            raise ValueError('VisionBuddy 素材包传输中断。')
+                        archive.write(chunk)
+                        size -= len(chunk)
+                    archive.seek(0)
+                    payload = arrange(self.server.store, query['id'][0], archive, int(query['version'][0]),
+                                      query.get('method', ['auto'])[0], query.get('action', ['preview'])[0],
+                                      query.get('receipt', [''])[0])
+                return self.respond(200, payload)
             if self.path == '/api/motion/lesson-input':
                 from motion_lesson import MAX_INPUT, package_input
                 size = int(self.headers.get('Content-Length', 0))

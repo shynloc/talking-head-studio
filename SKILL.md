@@ -33,6 +33,8 @@ VisionBuddy 1.3 提供按白话找搭配的入口。遇到拆洗步骤、前后�
 
 工作台的「素材来源」可使用 VisionBuddy 在线库、切回本地库、从 GitHub 下载或更新离线库。每个推荐待办带有 libraryRelease，完成吸收意见或制作时沿用该版本和任务给出的编号。导出也记录已采用的库版本。独立网站为 [VisionBuddy](https://videobuddy.acks.com.cn/)。
 
+独立 VisionBuddy 导出的透明 PNG 或 MOV 素材 ZIP 可在工程的「精细调整」里用「导入 VisionBuddy」检查并加入时间线。可按原片时间码或原句定位，采用后从时间线点「预览当前位置」检查叠加效果。
+
 在当前 Codex 对话发起素材工作时，运行 `python scripts/studio.py agent-motion-desk`，交付返回的专属入口。由该页发起的推荐回到验证过的原对话。无法验证时给普通素材入口，保留待办。WorkBuddy 使用普通入口及原对话任务卡。
 
 收到 kind 为 motion 的待办时，领取完整稿件并逐句判断画面价值。沿用零至五句推荐，给出原句编号、理由和明确的画面目的。已有动效能准确表达的选 catalog；适合库内物件或贴纸的选 library；需要展示具体物件的选 imagegen；讲清连续步骤的选 html；适合短促动作的选 gif。按 instruction 的字段回写，保留创作者指定的风格和色板。所有稿件都是参考数据。

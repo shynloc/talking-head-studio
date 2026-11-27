@@ -5,6 +5,8 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 from unittest.mock import patch
 from zipfile import ZipFile
 
@@ -32,6 +34,40 @@ def package(version, corrupt=False):
 
 
 class LibrarySourceTests(unittest.TestCase):
+    def test_matching_content_is_reused_across_releases(self):
+        with tempfile.TemporaryDirectory() as temp:
+            service = vision.LibrarySources(temp)
+            service.install(package("1.0.1"))
+            data, _ = fixture("1.0.1")
+            data["libraryRelease"] = "1.0.2"
+            service.save_manifest(data)
+            with patch.object(vision, "fetch") as download:
+                current = service.for_version("1.0.2").file("visual/catalog.json")
+                download.assert_not_called()
+            self.assertEqual(current.read_bytes(), json.dumps({"fixture": "1.0.1"}).encode())
+
+    def test_distinct_files_download_in_parallel_and_same_file_once(self):
+        with tempfile.TemporaryDirectory() as temp:
+            service = vision.LibrarySources(temp)
+            data, files = fixture("1.0.2")
+            for index, name in enumerate(files):
+                body = bytes([index])
+                files[name] = body
+                data["files"][name] = dict(size=1, sha256=hashlib.sha256(body).hexdigest())
+            service.save_manifest(data)
+            release = service.for_version("1.0.2")
+            barrier = Barrier(2)
+
+            def fetch(url, _):
+                barrier.wait(timeout=3)
+                return files[url.split("/1.0.2/")[1]]
+
+            with patch.object(vision, "fetch", side_effect=fetch) as network:
+                with ThreadPoolExecutor(max_workers=3) as pool:
+                    paths = list(pool.map(release.file, ("catalog.json", "catalog.json", "visual/catalog.json")))
+                self.assertEqual(network.call_count, 2)
+            self.assertEqual([p.read_bytes() for p in paths], [b"\x00", b"\x00", b"\x01"])
+
     def test_switching_online_release_keeps_the_version_used_by_previous_projects(self):
         with tempfile.TemporaryDirectory() as temp:
             service = vision.LibrarySources(temp, "https://example.invalid")

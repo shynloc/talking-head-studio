@@ -6,6 +6,7 @@ import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from unittest.mock import patch
 
 from PIL import Image
 
@@ -13,9 +14,27 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import motion_recommend as recommend
 import motion_samples as samples
 import motion_treatments as treatments
+import vision_library as vision
 
 
 class MaterialNumberTests(unittest.TestCase):
+    def test_transparent_preview_uses_only_pngs_and_caches_the_canonical_recipe(self):
+        recipe = dict(objects="camera", stickers="loupe", palettes="tidal")
+        original = samples.overlay_png(samples.brief(recipe))
+        release = vision.Release(None, vision.BUNDLED)
+        previews = samples.OverlayPreviews()
+        self.addCleanup(previews.close)
+        with vision.using(release), patch.object(release, "file", wraps=release.file) as files:
+            cold = previews.get(recipe)
+            pictures = [Path(call.args[0]) for call in files.call_args_list
+                        if call.args[0] != "visual/catalog.json"]
+            self.assertEqual(sorted(p.suffix for p in pictures), [".png", ".png"])
+            self.assertEqual(cold[:2], (original, False))
+            files.reset_mock()
+            warm = previews.get({**recipe, "styles": "WEB-012"})
+            self.assertEqual(warm[:2], (original, True))
+            self.assertTrue(all(call.args[0] == "visual/catalog.json" for call in files.call_args_list))
+
     def test_every_catalogue_entry_has_one_public_id(self):
         visual = samples.catalog()
         html = (samples.LIBRARY / 'index.html').read_text(encoding='utf8')

@@ -10,7 +10,11 @@ import shutil
 import subprocess
 import tempfile
 import zipfile
+from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
+from threading import Lock
+from time import perf_counter
 
 from core import ROOT, write_json
 from runtime import refresh_installed_tools
@@ -357,6 +361,49 @@ def overlay_png(spec):
             im.save(result, format="PNG")
             return result.getvalue()
     return Path(main).read_bytes()
+
+
+class OverlayPreviews:
+    def __init__(self, limit=128):
+        self.limit = limit
+        self.cache = OrderedDict()
+        self.lock = Lock()
+        self.pool = ThreadPoolExecutor(max_workers=6)
+
+    def close(self):
+        self.pool.shutdown(wait=True, cancel_futures=True)
+
+    def get(self, raw):
+        release = vision.current()
+        selected = selection(raw)
+        palette = selected.get("palettes", "atelier")
+        kinds = [kind for kind in ("objects", "stickers") if kind in selected]
+        key = (release.version, palette, selected.get("objects"), selected.get("stickers"))
+        with self.lock:
+            if key in self.cache:
+                self.cache.move_to_end(key)
+                return self.cache[key], True, 0, 0
+
+        started = perf_counter()
+        entries = [resolve_entry(kind, selected[kind]) for kind in kinds]
+        names = ["visual/" + entry["variants"][palette]["preview"] for entry in entries]
+        if len(names) == 2:
+            paths = list(self.pool.map(release.file, names))
+        else:
+            paths = [release.file(name) for name in names]
+        spec = {
+            kind: {**entry, "files": {"preview": str(path)}}
+            for kind, entry, path in zip(kinds, entries, paths)
+        }
+        composing = perf_counter()
+        body = overlay_png(spec)
+        finished = perf_counter()
+        with self.lock:
+            self.cache[key] = body
+            self.cache.move_to_end(key)
+            if len(self.cache) > self.limit:
+                self.cache.popitem(last=False)
+        return body, False, (composing - started) * 1000, (finished - composing) * 1000
 
 
 def layout_html(spec):

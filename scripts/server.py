@@ -82,11 +82,13 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if path == '/api/motion/library-preview':
                 chosen = {key: values[0] for key, values in query.items()}
-                body = motion_samples.overlay_png(motion_samples.brief(chosen))
+                body, cached, images_ms, compose_ms = self.server.overlay_previews.get(chosen)
                 self.send_response(200)
                 self.send_header('Content-Type', 'image/png')
                 self.send_header('Content-Length', str(len(body)))
-                self.send_header('Cache-Control', 'no-cache')
+                self.send_header('Cache-Control', 'private, max-age=86400, immutable' if query.get('library') else 'no-cache')
+                cache = 'hit' if cached else 'miss'
+                self.send_header('Server-Timing', f'overlay-cache;desc="{cache}", images;dur={images_ms:.2f}, compose;dur={compose_ms:.2f}')
                 self.end_headers()
                 self.wfile.write(body)
                 return
@@ -307,6 +309,7 @@ def serve(data, port, open_page):
         server.instance_id = secrets.token_urlsafe(16)
         server.manuscripts = Manuscripts(store)
         server.library = vision.LibrarySources(store.root)
+        server.overlay_previews = motion_samples.OverlayPreviews()
         server.agent_tasks = AgentTasks(store, CodexHandoff(), server.library)
         server.speech = LiveSpeech(store.root)
         server.lifecycle = threading.Lock()
@@ -327,6 +330,7 @@ def serve(data, port, open_page):
             server.jobs.pool.shutdown(wait=True)
             server.manuscripts.pool.shutdown(wait=True)
             server.agent_tasks.pool.shutdown(wait=True)
+            server.overlay_previews.close()
             record.unlink(missing_ok=True)
 
 

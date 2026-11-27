@@ -8,7 +8,7 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import tempfile
-from threading import RLock
+from threading import Lock, RLock
 import time
 from urllib.error import URLError
 from urllib.parse import quote
@@ -106,20 +106,24 @@ class Release:
         local = self.root / key
         if local.is_file():
             return local
-        if self.version == BUNDLED:
-            bundled = ROOT / "assets/workbench/motion" / name
-            if bundled.is_file() and bundled.stat().st_size == files[key]["size"]:
-                if hashlib.sha256(bundled.read_bytes()).hexdigest() == files[key]["sha256"]:
-                    return bundled
-        with self.sources.lock:
-            if not local.is_file():
-                remote = f"{self.sources.origin}/releases/{self.version}/{quote(key)}"
-                content = verify(fetch(remote, files[key]["size"]), files[key])
-                local.parent.mkdir(parents=True, exist_ok=True)
-                with tempfile.NamedTemporaryFile(dir=local.parent, delete=False) as temp:
-                    temp.write(content)
-                os.replace(temp.name, local)
-        return local
+        record = files[key]
+        digest = record["sha256"]
+        shared = self.sources.root / "files" / (digest + Path(name).suffix)
+        with self.sources.file_lock(digest):
+            if local.is_file():
+                return local
+            if shared.is_file():
+                return shared
+            existing = self.sources.find_matching_file(name, key, record)
+            if existing is not None:
+                return existing
+            remote = f"{self.sources.origin}/releases/{self.version}/{quote(key)}"
+            content = verify(fetch(remote, record["size"]), record)
+            shared.parent.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(dir=shared.parent, delete=False) as temp:
+                temp.write(content)
+            os.replace(temp.name, shared)
+            return shared
 
 
 def current():
@@ -145,6 +149,24 @@ class LibrarySources:
         self.origin = origin.rstrip("/")
         self.settings_path = self.root / "source.json"
         self.lock = RLock()
+        self._file_locks = {}
+        self._file_locks_guard = Lock()
+
+    def file_lock(self, digest):
+        with self._file_locks_guard:
+            return self._file_locks.setdefault(digest, Lock())
+
+    def find_matching_file(self, name, key, record):
+        bundled = ROOT / "assets/workbench/motion" / name
+        releases = self.root / "releases"
+        candidates = [bundled, *(path / key for path in releases.iterdir() if VERSION.fullmatch(path.name))]
+        for path in candidates:
+            try:
+                if path.stat().st_size == record["size"] and hashlib.sha256(path.read_bytes()).hexdigest() == record["sha256"]:
+                    return path
+            except (FileNotFoundError, IsADirectoryError):
+                continue
+        return None
 
     def settings(self):
         if self.settings_path.is_file():

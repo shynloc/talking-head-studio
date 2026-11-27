@@ -43,7 +43,7 @@ function instructions(r){
 function downloadText(name,body,type){
  const address=URL.createObjectURL(new Blob([body],{type})),a=link(address,name,true);a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(address),15000)
 }
-function select(k,id){selected[k]=id;try{localStorage.setItem(storageKey,JSON.stringify(selected))}catch{};$('status').textContent='';render()}
+function select(k,id){selected[k]=id;try{localStorage.setItem(storageKey,JSON.stringify(selected))}catch{};$('status').textContent='';render(k)}
 function details(){
  const d=item(tab),root=$('detail');root.replaceChildren();if(!d)return
  root.append(node('h3',d.name,'section-title'),node('code',d.variantId||d.assetId,'asset-id'))
@@ -56,7 +56,7 @@ function details(){
  for(const line of lines.filter(Boolean))root.append(node('p',line,'muted'))
  if(d.files){const media=node('div',null,'paint checkboard');const im=new Image();im.src=d.files.preview;im.alt=d.name+'透明预览';media.append(im);root.append(media)}
 }
-function render(){
+function render(changed){
  const tabs=$('tabs');tabs.replaceChildren()
  for(const [k,name] of Object.entries(names)){const b=uiButton(name,()=>{tab=k;$('asset-search').value='';previewMode=k==='styles'?'layout':k==='palettes'?previewMode:'overlay';render()});b.setAttribute('aria-pressed',String(k===tab));tabs.append(b)}
  const box=$('grid');box.replaceChildren()
@@ -74,12 +74,11 @@ function render(){
   const b=uiButton('',()=>{if(variant)selected.palettes=variant.id;select(tab,d.id)});b.className='entry';b.setAttribute('aria-pressed',String(d.id===selected[tab]))
   if(d.id&&tab==='styles'){const mini=node('div',null,'mini');mini.setAttribute('aria-hidden','true');mini.append(scene(d,item('palettes'),item('objects'),null));b.append(mini)}
   if(tab==='palettes'){const sw=node('div',null,'swatches');for(const c of Object.values(d.colors)){const sample=node('i');sample.style.background=c;sw.append(sample)}b.append(sw)}
-  if(d.files){const thumb=node('div',null,'thumb');const im=new Image();im.src=d.files.preview;im.alt='';thumb.append(im);b.append(thumb)}
+  if(d.files){const thumb=node('div',null,'thumb');const im=new Image();im.loading='lazy';im.src=d.files.preview;im.alt='';thumb.append(im);b.append(thumb)}
   b.append(node('strong',d.name));if(d.assetId){b.dataset.assetId=d.assetId;b.append(node('code',d.assetId,'asset-id'))}if(d.uses)b.append(node('small',d.summary||d.uses));box.append(b)
  }
  const r=recipe();$('choice').textContent=[r.webStyle.name,r.palette.name,r.object?.name,r.sticker?.name].filter(Boolean).join('  /  ')
- $('preview').replaceChildren(scene(r.webStyle,r.palette,r.object,r.sticker))
- showPreview(r)
+ showPreview(r, changed==='objects' ? r.object : (r.sticker || r.object))
  updateBrief(r)
  const files=$('files');files.replaceChildren()
  const html=uiButton('保存当前 HTML 样式',async()=>{
@@ -108,22 +107,56 @@ function updateBrief(r){
  $('copy-annotation').disabled=!annotationLine(r)
  if(inline && window.parent!==window)window.parent.postMessage({type:'studio-visual-selection',prompt,annotation:annotationLine(r),ids:[r.webStyle,r.palette,r.object,r.sticker].filter(Boolean).map(e=>e.assetId)},location.origin)
 }
-function showPreview(r){
+let pendingOverlay
+function showPreview(r, hint=r.sticker||r.object){
  const overlay=previewMode==='overlay'
  $('preview').hidden=overlay;$('overlay').hidden=!overlay
  $('layout-view').setAttribute('aria-pressed',String(!overlay));$('overlay-view').setAttribute('aria-pressed',String(overlay))
- if(!overlay)return
- const image=$('overlay-image'),message=$('overlay-message')
- if(!r.object && !r.sticker){image.removeAttribute('src');image.hidden=true;message.textContent='挑一个物件或贴纸，就能看透明效果。';return}
+ if(!overlay){
+  pendingOverlay=null
+  $('preview').replaceChildren(scene(r.webStyle,r.palette,r.object,r.sticker))
+  return
+ }
+ $('preview').replaceChildren()
+ const image=$('overlay-image'),thumb=$('overlay-thumbnail'),message=$('overlay-message')
+ if(!r.object && !r.sticker){
+  pendingOverlay=null
+  image.hidden=true;thumb.hidden=true
+  message.textContent='挑一个物件或贴纸，就能看透明效果。'
+  return
+ }
  const query=new URLSearchParams({palettes:r.palette.assetId})
  if(r.object)query.set('objects',r.object.assetId)
  if(r.sticker)query.set('stickers',r.sticker.assetId)
  const src=versioned('/api/motion/library-preview?'+query)
- if(image.getAttribute('src')===src)return
- image.hidden=true;message.textContent='正在加载透明小样…'
- image.onload=()=>{image.hidden=false;message.textContent=''}
- image.onerror=()=>{message.textContent='透明小样加载失败，请刷新重试。'}
- image.src=src
+ if(image.getAttribute('src')===src && image.naturalWidth){
+  pendingOverlay=null
+  image.hidden=false;thumb.hidden=true;message.textContent=''
+  return
+ }
+ if(pendingOverlay?.url===src)return
+ image.hidden=true
+ thumb.hidden=!hint
+ if(hint)thumb.src=hint.files.preview
+ message.textContent='正在合成透明小样…'
+ const next=new Image()
+ const request={url:src}
+ pendingOverlay=request
+ next.fetchPriority='high'
+ next.id=image.id
+ next.alt=image.alt
+ next.onload=()=>{
+  if(pendingOverlay!==request)return
+  $('overlay-image').replaceWith(next)
+  pendingOverlay=null
+  thumb.hidden=true;message.textContent=''
+ }
+ next.onerror=()=>{
+  if(pendingOverlay!==request)return
+  pendingOverlay=null
+  message.textContent='透明小样加载失败，请点选素材重试。'
+ }
+ next.src=src
 }
 $('layout-view').onclick=()=>{previewMode='layout';showPreview(recipe())}
 $('overlay-view').onclick=()=>{previewMode='overlay';showPreview(recipe())}

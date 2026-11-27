@@ -170,7 +170,7 @@ class AgentTasks:
         agent = data.get("agent", "codex")
         if agent not in ("codex", "workbuddy", "service"):
             raise ValueError("请选择可用助手。")
-        context = motion.snapshot(data.get("text"), data.get("sentences"), data.get("visual"))
+        context = motion.snapshot(data.get("text"), data.get("sentences"), data.get("visual"), data.get("marked_script"))
         request = text_value(data.get("request_id"), "提交编号", 80)
         with self.lock:
             for path in self.root.glob("handoff_*.json"):

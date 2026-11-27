@@ -854,6 +854,14 @@ function draw(canvas, t, ids = [], subject = '', solo = false, settings = {}) {
       g.arc(240, 82, 255 * Math.min(enter === 'irisIn' ? lead : 1, exit === 'irisOut' ? 1 - end : 1), 0, TAU)
       g.clip()
     }
+    if (settings.overlay) {
+      if (c.imageA) {
+        const scale = Math.min(402 / c.imageA.width, 148 / c.imageA.height)
+        const w = c.imageA.width * scale, h = c.imageA.height * scale
+        g.drawImage(c.imageA, 240 - w / 2, 82 - h / 2, w, h)
+      }
+      return
+    }
     if (solo && pick('plate')) {
       art(g, c.key, true, 240, 57, 0.95)
       isolate(g, () => {

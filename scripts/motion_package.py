@@ -154,6 +154,10 @@ def export(data, stream, size):
                             item["packageSources"][name] = target
                 else:
                     encode(packet, item, folder, archive, stem)
+                    if item.get("overlay"):
+                        item["packageSources"] = samples.library_sources(
+                            archive, samples.brief(item.get("visual")), "可编辑源件/" + stem + "/"
+                        )
                 refs = {k: v["assetId"] for k, v in samples.brief(item.get("visual")).items()}
                 source_ids = home / "sources" / "asset-ids.json" if item.get("sample") else None
                 if source_ids and source_ids.is_file():
@@ -177,6 +181,9 @@ def export(data, stream, size):
                     else f"{item['seconds']} 秒"
                 )
                 lines.append(f"{stem}（{duration}）\n{item['quote'] or '自由搭配，可放在需要的位置。'}\n")
+                binding = item.get("binding")
+                if isinstance(binding, dict) and isinstance(binding.get("cue"), str) and binding["cue"]:
+                    lines[-1] += f"说到「{binding['cue']}」时出现\n"
             if packet.remaining:
                 raise ValueError("收到的帧数与搭配不一致，请重试。")
             archive.writestr("原句对照.txt", "\n".join(lines))

@@ -131,3 +131,12 @@
 #all-routes {
   padding: 8px 0;
 }
+.review-card.annotation-card {
+  display: block;
+}
+.annotation-card h3 {
+  margin: 0 0 6px;
+}
+.annotation-card p {
+  margin: 0 0 12px;
+}

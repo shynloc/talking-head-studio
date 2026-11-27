@@ -27,6 +27,11 @@
         <div class="paper intake">
           <label for="manuscript">我的口播稿</label>
           <textarea disabled id="manuscript" rows="4" placeholder="把整篇稿子粘贴到这里……"></textarea>
+          <p id="annotations-status" role="status" hidden></p>
+          <details class="annotation-help">
+            <summary>怎么在稿里指定画面</summary>
+            <p>从素材库点「复制到稿件」，单独粘贴一行到要配画面的段落后，或紧跟在指定句子后。想保留纯口播时，写（画面：无）。</p>
+          </details>
           <div class="intake-actions">
             <button id="recommend" class="primary">推荐配画面的原句</button>
             <button id="visual-open" class="quiet">挑整篇风格</button><small id="style-summary"></small>

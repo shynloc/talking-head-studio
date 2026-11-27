@@ -4,10 +4,11 @@ const agentNames = { codex: 'Codex', workbuddy: 'WorkBuddy', service: '模型服
 let pollTimer = 0,
   pastePending = false,
   postInFlight = null
-const chosen = (item) => state.items.some((x) => x.id === item.id)
-function localPicks(units) {
+const chosen = (item) => state.items.some((x) => x.id === item.id && isActiveMaterial(x))
+function localPicks(units, respectMarks = false) {
   const candidates = []
   for (const [sentence, line] of units.entries()) {
+    if (respectMarks && annotationAt(sentence)) continue
     const plain = line.quote.replace(/[。？！.!?]+$/u, '').trim()
     if (plain.length < 5) continue
     const values = (plain.match(/\d+(?:\.\d+)?/g) || []).map(Number)
@@ -101,7 +102,7 @@ function buildRows(plans, units, previous = []) {
   return plans.map((plan) => {
     const { quote, offset } = units[plan.sentence]
     const before = previous.find((x) => x.item.offset === offset && x.item.quote === quote)
-    const saved = state.items.find((x) => x.offset === offset && x.quote === quote)
+    const saved = state.items.find((x) => x.offset === offset && x.quote === quote && isActiveMaterial(x))
     const item = createItem({ quote, offset })
     for (const field of ['ids', 'title', 'seconds', 'a', 'b', 'labels', 'values', 'theme'])
       if (plan[field] !== undefined) item[field] = clone(plan[field])
@@ -125,18 +126,18 @@ function buildRows(plans, units, previous = []) {
     }
   })
 }
-function resetReview() {
+function resetReview(previous = state.review) {
   clearTimeout(pollTimer)
   $('assistant-result').value = ''
   $('copy-fallback').hidden = true
-  const units = lines(state.script)
+  const units = scriptUnits()
   state.review = units.length
     ? {
         text: state.script,
         agent: state.motionAgent || 'codex',
         requestId: key(),
         status: 'local',
-        rows: buildRows(localPicks(units), units),
+        rows: [...annotationRows(units, previous?.rows), ...buildRows(localPicks(units, true), units)],
         skipped: [],
       }
     : null
@@ -144,10 +145,11 @@ function resetReview() {
 function manuscriptChanged() {
   if (state.review?.text !== state.script) resetReview()
   renderReview()
-  if (pastePending && state.script.trim()) {
-    pastePending = false
-    startReview().catch(issue)
-  }
+}
+function takePasteRequest() {
+  const value = pastePending
+  pastePending = false
+  return value
 }
 function initReview() {
   state.motionWorkspace ||= storageKey === 'workspace' ? 'motion_' + key().replaceAll('-', '') : storageKey
@@ -156,6 +158,9 @@ function initReview() {
   $('agent-mode').value = state.motionAgent
   if (storageKey !== 'workspace') $('agent-mode').options[0].text = 'Codex · 此链接的原对话'
   if (state.script && state.review?.text !== state.script) resetReview()
+  if (state.annotationSource && state.annotationSource !== state.annotationParsed)
+    loadManuscript(state.annotationSource, false)
+  else showAnnotationSummary()
   renderReview()
   const review = state.review
   if (review?.taskId && !['ready', 'failed'].includes(review.status)) schedulePoll(review, 0)
@@ -163,15 +168,19 @@ function initReview() {
   save()
 }
 function sentenceItems() {
-  const units = lines(state.script),
+  if (annotationPending) return []
+  const units = scriptUnits(),
     locations = new Map(units.map((line) => [line.offset, line.quote]))
-  return state.items.filter((item) => locations.get(item.offset) === item.quote)
+  return state.items.filter((item) => isActiveMaterial(item) &&
+    (item.binding ? locations.has(item.offset) : locations.get(item.offset) === item.quote))
 }
 function renderReview() {
   const r = state.review
-  $('review').hidden = !r
+  $('review').hidden = !r || annotationPending
+  $('review-title').textContent = state.annotationUnits ? '稿件配画面' : '值得配画面的原句'
   $('recommend').disabled =
-    !state.script.trim() || (r && ['sending', 'waiting', 'claimed', 'analyzing'].includes(r.status))
+    annotationPending || !state.script.trim() || !scriptUnits().some((_, i) => !annotationAt(i)) ||
+    (r && ['sending', 'waiting', 'claimed', 'analyzing'].includes(r.status))
   $('service-note').hidden = $('agent-mode').value !== 'service'
   if (!r) {
     $('recommend').textContent = '推荐配画面的原句'
@@ -189,7 +198,7 @@ function renderReview() {
           : '正在等' + who + '推荐'
   let message = '本机初选。点击推荐，让助手通读整篇稿子。'
   if (status === 'ready')
-    message = who + ' 已读完整稿，推荐 ' + r.rows.filter((x) => !x.retained).length + ' 句。'
+    message = who + ' 已读完整稿，推荐 ' + r.rows.filter((x) => !x.retained && !x.annotationMode).length + ' 句。'
   else if (status === 'failed') message = '本机初选仍可使用。' + (r.error || '助手未能完成，可重试。')
   else if (status !== 'local') {
     if (r.delivery === 'manual' && r.taskId && status === 'waiting')
@@ -211,10 +220,11 @@ function renderReview() {
   const n = sentenceItems().length
   $('export-choices').textContent = '导出已采用的 ' + n + ' 款 ↓'
   $('export-choices').disabled = !n
-  $('total').textContent = state.items.length
+  $('total').textContent = state.items.filter(isActiveMaterial).length
   const list = $('picks')
   list.replaceChildren()
-  for (const row of r.rows) if (!r.skipped.includes(row.sentence)) addPick(list, r, row)
+  const rows = state.annotationUnits ? [...r.rows].sort((a, b) => a.sentence - b.sentence) : r.rows
+  for (const row of rows) if (!r.skipped.includes(row.sentence) || row.annotationMode) addPick(list, r, row)
   if (!list.childElementCount) {
     const empty = document.createElement('p')
     empty.className = 'empty'
@@ -227,12 +237,17 @@ function renderReview() {
   $('undo-skip').hidden = !r.rows.some((row) => r.skipped.includes(row.sentence))
 }
 function addPick(list, review, row) {
+  if (row.annotationMode && (row.annotationMode !== 'specified' || (row.item.treatment && (!row.job || row.renderError) && !row.item.sample))) {
+    addAnnotationCard(list, review, row)
+    return
+  }
   const saved = state.items.find((x) => x.id === row.item.id)
   const item = (row.candidate ? row.item : saved) || row.item
   const adopted = !!saved && !row.candidate
   const card = document.createElement('article')
   card.className = 'paper review-card'
   card.dataset.sentence = row.sentence
+  if (row.annotationMode) card.dataset.annotation = row.annotationMode
   const visual = document.createElement('div')
   visual.className = 'pick-stage check'
   if (item.producer && item.producer !== 'catalog') sampleStage(visual, item, row)
@@ -244,7 +259,7 @@ function addPick(list, review, row) {
     let imgs = {}
     const still = () => paint(canvas, item, item.poster, imgs)
     still()
-    if (Object.keys(item.files || {}).length)
+    if (item.overlay || Object.keys(item.files || {}).length)
       loadImages(item)
         .then((result) => {
           imgs = result
@@ -287,7 +302,17 @@ function addPick(list, review, row) {
           state.items = state.items.filter((x) => x.id !== item.id)
           state.download = ''
         } else if (item.sample) acceptSample(item)
-        else putReviewed(clone(item), item.poster, loaded)
+        else {
+          const next = clone(item)
+          if (next.overlay && !next.files.imageA) {
+            const source = document.createElement('canvas')
+            source.width = loaded.imageA.width
+            source.height = loaded.imageA.height
+            source.getContext('2d').drawImage(loaded.imageA, 0, 0)
+            next.files.imageA = source.toDataURL('image/png')
+          }
+          putReviewed(next, item.poster, loaded)
+        }
         row.candidate = false
         save()
         renderReview()
@@ -301,8 +326,9 @@ function addPick(list, review, row) {
   if (item.producer && item.producer !== 'catalog')
     recipe.textContent = (PART_EFFECTS.find(e=>e.id===item.treatment)?.label || routeNames[item.producer]) + (item.sample ? ' · 已就绪' : row.renderError ? ' · 可换一版' : ' · 制作中')
   accept.setAttribute('aria-pressed', String(adopted))
-  actions.append(
-    accept,
+  actions.append(accept)
+  if (row.annotationMode) actions.append(button('回稿件修改标注', 'quiet', focusManuscriptAnnotation))
+  else actions.append(
     button('换效果', 'quiet change-effect', () => chooseEffect(review, row, item)),
     button('跳过', 'link skip', () => {
       if (saved) {
@@ -322,7 +348,7 @@ function addPick(list, review, row) {
         renderReview()
       }),
     )
-  if (saved && !row.candidate && differentVersion(saved, row.item))
+  if (!row.annotationMode && saved && !row.candidate && differentVersion(saved, row.item))
     actions.append(
       button('看新版', 'link', () => {
         row.candidate = true
@@ -352,6 +378,20 @@ function addPick(list, review, row) {
     visual.style.backgroundImage = 'url(' + referenceFrame + ')'
   }
   copy.append(quote, why, recipe, actions)
+  if (item.binding?.cue) {
+    const cue = document.createElement('p')
+    cue.textContent = '说到「' + item.binding.cue + '」时出现'
+    copy.append(cue)
+  }
+  if (row.annotationMode) {
+    const detail = document.createElement('details')
+    const label = document.createElement('summary')
+    const note = document.createElement('p')
+    label.textContent = '查看稿内标注'
+    note.textContent = item.binding.notes.join('　')
+    detail.append(label, note)
+    copy.append(detail)
+  }
   const codes = item.ids.map(id => TERM[id]?.assetId).filter(Boolean)
   const color = VISUAL.palettes.find(entry => entry.id === (item.visual?.palettes || 'atelier'))
   for (const group of ['styles', 'palettes', 'objects', 'stickers']) {
@@ -397,13 +437,14 @@ function consumeTask(r, task) {
   r.error = task.error
   if (task.status === 'ready' && changed) {
     const old = r.rows,
-      units = lines(r.text)
-    r.rows = buildRows(task.recommendations, units, old)
+      units = scriptUnits()
+    r.rows = [...annotationRows(units, old),
+      ...buildRows(task.recommendations.filter(x => !annotationAt(x.sentence)), units, old)]
     // Keep a creator's earlier choices even when the Agent chose different lines.
     for (const row of old)
       if (
         !r.rows.some((x) => x.sentence === row.sentence) &&
-        (chosen(row.item) || state.editFromReview === row.item.id)
+        !annotationAt(row.sentence) && (chosen(row.item) || state.editFromReview === row.item.id)
       )
         r.rows.push({ ...row, retained: true, reason: '你在助手回复前保留的搭配。' })
   }
@@ -439,7 +480,7 @@ function schedulePoll(r, delay = 2600) {
   }, delay)
 }
 async function startReview() {
-  if (!state.script.trim()) return
+  if (annotationPending || !state.script.trim() || !scriptUnits().some((_, i) => !annotationAt(i))) return
   if (!state.review || state.review.text !== state.script) resetReview()
   const r = state.review
   if (postInFlight === r) return
@@ -449,10 +490,10 @@ async function startReview() {
     r.taskId = null
     r.delivery = ''
     const previous = r.rows
-    const units = lines(r.text)
-    r.rows = buildRows(localPicks(units), units, previous)
+    const units = scriptUnits()
+    r.rows = [...annotationRows(units, previous), ...buildRows(localPicks(units, true), units, previous)]
     for (const row of previous)
-      if (chosen(row.item) && !r.rows.some((x) => x.sentence === row.sentence))
+      if (!annotationAt(row.sentence) && chosen(row.item) && !r.rows.some((x) => x.sentence === row.sentence))
         r.rows.push({ ...row, retained: true })
   }
   r.agent = state.motionAgent || 'codex'
@@ -467,7 +508,8 @@ async function startReview() {
       agent: r.agent,
       text: r.text,
       visual: state.visual || {},
-      sentences: lines(r.text).map((x) => x.quote),
+      sentences: scriptUnits().map((x) => x.quote),
+      ...(state.annotationParsed ? { marked_script: state.annotationParsed } : {}),
     })
     consumeTask(r, task)
   } catch (e) {

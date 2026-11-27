@@ -2,8 +2,9 @@
 from __future__ import annotations
 import copy, difflib, hashlib, json, math, os, re, threading, time, uuid
 from pathlib import Path
+from manuscript_annotations import spoken
 
-VERSION = '3.16.0'
+VERSION = '3.17.0'
 ROOT = Path(__file__).resolve().parents[1]
 LOCK = threading.RLock()
 
@@ -51,6 +52,7 @@ def split_sentences(text):
     return [x.strip() for x in re.findall(r'[^。！？!?\n]+[。！？!?]?|[^\n]+$', text) if x.strip()]
 
 def sync_sentences(page):
+    page['text'] = spoken(page.get('text', ''))
     old = page.get('sentences', []); available = old.copy(); new = []
     for text in split_sentences(page.get('text', '')):
         match = next((s for s in available if s['text'] == text), None)
@@ -72,7 +74,7 @@ def page(text='', kind='speech', title='', duration=0):
         'text': text, 'notes': '', 'duration': duration, 'tags': [], 'media_id': '', 'sentences': []})
 
 def script_pages(text, mode='original'):
-    text = text.replace('\r\n', '\n').strip()
+    text = spoken(text).replace('\r\n', '\n').strip()
     if mode == 'light':
         text = re.sub(r'^\s{0,3}#{1,6}\s*', '', text, flags=re.M)
         text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
@@ -277,13 +279,13 @@ def build_captions(p):
     imported = {s['id'] for s in p['transcript'] if s.get('subtitle_cue')}
     for group in groups(mapped_words(p), imported, previous.values()):
         cue = group[0]['segment_id'] in imported
-        text = ''.join(w['text'] for w in group).strip() if cue else display_text(group)
+        text = spoken(''.join(w['text'] for w in group) if cue else display_text(group)).strip()
         if not text:
             continue
         ids = [w['word_id'] for w in group]
         capid = 'cap_'+digest(ids)[:12]
         start, end = group[0]['start'], group[-1]['end']
-        cap = {'id':capid, 'text':previous.get(capid,{}).get('text',text), 'original_text':text,
+        cap = {'id':capid, 'text':spoken(previous.get(capid,{}).get('text',text)), 'original_text':text,
                'word_ids':ids, 'start':round(start,3), 'end':round(end if cue else max(end,start+.1),3),
                **match_script(p,text)}
         reason = '' if cue else review_reason(group)

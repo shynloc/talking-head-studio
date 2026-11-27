@@ -10,7 +10,7 @@ async function startMaterialDesk() {
   } else {
     window.VISUAL = await (await fetch('visual/catalog.json')).json()
     window.PART_EFFECTS = await (await fetch('visual/treatments.json')).json()
-    files.push('studio.js', 'recommendations.js', 'production.js', 'sentence-options.js', 'pack.js')
+    files.push('studio.js', 'annotations.js', 'recommendations.js', 'production.js', 'sentence-options.js', 'pack.js')
   }
   for (const file of files) {
     await new Promise((resolve, reject) => {

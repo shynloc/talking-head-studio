@@ -94,9 +94,15 @@ function render(){
  if(r.sticker)files.append(link(r.sticker.files.vector,'贴纸 SVG',true),link(r.sticker.files.preview,'贴纸透明 PNG',true))
  details()
 }
+function annotationLine(r){
+ if(!r.object && !r.sticker)return ''
+ return '（画面：用'+[r.object,r.sticker,r.webStyle,r.palette].filter(Boolean).map(asset=>
+  asset.name+' '+(asset.variantId||asset.assetId)).join('、')+'。）'
+}
 function updateBrief(r){
  const prompt=instructions(r);$('prompt').value=prompt
- if(inline && window.parent!==window)window.parent.postMessage({type:'studio-visual-selection',prompt,ids:[r.webStyle,r.palette,r.object,r.sticker].filter(Boolean).map(e=>e.assetId)},location.origin)
+ $('copy-annotation').disabled=!annotationLine(r)
+ if(inline && window.parent!==window)window.parent.postMessage({type:'studio-visual-selection',prompt,annotation:annotationLine(r),ids:[r.webStyle,r.palette,r.object,r.sticker].filter(Boolean).map(e=>e.assetId)},location.origin)
 }
 function showPreview(r){
  const overlay=previewMode==='overlay'
@@ -130,6 +136,11 @@ window.addEventListener('message',event=>{
 })
 $('recent-only').checked=inline
 $('recent-only').onchange=render
+$('copy-annotation').onclick=async()=>{
+ const line=annotationLine(recipe())
+ try{await navigator.clipboard.writeText(line);$('status').textContent='已复制画面标注，粘贴到要配画面的段落后。'}
+ catch{$('promptbox').open=true;$('prompt').value=line;$('prompt').select();$('status').textContent='画面标注已选中，可按系统复制快捷键。'}
+}
 $('quote').oninput=()=>{updateBrief(recipe());$('status').textContent=''}
 $('copy').onclick=async()=>{const text=$('prompt');try{await navigator.clipboard.writeText(text.value);$('status').textContent='已复制生成说明，可粘贴给助手。'}catch{$('promptbox').open=true;text.focus();text.select();$('status').textContent=document.execCommand('copy')?'已复制生成说明。':'已选中说明，按系统复制快捷键即可。'}}
 $('json').onclick=()=>downloadText('我的素材风格.json',JSON.stringify(recipe(),null,2),'application/json')

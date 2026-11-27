@@ -376,21 +376,34 @@ def layout_html(spec):
             + '\ndocument.body.append(scene(...' + args + '))</script></body></html>')
 
 
+def library_sources(archive, spec, prefix):
+    obj, sticker = spec.get("objects"), spec.get("stickers")
+    names = {}
+
+    def write(name, value):
+        archive.writestr(prefix + name, value)
+        names[name] = prefix + name
+
+    refs = {group: entry["assetId"] for group, entry in spec.items()}
+    write("asset-ids.json", json.dumps(refs, ensure_ascii=False, indent=2))
+    if spec.get("styles"):
+        write("layout.html", layout_html(spec))
+    for entry in (obj, sticker):
+        if entry:
+            for path in entry["files"].values():
+                name = entry["id"] + Path(path).suffix
+                archive.write(path, prefix + name)
+                names[name] = prefix + name
+    return names
+
+
 def from_library(root, raw):
     spec = brief(raw)
-    obj, sticker = spec.get("objects"), spec.get("stickers")
     with tempfile.TemporaryDirectory() as tmp:
         bundle = Path(tmp) / "library.zip"
         with zipfile.ZipFile(bundle, "w", zipfile.ZIP_DEFLATED) as archive:
             archive.writestr("media.png", overlay_png(spec))
-            refs = {group: entry["assetId"] for group, entry in spec.items()}
-            archive.writestr("sources/asset-ids.json", json.dumps(refs, ensure_ascii=False, indent=2))
-            if spec.get("styles"):
-                archive.writestr("sources/layout.html", layout_html(spec))
-            for entry in (obj, sticker):
-                if entry:
-                    for k, p in entry["files"].items():
-                        archive.write(p, "sources/" + entry["id"] + Path(p).suffix)
+            library_sources(archive, spec, "sources/")
             archive.writestr(
                 "sources/style.json", json.dumps(selection(raw), ensure_ascii=False)
             )

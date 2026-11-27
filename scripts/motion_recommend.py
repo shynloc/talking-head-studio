@@ -3,13 +3,15 @@
 import json
 import math
 import re
+from bisect import bisect_left
 from functools import lru_cache
 
 from core import ROOT
+import manuscript_annotations as annotations
 import motion_samples as samples
 import motion_treatments as treatments
 
-INSTRUCTION = """你是口播创作者的视觉编辑。通读全文，按推荐优先级选择最值得配画面的 0 至 5 句。
+INSTRUCTION = """你是口播创作者的视觉编辑。通读全文，从 eligibleSentences 允许的原句编号中选择最值得配画面的 0 至 5 句。其余原句已有创作者指定的画面或要求纯口播，跳过。
 优先步骤、关系、地点、数据及前后变化。避免重复；问候、空泛或不配图也清楚的稿件可以不选。
 返回 JSON {"recommendations":[{"sentence":0,"reason":"具体说明这幅图帮观众看懂什么","title":"画面短标题","ids":["fade","steps"],"seconds":4,"labels":["第一步","第二步","第三步"]}]}。
 sentence 是 sentences 数组从 0 起的编号。选 1 至 6 个 catalog 中的真实 id，同一 slot 最多选一个。
@@ -27,7 +29,109 @@ def catalog():
     return json.loads((ROOT / "assets/workbench/motion/catalog.json").read_text(encoding="utf-8"))
 
 
-def snapshot(text, quotes, visual=None):
+ASSET_CODE = re.compile(r"(?<![A-Z0-9])(?:OBJ|STK|WEB|PAL|FX|DEMO)-\d+(?:@PAL-\d+)?(?![A-Z0-9])", re.I)
+VISUAL_PREFIX = {"OBJ": "objects", "STK": "stickers", "WEB": "styles", "PAL": "palettes"}
+# These transforms already act on a whole layer in the Canvas renderer.
+OVERLAY_EFFECTS = set("""
+fade lift slide pop zoomIn blurIn swingIn wipe irisIn vanish drop shrink spinOut
+closewipe irisOut pulse tilt float breathe spin pendulum trail
+""".split())
+
+
+def scan_manuscript(text):
+    if not isinstance(text, str) or len(text) > 120000:
+        raise ValueError("稿件最多支持 12 万字。")
+    return annotations.analyze(text)
+
+
+def binding_choices(notes, quote):
+    if any(note in {"无", "无。"} for note in notes):
+        if all(note in {"无", "无。"} for note in notes):
+            return {"mode": "none"}
+        raise ValueError("这里同时标了素材和「无」，请保留一种。")
+    codes = list(dict.fromkeys(code.upper() for note in notes for code in ASSET_CODE.findall(note)))
+    if not codes or any(not note for note in notes):
+        raise ValueError("请补全画面标注，填素材或动效编号，或写「画面：无」。")
+    effects = {term["assetId"]: term for term in catalog()["terms"]}
+    visual, ids, slots, demo = {}, [], set(), None
+    for code in codes:
+        prefix = code.split("-", 1)[0]
+        if prefix in VISUAL_PREFIX:
+            group = VISUAL_PREFIX[prefix]
+            if group in visual and visual[group].split("@")[0] != code.split("@")[0]:
+                raise ValueError("这里选了两个同类素材，请保留一种。")
+            if group not in visual or "@" in code:
+                if "@" in visual.get(group, "") and visual[group] != code:
+                    raise ValueError("这里指定了同一素材的两个配色，请保留一种。")
+                visual[group] = code
+        elif prefix == "DEMO":
+            if demo:
+                raise ValueError("一处画面请选择一个部位演示。")
+            demo = treatments.resolve(code)
+        else:
+            term = effects.get(code)
+            if not term:
+                raise ValueError("素材库找不到动效 " + code + "。请核对编号。")
+            slot = "demo" if term.get("foreground") else term["group"]
+            if slot in slots:
+                raise ValueError("这里有两个作用相同的动效，请保留一种。")
+            slots.add(slot)
+            ids.append(term["id"])
+    visual = samples.selection(visual)
+    if demo:
+        if ids:
+            raise ValueError("部位演示自带动作，请保留部位演示或通用动效其中一种。")
+        visual.setdefault("objects", demo["object"])
+        treatments.resolve(demo["id"], visual["objects"])
+    has_media = bool(visual.get("objects") or visual.get("stickers"))
+    if has_media and not set(ids) <= OVERLAY_EFFECTS:
+        raise ValueError("这个动效无法套在物件或贴纸上，请选淡入、滑入等整张素材动效。")
+    if not has_media and not ids:
+        raise ValueError("请再选一个物件、贴纸或动效。")
+    note = " ".join(notes)
+    cue = re.search(r"说到\s*[「『“]([^」』”]+)[」』”]", note)
+    if cue and quote.count(cue[1]) != 1:
+        raise ValueError("出现位置的引文需要在这处正文里恰好出现一次。")
+    length = re.search(r"时长\s*(\d+)\s*秒", note)
+    seconds = int(length[1]) if length else 4
+    if not 1 <= seconds <= 12:
+        raise ValueError("小样时长请设在 1 到 12 秒。")
+    return {
+        "mode": "specified", "visual": visual, "ids": ids, "seconds": seconds,
+        "cue": cue[1] if cue else "", "treatment": demo["id"] if demo else "",
+        "overlay": has_media and bool(ids),
+    }
+
+
+def annotation_review(root, text):
+    clean, units, bindings, errors = scan_manuscript(text)
+    # DOM offsets are counted in UTF-16. Convert only when the script needs it.
+    extra = [i for i, c in enumerate(clean) if ord(c) > 0xFFFF]
+    for binding in bindings:
+        first, last = (units[binding["sentences"][i]] for i in (0, -1))
+        start, end = first["offset"], last["offset"] + len(last["quote"])
+        binding["quote"] = clean[start:end]
+        try:
+            chosen = binding_choices(binding["notes"], binding["quote"])
+            binding.update(chosen)
+            if chosen["mode"] == "specified" and not chosen["ids"] and not chosen["treatment"]:
+                binding["sample"] = samples.from_library(root, chosen["visual"])
+        except ValueError as exc:
+            binding.update(mode="error", error=str(exc))
+    if extra:
+        for unit in units:
+            unit["offset"] += bisect_left(extra, unit["offset"])
+    return {"text": clean, "units": units, "bindings": bindings, "errors": errors}
+
+
+def snapshot(text, quotes, visual=None, marked_script=None):
+    eligible = None
+    if marked_script is not None:
+        clean, units, bindings, _ = scan_manuscript(marked_script)
+        if clean != text or [unit["quote"] for unit in units] != quotes:
+            raise ValueError("画面标注与稿件版本不一致，请重新推荐。")
+        locked = {i for binding in bindings for i in binding["sentences"]}
+        eligible = [i for i in range(len(quotes)) if i not in locked]
     if not isinstance(text, str) or not text.strip() or len(text) > 120000:
         raise ValueError("请提供 1 至 12 万字的稿件。")
     if not isinstance(quotes, list) or not quotes:
@@ -46,6 +150,7 @@ def snapshot(text, quotes, visual=None):
     return {
         "manuscript": text,
         "sentences": quotes,
+        "eligibleSentences": list(range(len(quotes))) if eligible is None else eligible,
         "themes": ["neutral"] + [r["key"] for r in data["quotes"]],
         "visual": samples.selection(visual),
         "visualBrief": samples.brief(visual),
@@ -80,12 +185,15 @@ def recommendations(context, result):
     clean = []
     seen = set()
     quotes = context["sentences"]
+    eligible = set(context.get("eligibleSentences", range(len(quotes))))
     for row in rows:
         if not isinstance(row, dict):
             raise ValueError("推荐项格式无效。")
         index = row.get("sentence")
         if type(index) is not int or not 0 <= index < len(quotes) or index in seen:
             raise ValueError("原句编号无效或重复。")
+        if index not in eligible:
+            continue
         if "quote" in row and row["quote"] != quotes[index]:
             raise ValueError("推荐的引文必须和原稿一致。")
         seen.add(index)

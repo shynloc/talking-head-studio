@@ -7,10 +7,12 @@ function reviewedCopy(item) {
   const copy = clone(item)
   delete copy.thumb
   delete copy.changed
+  delete copy.restoredBinding
   return copy
 }
 function packItems() {
-  return state.packFromScript ? sentenceItems() : state.items
+  if (annotationPending) return []
+  return state.packFromScript ? sentenceItems() : state.items.filter(isActiveMaterial)
 }
 async function makePack() {
   if (busy || !packItems().length) return
@@ -68,6 +70,7 @@ function parseItem(raw) {
       producer: raw.producer,
       productionTask: raw.productionTask,
       treatment: raw.treatment,
+      binding: raw.binding,
       ids: [],
       sample: raw.sample,
       visual: raw.visual || {},
@@ -104,6 +107,8 @@ function parseItem(raw) {
   if (Array.isArray(raw.values) && raw.values.length === 2 && raw.values.every(Number.isFinite))
     item.values = raw.values.slice()
   item.visual = raw.visual || {}
+  item.binding = raw.binding
+  item.overlay = raw.overlay === true
   item.ids = raw.ids.slice()
   item.seconds = raw.seconds
   item.poster = raw.poster
@@ -157,6 +162,7 @@ $('restore-file').onchange = async (event) => {
       item.thumb = canvas.toDataURL()
     }
     state.packFromScript = false
+    for (const item of incoming) if (item.binding && !state.annotationUnits) item.restoredBinding = true
     state.items.push(...incoming)
     state.download = ''
     if (!state.script.trim()) {
@@ -203,7 +209,8 @@ async function initMaterials() {
         resetReview()
         if(state.review){
           state.review.skipped=previous.skipped.slice()
-          state.review.rows=previous.rows.filter(row=>chosen(row.item))
+          state.review.rows.push(...previous.rows.filter(row=>chosen(row.item) &&
+            !state.review.rows.some(next=>next.sentence===row.sentence)))
         }
       }
       nav('script')

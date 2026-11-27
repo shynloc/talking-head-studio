@@ -211,6 +211,7 @@
       chips.append(b)
     }
     $('#selected-count').textContent = ids.length ? '· ' + ids.length + ' 项' : ''
+    if (!visualMode) $('#copy-to-script').disabled = !ids.length
     for (const el of cards.querySelectorAll('[data-id]')) {
       const on = ids.includes(el.dataset.id)
       el.classList.toggle('chosen', on)
@@ -435,7 +436,7 @@
   }
   const frame = $('#visual-frame')
   const visualPrompt = $('#visual-prompt')
-  let visualMode = false, lastVisualPrompt = ''
+  let visualMode = false, lastVisualPrompt = '', visualAnnotation = ''
   const activePrompt = () => visualMode ? visualPrompt : promptBox
   function setVisual(open) {
     visualMode = open
@@ -444,6 +445,7 @@
     promptBox.hidden = open
     visualPrompt.hidden = !open
     $('#nav-visual').setAttribute('aria-pressed',String(open))
+    $('#copy-to-script').disabled = open ? !visualAnnotation : !ids.length
     if (!open) return
     $('#nav-lib').setAttribute('aria-pressed','false')
     if (!frame.hasAttribute('src')) frame.src = 'visual/index.html?inline=1' + (scoped ? '&desk=' + desk : '')
@@ -452,9 +454,11 @@
   window.addEventListener('message', event => {
     if (event.origin !== location.origin || event.source !== frame.contentWindow ||
         event.data?.type !== 'studio-visual-selection') return
-    const {prompt, ids} = event.data
+    const {prompt, ids, annotation} = event.data
     if (prompt !== lastVisualPrompt) visualPrompt.value = prompt
     lastVisualPrompt = prompt
+    visualAnnotation = annotation || ''
+    if (visualMode) $('#copy-to-script').disabled = !visualAnnotation
     const address = new URL($('#nav-example').href)
     address.searchParams.set('materials',ids.join(','))
     $('#use-visual').href = address.href
@@ -852,6 +856,20 @@
     else announce(msg)
   }
   $('#copy').onclick = () => copy(activePrompt())
+  $('#copy-to-script').onclick = async () => {
+    const seconds = cut(Math.round(Number(val('duration')) || 4), 1, 12)
+    const line = visualMode ? visualAnnotation : '（画面：用' + ids.map(id =>
+      TERM[id].name + ' ' + TERM[id].assetId).join('、') + '。时长 ' + seconds + ' 秒。）'
+    try {
+      await navigator.clipboard.writeText(line)
+      announce('已复制画面标注，粘贴到要配画面的段落后。')
+    } catch {
+      $('#expand').click()
+      full.value = line
+      full.select()
+      $('#full-count').textContent = '画面标注已选中，可按 Ctrl+C 或 ⌘C 复制'
+    }
+  }
   $('#full-copy').onclick = () => copy(full)
   $('#fold').onclick = () => {
     const body = $('#editor-body')

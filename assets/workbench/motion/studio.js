@@ -165,6 +165,7 @@ function paint(canvas, item, f, imgs) {
     labels: item.labels,
     values: item.values,
     colors: VISUAL.palettes.find(p => p.id === item.visual?.palettes)?.colors,
+    overlay: item.overlay,
     ...imgs,
   })
 }
@@ -180,7 +181,12 @@ async function loadImages(item) {
   const pairs = await Promise.all(
     Object.entries(item.files || {}).map(async ([id, src]) => [id, await decode(src)]),
   )
-  return Object.fromEntries(pairs)
+  const loaded = Object.fromEntries(pairs)
+  if (item.overlay && !loaded.imageA) {
+    const query = new URLSearchParams(item.visual)
+    loaded.imageA = await decode('/api/motion/library-preview?' + query)
+  }
+  return loaded
 }
 function secondsText(f) {
   return (f / FPS).toFixed(2) + ' s'
@@ -216,7 +222,8 @@ function play() {
 function sentences() {
   const box = $('sentences')
   box.replaceChildren()
-  const list = lines(state.script)
+  if (annotationPending) return
+  const list = scriptUnits()
   if (!list.length) {
     const el = document.createElement('p')
     el.className = 'empty'
@@ -224,11 +231,16 @@ function sentences() {
     box.append(el)
     return
   }
-  for (const line of list) {
-    const b = button(line.quote, 'sentence', () => selectLine(line).catch(issue))
+  for (const [index, line] of list.entries()) {
+    const binding = annotationAt(index)
+    const b = button(line.quote, 'sentence', () => {
+      if (binding) showAnnotationCard(index)
+      else selectLine(line).catch(issue)
+    })
     const owned = state.items.find((x) => x.offset === line.offset && x.quote === line.quote)
     const info = document.createElement('small')
-    info.textContent = owned ? '已加入 · 可以继续修改' : guess(line.quote)[1]
+    info.textContent = binding ? { none: '纯口播', error: '标注待确认', specified: '已有指定画面' }[binding.mode]
+      : owned ? '已加入 · 可以继续修改' : guess(line.quote)[1]
     b.append(info)
     box.append(b)
   }
@@ -244,11 +256,11 @@ function nav(page) {
   })
   if (page === 'script') {
     sentences()
-    $('manuscript').value = state.script
+    $('manuscript').value = manuscriptInput()
     renderReview()
   }
   if (page === 'pack') showPack()
-  $('total').textContent = state.items.length
+  $('total').textContent = state.items.filter(isActiveMaterial).length
   tell('')
   save()
   window.scrollTo(0, 0)
@@ -270,8 +282,8 @@ async function openItem(item) {
 async function selectLine(line) {
   state.editFromReview = ''
   const existing =
-    Object.values(state.edits).find((x) => x.quote === line.quote && x.offset === line.offset) ||
-    state.items.find((x) => x.quote === line.quote && x.offset === line.offset)
+    Object.values(state.edits).find((x) => x.quote === line.quote && x.offset === line.offset && isActiveMaterial(x)) ||
+    state.items.find((x) => x.quote === line.quote && x.offset === line.offset && isActiveMaterial(x))
   const same = state.draft && state.draft.quote === line.quote && state.draft.offset === line.offset
   if (existing?.sample) return revisitSample(existing)
   await openItem(same ? state.draft : existing || createItem(line))
@@ -654,10 +666,8 @@ $('reset-images').onclick = () => {
   changed()
 }
 $('manuscript').oninput = () => {
-  state.script = $('manuscript').value
-  manuscriptChanged()
-  sentences()
-  save()
+  const recommend = takePasteRequest()
+  loadManuscript($('manuscript').value, recommend)
 }
 $('approve').onclick = () => approve().catch(issue)
 $('more').onclick = () => nav('script')

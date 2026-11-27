@@ -143,7 +143,7 @@ async function newProduction(review, row, item, route, visual, treatment) {
     request_id: key(),
     agent: review.agent,
     text: review.text,
-    sentences: lines(review.text).map((line) => line.quote),
+    sentences: scriptUnits().map((line) => line.quote),
     sentence: row.sentence,
     brief: note,
     title: treatment?.label || item.title,
@@ -175,8 +175,13 @@ async function newProduction(review, row, item, route, visual, treatment) {
   renderReview()
 }
 function revisitSample(item) {
+  if (item.binding && state.annotationUnits) {
+    nav('script')
+    showAnnotationCard(state.annotationUnits.findIndex(unit => unit.offset === item.offset))
+    return
+  }
   let review = state.review
-  const units = lines(state.script)
+  const units = scriptUnits()
   const i = units.findIndex((u) => u.quote === item.quote && u.offset === item.offset)
   if (i < 0) {
     tell('请先贴入这款素材对应的原稿，再从原句卡换效果。')

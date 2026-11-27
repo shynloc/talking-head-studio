@@ -144,6 +144,9 @@ class Handler(BaseHTTPRequestHandler):
             length=int(self.headers.get('Content-Length',0))
             if length>16*1024*1024:raise ValueError('请求过大')
             data=json.loads(self.rfile.read(length) or b'{}');store=self.server.store
+            if self.path == '/api/motion/annotations':
+                from motion_recommend import annotation_review
+                return self.respond(200, annotation_review(store.root, data.get('text')))
             if self.path.startswith('/api/agents/'):
                 return self.respond(200, agent_api.post(self.server, self.path, data))
             if self.path == '/api/shutdown':

@@ -1,0 +1,55 @@
+name: Package Windows installer from a verified draft
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Draft Talking Head Studio release tag
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  windows-installer:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag }}
+    steps:
+      - name: Resolve the exact draft revision
+        id: draft
+        shell: bash
+        run: |
+          set -eu
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          revision=$(gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json isDraft,targetCommitish --jq 'select(.isDraft).targetCommitish')
+          [[ "$revision" =~ ^[a-f0-9]{40}$ ]]
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.draft.outputs.revision }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Verify the published portable archive and build around it
+        shell: bash
+        run: |
+          set -euo pipefail
+          name="talking-head-studio-$TAG"
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -p "$name.zip" -p "$name.sha256" -D dist
+          (cd dist && sha256sum -c "$name.sha256")
+          python -X utf8 scripts/package_release.py --verify "dist/$name.zip"
+          python -c "import json,sys,zipfile; m=json.loads(zipfile.ZipFile(sys.argv[1]).read('talking-head-studio/PACKAGE-MANIFEST.json')); assert m['revision']==sys.argv[2] and 'v'+m['version']==sys.argv[3]" "dist/$name.zip" "$(git rev-parse HEAD)" "$TAG"
+          python -X utf8 packaging/build_installers.py windows --archive "dist/$name.zip" --out native
+      - name: Verify the embedded archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          name="talking-head-studio-$TAG"
+          python -c "import hashlib,pathlib,sys,zipfile; outer,inner=sys.argv[1:]; h=hashlib.sha256; assert h(zipfile.ZipFile(outer).read('setup/workbench.zip')).digest()==h(pathlib.Path(inner).read_bytes()).digest()" "native/$name-windows-x64.zip" "dist/$name.zip"
+          (cd native && sha256sum -c "$name-windows-x64.zip.sha256")
+          test "$(gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = true
+          gh release upload "$TAG" -R "$GITHUB_REPOSITORY" "native/$name-windows-x64.zip" "native/$name-windows-x64.zip.sha256"

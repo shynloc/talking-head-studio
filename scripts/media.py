@@ -280,7 +280,8 @@ def create_overlay(p,work,w,h,fps):
             target=work/(aid+suffix);shutil.copy2(path,target);s['src']=target.name
         elif suffix in ('.mp4','.mov','.webm'):
             folder=work/(aid+'-'+s['id']);folder.mkdir()
-            vw=w if s.get('fullscreen') else max(80,round(w*.3));vh=h if s.get('fullscreen') else region
+            large=s.get('fullscreen') or s.get('demo_first')
+            vw=w if large else max(80,round(w*.3));vh=h if large else region
             run(['ffmpeg','-v','error','-ss',s.get('source_in',0),'-i',path,'-t',s['end']-s['start'],'-vf',f'scale=w={vw}:h={vh}:force_original_aspect_ratio=decrease:force_divisible_by=2,fps={fps}',
                 '-an','-y',folder/'%05d.png'],work/(s['id']+'-decode.log'))
             frames=[{'src':f'{folder.name}/{f.name}','start':i/fps,'end':(i+1)/fps} for i,f in enumerate(sorted(folder.glob('*.png')))]

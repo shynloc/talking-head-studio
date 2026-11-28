@@ -2,7 +2,7 @@
 import copy, hashlib, json, math, shutil
 from pathlib import Path
 from core import ROOT, LOCK, uid, now, digest, rough_current, aligned_with_cuts, write_json, source, file_digest
-import fonts, media, timeline
+import fonts, media, timeline, demonstration_render
 
 def signature(p):
     assets={a['id']:a for a in p['assets']};used={c.get('asset_id') for c in p['timeline']['clips'] if c.get('enabled',True)}
@@ -145,11 +145,18 @@ def layers(p, tl, start, duration):
         kind=c.get('kind','title')
         if kind not in ('title','flow') and not c.get('asset_id'):raise ValueError(c['name']+' 尚未绑定画面素材')
         x,y,cw,ch=[float(c.get(k,v)) for k,v in [('x',.06),('y',.04),('width',.35),('height',.2)]]
-        if not c.get('fullscreen'):
+        demo = timeline.demo_first(p, c)
+        if demo:
+            x,y,cw,ch = 0,.04,1,.60
+            c = {**c,'fullscreen':False,'demo_first':True}
+        elif not c.get('fullscreen'):
             px,py,pw,ph=p['settings']['protected_rect']
             if x<0 or y<0 or cw<=0 or ch<=0 or x+cw>1.001 or y+ch>1.001:raise ValueError(c['name']+' 的画面区域越界')
             if max(x,px)<min(x+cw,px+pw) and max(y,py)<min(y+ch,py+ph):raise ValueError(c['name']+' 与人物保护区重叠，请调整布局或明确允许全屏演示')
         scenes.append({**c,'title':c['name'],'kind':kind,'start':c['start'],'end':c['start']+c['duration'],'enabled':True,'x':x,'y':y,'width':cw,'height':ch,'layer':dict((k,i) for i,(k,_) in enumerate(reversed(timeline.TRACKS))).get(c['track'],0)})
+    for scene in scenes:
+        if scene.get("demo_first"):
+            scene["layer"] = 0
     return scenes, audio
 
 
@@ -169,6 +176,10 @@ def render(store,pid,report,start=0,duration=10,final=False,trial_project=None):
     work=store.folder(pid)/'renders'/uid('timeline');work.mkdir(parents=True);assets={a['id']:a for a in p['assets']}
     base = render_base(p, tl, work, w, h, fps, start, duration, report)
     scenes, audio = layers(p, tl, start, duration)
+    demos = [scene for scene in scenes if scene.get('demo_first')]
+    if demos:
+        base = demonstration_render.background(p,demos,base,work,start,duration,w,h,fps,report)
+        scenes = [scene for scene in scenes if not scene.get('demo_first')]
     q=copy.deepcopy(p);q['scenes']=scenes;q['v2_overlay']=True;q['captions']=caption_map(p) if tl['mode']=='actual' and not tl['tracks'].get('caption',{}).get('muted') else []
     media.subtitles(q,work,w,h);media.create_overlay(q,work,w,h,fps);overlay=media.render_overlay(work,w,h,fps,start,duration,report)
     inputs=['-i',base,'-i',overlay];filters=[f'[0:v][1:v]overlay=0:0:format=auto,setpts=PTS+{start}/TB,{fonts.ASS_FILTER},setpts=PTS-STARTPTS,format=yuv420p[v]','[0:a]aresample=48000[voice]'];mix=['[voice]']

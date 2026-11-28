@@ -253,7 +253,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self.shutdown_instance(data)
             if self.path.startswith('/api/v2/'):return self.respond(200,v2_api.post(self.server,self.path,data))
             if self.path=='/api/new':
-                p=default_project(data.get('title','新的口播项目'));return self.respond(200,store.save(p,label='新建工程'))
+                p=default_project(data.get('title','新的口播项目'))
+                if 'composition' in data:
+                    if data['composition'] not in ('presenter','demo','mixed'):
+                        raise ValueError('请选择人物为主、演示为主或两种穿插。')
+                    p['settings']['composition']=data['composition']
+                return self.respond(200,store.save(p,label='新建工程'))
             if self.path=='/api/save':
                 p = store.edit(data['id'], data)
                 return self.respond(200, dict(p, rough_current=rough_current(p)))

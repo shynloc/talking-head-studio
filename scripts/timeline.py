@@ -64,13 +64,47 @@ def sync(p):
     p['schema_version']=2
     return tl
 
+def demo_first(p, clip):
+    if clip['track'] not in ('pip', 'sticker', 'title'):
+        return False
+    if clip.get('composition'):
+        return clip['composition'] == 'demo'
+    eligible = clip['track'] == 'pip' or bool(clip.get('visionbuddyRow')) or clip.get('kind') == 'flow'
+    pages = p['settings'].get('page_compositions', {})
+    page_id = clip.get('page_id')
+    if pages and not page_id and 'start' in clip:
+        page_id = next((main['page_id'] for main in p.get('timeline', {}).get('clips', [])
+                        if main['track'] == 'main' and main.get('page_id')
+                        and main['start'] <= clip['start'] < main['start'] + main['duration']), None)
+    mode = pages.get(page_id) or p['settings'].get('composition') or clip.get('bundle_composition')
+    if mode == 'mixed':
+        if clip.get('suggested_composition'):
+            return clip['suggested_composition'] == 'demo'
+        return clip.get('kind') in ('flow', 'demo') or clip['track'] == 'pip' and clip.get('kind') != 'product'
+    return mode == 'demo' and eligible
+
+
 def validate(p):
+    if p['settings'].get('composition','presenter') not in ('presenter','demo','mixed'):
+        raise ValueError('请选择人物为主、演示为主或两种穿插。')
+    pages = p['settings'].get('page_compositions', {})
+    if not isinstance(pages, dict) or any(mode not in ('presenter', 'demo') for mode in pages.values()):
+        raise ValueError('段落画面主次无效。')
+    if p['settings'].get('presenter_style','window') not in ('window','green'):
+        raise ValueError('请选择人物小窗或绿幕去背。')
     tl=sync(p);seen=set();tracks={x[0] for x in TRACKS}
     if len(tl['clips'])>5000:raise ValueError('轨道片段过多')
     for c in tl['clips']:
         if c['id'] in seen:raise ValueError('重复的轨道片段 ID')
         seen.add(c['id'])
         if c['track'] not in tracks:raise ValueError('未知轨道')
+        if c.get('composition','presenter') not in ('presenter','demo') or c.get('presenter_side','right') not in ('left','right'):
+            raise ValueError('片段画面主次或人物位置无效。')
+        if c.get('suggested_composition','presenter') not in ('presenter','demo'):
+            raise ValueError('片段的自动画面安排无效。')
+        scale=c.get('presenter_scale',.30)
+        if type(scale) not in (float,int) or not .20 <= scale <= .65:
+            raise ValueError('人物宽度应为 20% 至 65%。')
         for k in ('start','duration'):
             if not isinstance(c[k],(int,float)) or not math.isfinite(c[k]):raise ValueError('时间必须是有限数字')
         if c['start']<0 or c['duration']<=0 or c['duration']>86400:raise ValueError('时间范围无效')

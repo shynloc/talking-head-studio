@@ -27,11 +27,20 @@ def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--url',default='http://127.0.0.1:8765')
     sub=p.add_subparsers(dest='command',required=True)
     sub.add_parser('status')
+    new=sub.add_parser('new',help='新建已选择画面主次的工程');new.add_argument('title');new.add_argument('--composition',required=True,choices=('presenter','demo','mixed'))
     sub.add_parser('drafts')
     draft=sub.add_parser('draft');draft.add_argument('id')
     complete=sub.add_parser('complete-draft');complete.add_argument('id');complete.add_argument('--file',required=True)
     get=sub.add_parser('project');get.add_argument('id');get.add_argument('--out')
     action=sub.add_parser('action');action.add_argument('id');action.add_argument('name');action.add_argument('--args-file');action.add_argument('--wait',action='store_true')
+    composition=sub.add_parser('composition',help='保存工程画面主次，沿用其他设置')
+    composition.add_argument('id');composition.add_argument('mode',choices=('presenter','demo','mixed'))
+    composition.add_argument('--presenter-style',choices=('window','green'),help='普通小窗或绿幕去背')
+    segment=sub.add_parser('segment-composition',help='为指定页面或时间线画面设置主次')
+    segment.add_argument('id')
+    segment.add_argument('target',help='页面或画面片段的 ID')
+    segment.add_argument('mode',choices=('presenter','demo','auto'),help='auto 恢复跟随整片')
+    segment.add_argument('--suggest',action='store_true',help='保存 AI 的片段建议，用户指定优先')
     patch=sub.add_parser('edit');patch.add_argument('id');patch.add_argument('--file',required=True)
     tasks=sub.add_parser('tasks');tasks.add_argument('id')
     finish=sub.add_parser('complete-task');finish.add_argument('id');finish.add_argument('task');finish.add_argument('--text-file',required=True)
@@ -62,6 +71,8 @@ def main():
         with urllib.request.urlopen(request,timeout=60) as response:return json.load(response)
     boot=req('/api/bootstrap');token=boot['token']
     if args.command=='status':result={k:v for k,v in boot.items() if k!='token'}
+    elif args.command=='new':
+        result=req('/api/new',{'title':args.title,'composition':args.composition})
     elif args.command=='drafts':result=req('/api/v2/drafts')
     elif args.command=='draft':result=req('/api/v2/draft?id='+args.id)
     elif args.command=='complete-draft':
@@ -73,6 +84,35 @@ def main():
         project=req('/api/project?id='+args.id);result={'tasks':project['tasks'],'feedback':project['feedback']}
     elif args.command=='complete-task':
         result=req('/api/complete-task',{'project_id':args.id,'task_id':args.task,'text':Path(args.text_file).read_text(encoding='utf-8')})
+    elif args.command=='composition':
+        project=req('/api/project?id='+args.id)
+        settings={**project['settings'], 'composition':args.mode}
+        if args.presenter_style:
+            settings['presenter_style']=args.presenter_style
+        saved=req('/api/save',{'id':args.id,'version':project['version'],'settings':settings})
+        result={'id':args.id,'composition':saved['settings']['composition'],'version':saved['version']}
+    elif args.command=='segment-composition':
+        project=req('/api/project?id='+args.id)
+        if any(page['id']==args.target for page in project['pages']):
+            if args.suggest:
+                raise SystemExit('自动建议作用于具体画面片段，请选择其片段 ID。')
+            settings=project['settings']
+            overrides=settings.setdefault('page_compositions',{})
+            patch={'settings':settings}
+            field=args.target
+        else:
+            clip=next((c for c in project['timeline']['clips'] if c['id']==args.target and c['track'] in ('pip','sticker','title')),None)
+            if clip is None:
+                raise SystemExit('找不到指定的页面或画面片段。')
+            overrides=clip
+            field='suggested_composition' if args.suggest else 'composition'
+            patch={'timeline':project['timeline']}
+        if args.mode=='auto':
+            overrides.pop(field,None)
+        else:
+            overrides[field]=args.mode
+        saved=req('/api/save',{'id':args.id,'version':project['version'],**patch})
+        result={'id':args.id,'target':args.target,'composition':args.mode,'version':saved['version']}
     elif args.command=='edit':
         current=req('/api/project?id='+args.id);patch=json.loads(Path(args.file).read_text(encoding='utf-8'))
         for k in ('title','pages','settings','edl','captions','scenes','feedback','recording_log','timeline'):

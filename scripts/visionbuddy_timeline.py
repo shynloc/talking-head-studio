@@ -66,6 +66,8 @@ def parse(bundle):
                 or not isinstance(timing.get("rows"), list) or len(timing["rows"]) > 4000
                 or not isinstance(packed, dict) or packed.get("format") != "talking-head-motion/2"):
             raise ValueError("VisionBuddy 素材包格式无效。")
+        if timing.get("composition", "presenter") not in ("presenter", "demo", "mixed"):
+            raise ValueError("素材包的画面主次无效。")
         items = motion_package.validate(packed)
         seen, chosen = set(), []
         for row in timing["rows"]:
@@ -73,6 +75,10 @@ def parse(bundle):
                     or row["id"] in seen or not isinstance(row.get("quote"), str) or not row["quote"].strip()
                     or row.get("state") not in ("adopted", "plain", "none", "blocked", "pending", "skipped")):
                 raise ValueError("VisionBuddy 原句清单无效。")
+            if (row.get("composition") not in (None, "presenter", "demo")
+                    or row.get("compositionOrigin") not in (None, "auto", "user")
+                    or row.get("compositionOrigin") and not row.get("composition")):
+                raise ValueError("素材包的逐句画面主次无效。")
             seen.add(row["id"])
             if row["state"] == "adopted":
                 chosen.append(row)
@@ -230,7 +236,19 @@ def preview(p, timing, items, method):
     matches, pending = {}, []
     for row, item in items:
         place, sid = row["placement"], item["sample"]["id"]
-        key = immutable_key([row["id"], row["quote"], sid, place])
+        identity = [row["id"], row["quote"], sid, place]
+        arrangement = {}
+        if timing.get("composition"):
+            arrangement["bundle_composition"] = timing["composition"]
+        if row.get("composition"):
+            field = "composition" if row.get("compositionOrigin") == "user" else "suggested_composition"
+            arrangement[field] = row["composition"]
+            identity.extend([field, row["composition"]])
+        elif timing.get("composition") == "demo":
+            identity.append("demo")
+        if timing.get("composition") in ("mixed", "demo") or row.get("composition") == "demo":
+            arrangement.update(presenter_side=place["side"], presenter_scale=place["scale"])
+        key = immutable_key(identity)
         record = {"id": row["id"], "quote": row["quote"], "title": item["title"], "key": key}
         if key in old:
             matches[row["id"]] = {**record, "state": "existing", "message": "已在当前时间线。"}
@@ -246,23 +264,29 @@ def preview(p, timing, items, method):
             end = start + span if start is not None else None
             source_clock = quote_clock
         shape = item["visionbuddyMedia"]
-        coords = layout(p, place, shape)
-        if not issue and coords is None:
-            issue = "指定一侧的留白不足，请调整人物保护区或素材位置。"
         if not issue and item["packageMedia"].endswith(".mov"):
             end = min(end, start + item["seconds"])
         intervals = fragments(p, start, end, source_clock) if not issue else []
         if not intervals and not issue:
             issue = "该时间段已被剪掉，或落在主画面之外。"
+        directions = [timeline.demo_first(p, {"track":"sticker","visionbuddyRow":key,"start":a,**arrangement})
+                      for a, _, _ in intervals]
+        demo = bool(directions) and all(directions)
+        coords = layout(p, place, shape)
+        if demo and coords is None:
+            coords = {"x": .05, "y": .04, "width": .35, "height": .20}
+        if not issue and coords is None:
+            issue = "指定一侧的留白不足，请调整人物保护区或素材位置。"
         if issue:
             matches[row["id"]] = {**record, "state": "unplaced", "message": issue}
             continue
         pieces = [{"start": round(a, 6), "end": round(b, 6), "sourceIn": round(offset, 6), **coords}
                   for a, b, offset in intervals]
-        warning = "已按人物保护区收窄。" if coords["width"] + .0005 < place["scale"] else ""
+        warning = ("演示为主，人物位于" + ("左下" if place["side"] == "left" else "右下") + "。") if demo else (
+            "已按人物保护区收窄。" if coords["width"] + .0005 < place["scale"] else "")
         matches[row["id"]] = {**record, "state": "ready", "basis": "source" if timed else "quote",
                               "pieces": pieces, "message": warning}
-        pending.append((record, item, pieces))
+        pending.append((record, item, pieces, arrangement))
     reviewed = [matches.get(row["id"]) or {k: row[k] for k in ("id", "quote", "state")}
                 for row in timing["rows"]]
     return reviewed, pending
@@ -290,7 +314,7 @@ def arrange(store, pid, archive, version, method, action="preview", receipt=""):
         assets = {item.get("visionbuddySample"): item for item in p["assets"] if item.get("visionbuddySample")}
         work = store.folder(pid) / "assets" / "visionbuddy"
         work.mkdir(parents=True, exist_ok=True)
-        for record, item, pieces in pending:
+        for record, item, pieces, arrangement in pending:
             sid = item["sample"]["id"]
             meta = samples[sid]
             suffix = Path(item["packageMedia"]).suffix
@@ -321,7 +345,7 @@ def arrange(store, pid, archive, version, method, action="preview", receipt=""):
                 if suffix == ".mov" and piece["sourceIn"] + piece["end"] - piece["start"] > meta["seconds"] + .01:
                     raise ValueError("审核画面超出透明片段时长，请重新导出素材包。")
                 p["timeline"]["clips"].append({
-                    "id":uid("clip"), "track":"sticker", "kind":"sticker", "anchor":"absolute", "enabled":True,
+                    "id":uid("clip"), "track":"sticker", "kind":"sticker", "anchor":"absolute", "enabled":True, **arrangement,
                     "name":item["title"], "asset_id":assets[sid]["id"], "visionbuddyRow":record["key"],
                     "start":piece["start"], "duration":round(piece["end"] - piece["start"], 6),
                     "source_in":piece["sourceIn"] if suffix == ".mov" else 0,

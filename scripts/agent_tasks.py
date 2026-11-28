@@ -36,7 +36,17 @@ def project_context(project, included=None):
         'captions': [{key: caption[key] for key in ('start', 'end', 'text')} for caption in project['captions']],
     }
 
-    return context if included is None else {key:value for key,value in context.items() if key=='title' or key in included}
+    if project.get('settings',{}).get('composition'):
+        context['composition'] = project['settings']['composition']
+    if project.get('settings', {}).get('page_compositions'):
+        context['page_compositions'] = project['settings']['page_compositions']
+        for entry, page in zip(context['pages'], project['pages']):
+            entry['id'] = page['id']
+    pinned = [{'id': c['id'], 'name': c.get('name', ''), 'start': c.get('start'), 'composition': c['composition']}
+              for c in project.get('timeline', {}).get('clips', []) if c.get('composition')]
+    if pinned:
+        context['clip_compositions'] = pinned
+    return context if included is None else {key:value for key,value in context.items() if key in ('title','composition','page_compositions','clip_compositions') or key in included}
 
 
 class AgentTasks:

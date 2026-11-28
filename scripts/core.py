@@ -172,7 +172,7 @@ class Store:
                     p['previous_rough'] = p['rough']; p['rough'] = None; p['approvals'] = {}; p['qa'] = {}
                 if key in ['captions', 'scenes', 'timeline'] and data[key] != p[key]:
                     p['approvals'].pop('final', None);p['approvals'].pop('timeline',None)
-                if key == 'settings' and any(data[key].get(k)!=p[key].get(k) for k in VISUAL_SETTINGS):
+                if key == 'settings' and any(data[key].get(k)!=p[key].get(k) for k in VISUAL_SETTINGS + COMPOSITION_SETTINGS):
                     p['approvals'].pop('final', None);p['approvals'].pop('timeline',None)
                 if key == 'pages':
                     if data[key] != p[key]:
@@ -338,6 +338,7 @@ def scene_plan(p):
     return scenes
 
 VISUAL_SETTINGS = ('caption_only','caption_y','caption_size','overlay_y','overlay_height','protected_rect','accent','sfx')
+COMPOSITION_SETTINGS = ('composition','presenter_style','page_compositions')
 
 def file_digest(path):
     value=hashlib.sha256()
@@ -348,7 +349,9 @@ def file_digest(path):
 def plan_hash(p):
     used={s.get('asset_id') for s in p['scenes'] if s.get('enabled') and s.get('asset_id')}
     assets=[{'id':a['id'],'content':file_digest(a['path']) if Path(a['path']).is_file() else 'missing:'+a['path']} for a in p['assets'] if a['id'] in used]
-    return digest({'captions': p['captions'], 'scenes': p['scenes'], 'settings': {k:p['settings'].get(k) for k in VISUAL_SETTINGS},
+    settings = {k:p['settings'].get(k) for k in VISUAL_SETTINGS}
+    settings.update({k:p['settings'][k] for k in COMPOSITION_SETTINGS if k in p['settings']})
+    return digest({'captions': p['captions'], 'scenes': p['scenes'], 'settings': settings,
                    'rough': p['rough'], 'assets': assets, 'edl': p['edl'], 'timeline': p.get('timeline',{})})
 
 def validate_plan(p):

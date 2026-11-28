@@ -119,13 +119,18 @@ def build(project, state, root, work, report):
         stage = work / f'visual-{index:03d}'
         stage.mkdir()
         overlay_project = {**project, 'v2_overlay': True, 'scenes': [clip]}
-        media.create_overlay(overlay_project, stage, width, height, fps)
+        if not clip.get("demo_first"):
+            media.create_overlay(overlay_project, stage, width, height, fps)
         progress = .14 + .65 * (index - 1) / len(scenes)
 
         def layer_report(local, message):
             report(progress + .65 * local / len(scenes), f'制作「{clip["name"]}」的透明素材 · {message}')
 
-        take = media.render_overlay(stage, width, height, fps, clip['start'], clip['duration'], layer_report)
+        if clip.get("demo_first"):
+            from demonstration_render import take as demo_take
+            take = demo_take(project,clip,base,0,clip['start'],clip['duration'],stage,width,height,fps,layer_report)
+        else:
+            take = media.render_overlay(stage, width, height, fps, clip['start'], clip['duration'], layer_report)
         path = f'media/动画-{index:03d}.mov'
         media.run(['ffmpeg', '-v', 'error', '-i', take, '-an', '-c:v', 'prores_ks', '-profile:v', '4444',
                    '-pix_fmt', 'yuva444p10le', '-y', root / path], stage / 'prores.log')
@@ -133,7 +138,9 @@ def build(project, state, root, work, report):
                            original=copy_source(clip.get('asset_id')), volume=0)
         placed['component']='html-creator-studio'
         placed['component_version']=materials.components()['html-creator-studio']['version']
-        placed['alpha_capable']=True
+        placed['alpha_capable']=not clip.get('demo_first',False)
+        if clip.get('demo_first'):
+            placed['composition']='demo'
         placed['source_in'] = 0
         placements.append(placed)
     for clip in audio:

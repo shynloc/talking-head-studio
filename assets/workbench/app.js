@@ -250,7 +250,46 @@ async function transcribeDialog(makeCaptions=false){
   };
 }
 function gifDialog(aid){openDialog('GIF 工厂 · 制作轻动效',`<p class="hint">使用你的 PNG 素材制作循环轻动效，输出真实透明 GIF。新角色姿态可先由生图工具准备。</p><div class="field"><label>贴纸文字</label><input id="gif-text" value="重点来了"></div><label>动作</label><select id="gif-motion">${[['pulse','轻轻呼吸'],['offer','递出提示'],['jump','轻跳出现'],['sway','左右摇摆'],['nod','点头强调']].map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select><div class="action-row" style="margin-top:18px"><button class="key" id="gif-go">制作动态贴纸</button></div>`);$('#gif-go').onclick=()=>act('gif',{asset_id:aid,text:$('#gif-text').value,motion:$('#gif-motion').value}).catch(()=>{})}
-function visualDialog(){const s=P.settings;openDialog('构图与字幕设置',`<p class="hint">比例以源视频为准。先确定人物所在区域，再安排上方动画。保护区使用相对画面比例。</p><div class="form-grid">${[['caption_y','字幕底部位置（0–1）'],['caption_size','字号 / 画面高度'],['overlay_y','动画距顶部（0–1）'],['overlay_height','动画区域高度（0–1）']].map(([k,l])=>`<div class="field"><label>${l}</label><input type="number" step=".01" id="set-${k}" value="${s[k]}"></div>`).join('')}<div class="field"><label>人物保护区顶部（0–1）</label><input type="number" step=".01" id="protect-y" value="${s.protected_rect[1]}"></div><div class="field"><label>人物保护区高度（0–1）</label><input type="number" step=".01" id="protect-h" value="${s.protected_rect[3]}"></div><div class="field"><label>动画强调色</label><input type="color" id="set-accent" value="${s.accent}"></div><label class="checkline"><input id="set-sfx" type="checkbox" ${s.sfx?'checked':''}>动画入场配轻音效</label></div><div class="divider"></div><button class="key" id="visual-save">保存构图设置</button>`);$('#visual-save').onclick=async()=>{snapshot();['caption_y','caption_size','overlay_y','overlay_height'].forEach(k=>s[k]=Number($('#set-'+k).value));s.protected_rect[1]=Number($('#protect-y').value);s.protected_rect[3]=Number($('#protect-h').value);s.accent=$('#set-accent').value;s.sfx=$('#set-sfx').checked;mark();await save();closeDialog();render()}}
+function visualDialog() {
+  const settings = P.settings;
+  const numericFields = [['caption_y','字幕底部位置（0–1）'],['caption_size','字号 / 画面高度'],
+    ['overlay_y','动画距顶部（0–1）'],['overlay_height','动画区域高度（0–1）']];
+  openDialog('构图与字幕设置', `
+    <div class="field"><label for="composition-mode">你希望观众主要看什么？</label>
+      <select id="composition-mode">${settings.composition ? '' : '<option value="">沿用已有摆放</option>'}
+        <option value="presenter">人物画面为主，演示动画为辅</option>
+        <option value="demo">演示动画为主，人物画面为辅</option>
+        <option value="mixed">两种穿插，按段落切换</option></select></div>
+    <div class="field" id="presenter-style-field"><label for="presenter-style">演示中的人物</label>
+      <select id="presenter-style"><option value="window">保留原背景的小窗</option><option value="green">绿幕去背</option></select></div>
+    <div class="form-grid">${numericFields.map(([key,label]) =>
+      `<div class="field"><label for="set-${key}">${label}</label><input type="number" step=".01" id="set-${key}" value="${settings[key]}"></div>`).join('')}
+      <div class="field"><label>人物保护区顶部（0–1）</label><input type="number" step=".01" id="protect-y" value="${settings.protected_rect[1]}"></div>
+      <div class="field"><label>人物保护区高度（0–1）</label><input type="number" step=".01" id="protect-h" value="${settings.protected_rect[3]}"></div>
+      <div class="field"><label>动画强调色</label><input type="color" id="set-accent" value="${settings.accent}"></div>
+      <label class="checkline"><input id="set-sfx" type="checkbox" ${settings.sfx?'checked':''}>动画入场配轻音效</label></div>
+    <div class="divider"></div><button class="key" id="visual-save">保存构图设置</button>`);
+  const mode = $('#composition-mode'), style = $('#presenter-style');
+  mode.value = settings.composition || '';
+  style.value = settings.presenter_style || 'window';
+  const updateStyle = () => { $('#presenter-style-field').hidden = !['demo','mixed'].includes(mode.value); };
+  mode.onchange = updateStyle;
+  updateStyle();
+  $('#visual-save').onclick = async () => {
+    snapshot();
+    if (mode.value) settings.composition = mode.value;
+    if (settings.presenter_style || style.value === 'green') settings.presenter_style = style.value;
+    for (const [key] of numericFields) settings[key] = Number($('#set-'+key).value);
+    settings.protected_rect[1] = Number($('#protect-y').value);
+    settings.protected_rect[3] = Number($('#protect-h').value);
+    settings.accent = $('#set-accent').value;
+    settings.sfx = $('#set-sfx').checked;
+    mark();
+    await save();
+    closeDialog();
+    render();
+  };
+}
 function chooseFile(purpose,accept){filePurpose=purpose;$('#file-picker').multiple=/^(new-video|video)\|/.test(purpose);$('#file-picker').accept=accept;$('#file-picker').value='';$('#file-picker').click()}
 $('#file-picker').onchange=async e=>{const file=e.target.files[0];if(!file)return;const [purpose,use_as]=filePurpose.split('|');try{if(['video','new-video'].includes(purpose))return await importRecordingFiles([...e.target.files],purpose==='new-video',use_as);
 if(purpose==='project')return await importProjectFile(file);

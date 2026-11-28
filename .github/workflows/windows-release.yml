@@ -50,6 +50,7 @@ jobs:
           set -euo pipefail
           name="talking-head-studio-$TAG"
           python -c "import hashlib,pathlib,sys,zipfile; outer,inner=sys.argv[1:]; h=hashlib.sha256; assert h(zipfile.ZipFile(outer).read('setup/workbench.zip')).digest()==h(pathlib.Path(inner).read_bytes()).digest()" "native/$name-windows-x64.zip" "dist/$name.zip"
+          sed -i 's/\r$//' "native/$name-windows-x64.zip.sha256"
           (cd native && sha256sum -c "$name-windows-x64.zip.sha256")
           test "$(gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = true
           gh release upload "$TAG" -R "$GITHUB_REPOSITORY" "native/$name-windows-x64.zip" "native/$name-windows-x64.zip.sha256"
